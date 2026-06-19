@@ -1,12 +1,15 @@
-package com.docuMind.backend.service;
+package com.docuMind.backend.services;
 
 import java.util.List;
 import java.util.Optional;
+
 import org.springframework.stereotype.Service;
 
-import com.docuMind.backend.model.UpdateUserRequest;
 import com.docuMind.backend.exception.UserNotFoundException;
+import com.docuMind.backend.model.UpdateUserRequest;
 import com.docuMind.backend.model.User;
+import com.docuMind.backend.model.UserResponse;
+import com.docuMind.backend.model.UserResponse;
 import com.docuMind.backend.repository.UserRepository;
 @Service
 public class UserService {
@@ -79,5 +82,4 @@ public class UserService {
         else
             throw new UserNotFoundException("User not found");
     }
-
 }
