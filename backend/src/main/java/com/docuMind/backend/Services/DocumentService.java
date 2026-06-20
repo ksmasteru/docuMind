@@ -1,12 +1,40 @@
 package com.docuMind.backend.services;
 
+import com.docuMind.backend.model.UploadFile;
+
+import java.io.IOException;
+
+import org.springframework.web.multipart.MultipartFile;
+
+import com.docuMind.backend.exception.FileNotFoundException;
+import com.docuMind.backend.repository.DocumentRepository;
+import com.docuMind.backend.model.DocumentResponse;
+import com.docuMind.backend.model.FileEntity;
+import com.docuMind.backend.model.FileRequest;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import java.util.List;
 // talks with repsose
 public class DocumentService {
-    private final documentRepository documentrRepository;
+    private final DocumentRepository documentRepository;
     
-    public DocumentService(documentRepository documentRepository)
+    public DocumentService(DocumentRepository documentRepository)
     {
-        this.documentrRepository = documentrRepository;
+        this.documentRepository = documentRepository;
     }
-    
+
+    public List<FileEntity> getFile(String name)
+    {
+        // we should return all the files saved with the same name 
+        List<FileEntity> returnFile = documentRepository.findByNameContainingIgnoreCase(name)
+        return returnFile;
+    }
+
+    public DocumentResponse uploadFile(MultipartFile file) throws IOException
+    {
+        FileEntity fileToSave = new FileEntity(file.getOriginalFilename(), 
+            file.getContentType(), file.getSize(), file.getBytes());
+        FileEntity returnFile = documentRepository.save(fileToSave);
+        return new DocumentResponse(returnFile);
+    }
 }

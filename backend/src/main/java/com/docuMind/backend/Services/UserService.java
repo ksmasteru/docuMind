@@ -9,8 +9,8 @@ import com.docuMind.backend.exception.UserNotFoundException;
 import com.docuMind.backend.model.UpdateUserRequest;
 import com.docuMind.backend.model.User;
 import com.docuMind.backend.model.UserResponse;
-import com.docuMind.backend.model.UserResponse;
 import com.docuMind.backend.repository.UserRepository;
+
 @Service
 public class UserService {
 
