@@ -13,9 +13,9 @@ import com.docuMind.backend.repository.UserRepository;
 
 @Service
 public class UserService {
-
     private final UserRepository userRepository;
-
+    String red = "\u001B[31m";
+    String reset = "\u001B[0m";
     public UserService(UserRepository userRepository) {
         this.userRepository = userRepository;
     }

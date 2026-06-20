@@ -4,6 +4,7 @@ import com.docuMind.backend.model.UploadFile;
 
 import java.io.IOException;
 
+import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.docuMind.backend.exception.FileNotFoundException;
@@ -15,6 +16,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import java.util.List;
 // talks with repsose
+@Service
 public class DocumentService {
     private final DocumentRepository documentRepository;
     
@@ -26,7 +28,7 @@ public class DocumentService {
     public List<FileEntity> getFile(String name)
     {
         // we should return all the files saved with the same name 
-        List<FileEntity> returnFile = documentRepository.findByNameContainingIgnoreCase(name)
+        List<FileEntity> returnFile = documentRepository.findByNameContainingIgnoreCase(name);
         return returnFile;
     }
 
