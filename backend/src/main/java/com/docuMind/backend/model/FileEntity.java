@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document; 
+import org.springframework.http.MediaType;
 
 @Document(collection = "stored_files")
 public class FileEntity {
@@ -23,7 +24,7 @@ public class FileEntity {
         this.id = UUID.randomUUID().toString();
         this.name = name;
         this.contentType = contentType;
-        this.generatedName = name + id + "." + contentType;
+        this.generatedName = name + id + "." + MediaType.parseMediaType(this.contentType).getSubtype();
         this.size = size;
         this.data = data;
     }

@@ -46,12 +46,12 @@ public class  DocumentController {
         ByteArrayResource resource = new ByteArrayResource(data);
         
         HttpHeaders headers = new HttpHeaders();
-        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + "haha.pdf" + "\"");
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileEntity.getGeneratedName() + "\"");
         headers.setContentLength(fileEntity.getSize());
         
         return ResponseEntity.status(HttpStatus.OK)
             .headers(headers)
-            .contentType(MediaType.APPLICATION_PDF) 
+            .contentType(MediaType.parseMediaType(fileEntity.getContentType())) 
             .body(resource);
     }
     
