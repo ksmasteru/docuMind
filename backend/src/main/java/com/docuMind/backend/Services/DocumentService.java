@@ -27,16 +27,17 @@ public class DocumentService {
 
     public List<FileEntity> getFile(String name)
     {
-        // we should return all the files saved with the same name 
         List<FileEntity> returnFile = documentRepository.findByNameContainingIgnoreCase(name);
         return returnFile;
     }
 
     public DocumentResponse uploadFile(MultipartFile file) throws IOException
     {
+        System.out.println("---original file name is : " + file.getOriginalFilename());
         FileEntity fileToSave = new FileEntity(file.getOriginalFilename(), 
             file.getContentType(), file.getSize(), file.getBytes());
         FileEntity returnFile = documentRepository.save(fileToSave);
         return new DocumentResponse(returnFile);
     }
+
 }

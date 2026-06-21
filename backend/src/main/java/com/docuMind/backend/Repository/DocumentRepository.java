@@ -8,7 +8,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 @Repository
-public  interface DocumentRepository extends MongoRepository<FileEntity, Long>{
+public  interface DocumentRepository extends MongoRepository<FileEntity, String>{
     List<FileEntity> findByContentType(String contentType);
 
     List<FileEntity> findByNameContainingIgnoreCase(String fileName);

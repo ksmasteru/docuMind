@@ -1,41 +1,42 @@
 package com.docuMind.backend.model;
 
+import java.util.UUID;
+
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document; 
-import jakarta.annotation.Generated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Column;
+
 @Document(collection = "stored_files")
 public class FileEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    @Column(nullable = false, length = 100)
+    private String id;
     private String name; // name entered by user
     private String generatedName; // unique name handled internally to avoid conflicts
     private String contentType; // e.g., "application/pdf", "text/markdown", "text/plain"
     private long size;
     private byte[] data; // Holds the actual file binary content
 
-    public FileEntity() {}
+    public FileEntity(
+    ) {}
 
     public FileEntity(String name, String contentType, long size, byte[] data) {
+        this.id = UUID.randomUUID().toString();
         this.name = name;
         this.contentType = contentType;
-        this.generatedName = name + String.valueOf(id) + "." + contentType;
+        this.generatedName = name + id + "." + contentType;
         this.size = size;
         this.data = data;
     }
 
     // Getters and Setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
+    public String getGeneratedName() {return generatedName;}
+    public void setGeneratedName(String generatedName) {this.generatedName = generatedName;}
     public String getContentType() { return contentType; }
     public void setContentType(String contentType) { this.contentType = contentType; }
 
