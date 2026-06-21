@@ -3,7 +3,11 @@ package com.docuMind.backend.controller;
 import java.io.IOException;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,14 +33,28 @@ public class  DocumentController {
     }
 
     @GetMapping("/id/{id}")
-    public ResponseEntity<DocumentResponse> getFile(
-        @PathVariable String id)
-    {
-        // returns a file or a lot of file
-        DocumentResponse response = new DocumentResponse(documentService.getFile(id));
+    public ResponseEntity<ByteArrayResource> getFile(@PathVariable String id) {
+    
+        List<FileEntity> fileList = documentService.getFile(id);
+        
+        if (fileList == null || fileList.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+        
+        FileEntity fileEntity = fileList.get(0);
+        byte[] data = fileEntity.getData();
+        ByteArrayResource resource = new ByteArrayResource(data);
+        
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + "haha.pdf" + "\"");
+        headers.setContentLength(fileEntity.getSize());
+        
         return ResponseEntity.status(HttpStatus.OK)
-            .body(response);
+            .headers(headers)
+            .contentType(MediaType.APPLICATION_PDF) 
+            .body(resource);
     }
+    
     
     @PostMapping("/")
     public ResponseEntity<DocumentResponse> uploadFile(

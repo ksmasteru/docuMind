@@ -5,7 +5,6 @@ import com.docuMind.backend.model.FileEntity;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-
 public record DocumentResponse(
     Map<String, Long> fileDetails)
     {
