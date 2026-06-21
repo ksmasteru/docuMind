@@ -7,13 +7,9 @@ import java.io.IOException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.docuMind.backend.exception.FileNotFoundException;
 import com.docuMind.backend.repository.DocumentRepository;
 import com.docuMind.backend.model.DocumentResponse;
 import com.docuMind.backend.model.FileEntity;
-import com.docuMind.backend.model.FileRequest;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import java.util.List;
 // talks with repsose
 @Service

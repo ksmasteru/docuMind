@@ -1,0 +1,15 @@
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: documind-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: secret_password
+      MONGO_INITDB_DATABASE: documind_db
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:
