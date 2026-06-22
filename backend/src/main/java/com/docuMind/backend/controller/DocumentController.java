@@ -15,13 +15,19 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.RequestMapping;
+
 import com.docuMind.backend.model.DocumentResponse;
 import com.docuMind.backend.model.FileEntity;
 import com.docuMind.backend.services.DocumentService;
+
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+
 import com.docuMind.backend.model.FileRequest;
+
 import java.util.List;
+
+import org.springframework.web.bind.annotation.DeleteMapping;
 
 @RestController
 @RequestMapping("/files")
@@ -70,5 +76,14 @@ public class  DocumentController {
         }
         return ResponseEntity.status(HttpStatus.OK)
                 .body(response);
+    }
+
+    @DeleteMapping("/id/{id}")
+    public ResponseEntity<Void> deleteFile(
+        @PathVariable String id)
+    {
+
+        documentService.deleteFile(id);
+        return ResponseEntity.noContent().build();
     }
 }
