@@ -1,5 +1,6 @@
 package com.docuMind.backend.controller;
 
+import java.io.IOException;
 import java.util.List;
 
 import org.springframework.core.io.ByteArrayResource;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import com.docuMind.backend.exception.FileNotSupportedException;
 
 import com.docuMind.backend.model.DocumentResponse;
 import com.docuMind.backend.model.FileEntity;
@@ -52,21 +54,17 @@ public class  DocumentController {
             .body(resource);
     }
     
-    @PostMapping("/api/v1/uploads")
+    @PostMapping(value = "/api/v1/documents", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<DocumentResponse> uploadFile(
-        @RequestParam MultipartFile file)
+        @RequestParam MultipartFile file,
+        @RequestParam(value = "title", required = false) String title,
+        @RequestParam(value = "userId", required = true) String userId)
+        throws IOException
     {
         DocumentResponse documentResponse = null;
-        try {
-            documentResponse =  documentService.uploadFile(file);
-        }
-        catch(Exception ex)
-        {
-            System.out.println(ex.getMessage());
-        }
+        documentResponse =  documentService.uploadFile(file, title, userId);
         return ResponseEntity.status(HttpStatus.OK).body(documentResponse);
-    }
-
+    }   
 
     @DeleteMapping("/id/{id}")
     public ResponseEntity<Void> deleteFile(

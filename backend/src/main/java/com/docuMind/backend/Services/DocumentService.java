@@ -4,19 +4,23 @@ import com.docuMind.backend.model.UploadFile;
 
 import java.io.IOException;
 
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.docuMind.backend.exception.FileNotFoundException;
+import com.docuMind.backend.exception.FileNotSupportedException;
 import com.docuMind.backend.repository.DocumentRepository;
 import com.docuMind.backend.model.DocumentResponse;
 import com.docuMind.backend.model.FileEntity;
 import java.util.List;
+import java.util.UUID;
+import org.springframework.util.StringUtils;
+
 // talks with repsose
 @Service
 public class DocumentService {
-    public static final String RED = "\u001B[31m";
-    public static final String RESET = "\u001B[0m";
+    List<String> allowedExtensions = List.of("pdf", "md", "txt");
     private final DocumentRepository documentRepository;
     
     public DocumentService(DocumentRepository documentRepository)
@@ -30,11 +34,16 @@ public class DocumentService {
         return returnFile;
     }
 
-    public DocumentResponse uploadFile(MultipartFile file) throws IOException
+    public DocumentResponse uploadFile(MultipartFile file,
+         String title, String userId) throws IOException
     {
-        System.out.println(RED + "---original file name is : " + file.getOriginalFilename() + RESET);
+        String fileExtension = MediaType.parseMediaType(file.getContentType()).getSubtype();
+        if (!allowedExtensions.contains(fileExtension))
+            throw new FileNotSupportedException("Unsupported file type---");
+        
         FileEntity fileToSave = new FileEntity(file.getOriginalFilename(), 
-            file.getContentType(), file.getSize(), file.getBytes());
+            file.getContentType(), file.getSize(), file.getBytes(), userId);
+        
         FileEntity returnFile = documentRepository.save(fileToSave);
         return new DocumentResponse(returnFile);
     }
@@ -45,6 +54,6 @@ public class DocumentService {
         if (!fileToDelete.isEmpty())
             documentRepository.delete(fileToDelete.get(0));
         else
-            throw new FileNotFoundException("file not found with name : " + Id);  
+           throw new FileNotFoundException("file not found with name : " + Id);  
     }
 }

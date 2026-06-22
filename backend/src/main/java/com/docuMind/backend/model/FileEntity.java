@@ -16,17 +16,19 @@ public class FileEntity {
     private String contentType; // e.g., "application/pdf", "text/markdown", "text/plain"
     private long size;
     private byte[] data; // Holds the actual file binary content
-
+    private String userId; // which user uploaded this file
     public FileEntity(
     ) {}
 
-    public FileEntity(String name, String contentType, long size, byte[] data) {
+    public FileEntity(String name, String contentType, long size, byte[] data,
+        String userId) {
         this.id = UUID.randomUUID().toString();
         this.name = name;
         this.contentType = contentType;
-        this.generatedName = name + id + "." + MediaType.parseMediaType(this.contentType).getSubtype();
+        this.generatedName = id + "_" + name;
         this.size = size;
         this.data = data;
+        this.userId = userId;
     }
 
     // Getters and Setters
@@ -44,6 +46,9 @@ public class FileEntity {
     public long getSize() { return size; }
     public void setSize(long size) { this.size = size; }
 
+    public String getUserId() {return this.userId;}
+    public void setUserId(String UserId) {this.userId = UserId;}
+    
     public byte[] getData() { return data; }
     public void setData(byte[] data) { this.data = data; }
 }

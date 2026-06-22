@@ -61,6 +61,19 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorFormat, HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(FileNotSupportedException.class)
+    public ResponseEntity<ErrorFormat> handleFileNotsupportedException(
+        FileNotSupportedException ex, WebRequest request
+    )
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false)
+        );
+        return new ResponseEntity<>(errorFormat, HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorFormat> handleException(
         Exception ex, WebRequest request)
