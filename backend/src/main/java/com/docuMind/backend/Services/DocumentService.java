@@ -15,6 +15,8 @@ import java.util.List;
 // talks with repsose
 @Service
 public class DocumentService {
+    public static final String RED = "\u001B[31m";
+    public static final String RESET = "\u001B[0m";
     private final DocumentRepository documentRepository;
     
     public DocumentService(DocumentRepository documentRepository)
@@ -30,7 +32,7 @@ public class DocumentService {
 
     public DocumentResponse uploadFile(MultipartFile file) throws IOException
     {
-        System.out.println("---original file name is : " + file.getOriginalFilename());
+        System.out.println(RED + "---original file name is : " + file.getOriginalFilename() + RESET);
         FileEntity fileToSave = new FileEntity(file.getOriginalFilename(), 
             file.getContentType(), file.getSize(), file.getBytes());
         FileEntity returnFile = documentRepository.save(fileToSave);
