@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -29,6 +30,16 @@ public class  DocumentController {
     public DocumentController(DocumentService documentsService)
     {
         this.documentService = documentsService;
+    }
+
+
+    @GetMapping("/api/v1/search/{name}")
+    public ResponseEntity<DocumentResponse> searchFile(@PathVariable String name)
+    {
+        // looking by generated name.
+        List<FileEntity> fileList = documentService.searchFile(name);
+        DocumentResponse response = new DocumentResponse(fileList);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
     @GetMapping("/id/{id}")

@@ -34,6 +34,13 @@ public class DocumentService {
         return returnFile;
     }
 
+    public List<FileEntity> searchFile(String name)
+    {
+        List<FileEntity> seachedfiles = documentRepository.findByGeneratedNameContainingIgnoreCase(name);
+        System.out.println(seachedfiles);
+        return seachedfiles;
+    }
+
     public DocumentResponse uploadFile(MultipartFile file,
          String title, String userId) throws IOException
     {

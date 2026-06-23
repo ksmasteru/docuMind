@@ -14,4 +14,6 @@ public  interface DocumentRepository extends MongoRepository<FileEntity, String>
 
     List<FileEntity> findByNameContainingIgnoreCase(String fileName);
     Optional <FileEntity> findById(String id);
+
+    List<FileEntity> findByGeneratedNameContainingIgnoreCase(String fileName);
 }
