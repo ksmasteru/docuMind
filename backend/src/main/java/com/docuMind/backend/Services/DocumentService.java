@@ -41,7 +41,7 @@ public class DocumentService {
         return seachedfiles;
     }
 
-    public DocumentResponse uploadFile(MultipartFile file,
+    public FileEntity uploadFile(MultipartFile file,
          String title, String userId) throws IOException
     {
         String fileExtension = MediaType.parseMediaType(file.getContentType()).getSubtype();
@@ -52,7 +52,7 @@ public class DocumentService {
             file.getContentType(), file.getSize(), file.getBytes(), userId);
         
         FileEntity returnFile = documentRepository.save(fileToSave);
-        return new DocumentResponse(returnFile);
+        return returnFile;
     }
 
     public void deleteFile(String Id)
