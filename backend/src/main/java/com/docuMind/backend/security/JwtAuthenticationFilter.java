@@ -1,8 +1,3 @@
-
-/*
-This filter runs on every incoming API request.
- It extracts the token from the HTTP Authorization header, validates it, 
- and sets the user context into Spring Security's memory. */
 package com.docuMind.backend.security;
 
 import jakarta.servlet.FilterChain;
@@ -10,24 +5,22 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-
 import java.io.IOException;
+import java.util.List;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-    private final UserDetailsService userDetailsService;
+    // Removed CustomUserDetailsService completely to eliminate database overhead on protected requests
 
-    public JwtAuthenticationFilter(JwtService jwtService, UserDetailsService userDetailsService) {
+    public JwtAuthenticationFilter(JwtService jwtService) {
         this.jwtService = jwtService;
-        this.userDetailsService = userDetailsService;
     }
 
     @Override
@@ -41,28 +34,33 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String jwt;
         final String userEmail;
 
-        // Skip filter if no Bearer token header exists
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        jwt = authHeader.substring(7); // Remove "Bearer " prefix
+        jwt = authHeader.substring(7);
         userEmail = jwtService.extractUsername(jwt);
 
-        // Process authentication if user email is present and not already authenticated in this session
         if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
             
-            if (jwtService.isTokenValid(jwt, userDetails)) {
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        userDetails.getAuthorities()
-                );
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            // Validate expiration and cryptographic signature purely via code logic
+            if (jwtService.isTokenValid(jwt)) { 
                 
-                // Save authenticated user into Spring Security context
+                // 1. Extract the clean string role directly from the token payload (e.g. "ROLE_USER")
+                String role = jwtService.extractRole(jwt); 
+                
+                // 2. Reconstruct the authority list on the fly without database I/O
+                List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(role));
+                
+                // 3. Authenticate the token with the extracted email and authorities
+                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                        userEmail, // Principle can just be the email string now
+                        null,
+                        authorities
+                );
+                
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             }
         }

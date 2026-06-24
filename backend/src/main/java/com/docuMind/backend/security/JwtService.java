@@ -35,7 +35,13 @@ public class JwtService {
     // 1. Generate Token
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("role", userDetails.getAuthorities()); // Inject user roles into payload
+
+        // convertnin commplexes authority object
+        String cleanRole = userDetails.getAuthorities().stream()
+                .findFirst()
+                .map(grantedAuth -> grantedAuth.getAuthority())
+                .orElse("ROLE_USER");
+        claims.put("role", cleanRole); // Inject user roles into payload
         
         return Jwts.builder()
                 .claims(claims)
@@ -51,15 +57,37 @@ public class JwtService {
         return extractClaim(token, Claims::getSubject);
     }
 
-    // 3. Validate Token
-    public boolean isTokenValid(String token, UserDetails userDetails) {
-        final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
+    public boolean isTokenValid(String token) {
+        try {
+            // This will throw an exception automatically if the signature is invalid or expired
+            return !isTokenExpired(token);
+        } catch (Exception e) {
+            return false; // Token is tampered with, malformed, or expired
+        }
+    }
+    
+    private boolean isTokenExpired(String token) {
+        return extractExpiration(token).before(new Date());
+    }
+    
+    private Date extractExpiration(String token) {
+        return Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getExpiration();
+    }
+    
+    public String extractRole(String token) {
+        return Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .get("role", String.class); // Directly extracts your clean "ROLE_XXXX" string
     }
 
-    private boolean isTokenExpired(String token) {
-        return extractClaim(token, Claims::getExpiration).before(new Date());
-    }
 
     private <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = Jwts.parser()

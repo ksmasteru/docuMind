@@ -10,17 +10,14 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
+import com.docuMind.backend.services.CustomUserDetailsService;
 import org.springframework.web.bind.annotation.*;
 import com.docuMind.backend.model.UpdateUserRequest;
 import com.docuMind.backend.model.UserResponseWrapper;
 import com.docuMind.backend.model.UserResponseWrapper.UserInfo;
 import com.docuMind.backend.model.User;
-import com.docuMind.backend.model.UserResponseWrapper;
-import com.docuMind.backend.model.UserResponseWrapper.UserInfo;
 
 import java.util.List;
-import jakarta.validation.Valid;
 
 //import java.awt.List; !!!!!!!!! ???
 import java.util.Map;
@@ -31,14 +28,14 @@ public class AuthController {
 
     private final UserService userService;
     private final AuthenticationManager authenticationManager;
-    private final UserDetailsService userDetailsService;
+    private final CustomUserDetailsService userDetailsService;
     private final JwtService jwtService;
 
     // Single constructor injection handles all dependencies smoothly
     public AuthController(
             UserService userService, 
             AuthenticationManager authenticationManager, 
-            UserDetailsService userDetailsService, 
+            CustomUserDetailsService userDetailsService, 
             JwtService jwtService
     ) {
         this.userService = userService;
@@ -63,7 +60,7 @@ public class AuthController {
     }
 
         @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
+        public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
         try {
             // Step A: Bouncer validation step
             authenticationManager.authenticate(
@@ -72,7 +69,7 @@ public class AuthController {
 
             // Step B: Credentials match! Fetch context data from MongoDB
             final UserDetails userDetails = userDetailsService.loadUserByUsername(request.get("email"));
-            
+            // here the role is returned by the user detailsservice
             // Step C: Construct the secure token payload
             final String jwtToken = jwtService.generateToken(userDetails);
 
