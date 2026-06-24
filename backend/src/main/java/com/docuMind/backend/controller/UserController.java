@@ -31,68 +31,62 @@ import jakarta.validation.Valid;
 
 
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/api/v1/users")
 public class UserController {
     private final UserService userService;
 
-    public UserController(UserService userService)
-    {
+    public UserController(UserService userService) {
         this.userService = userService;
     }
 
-    @GetMapping("/")
-    public UserResponseWrapper getUsers()
-    {
+    // 1. GET ALL USERS: GET /api/v1/users
+    @GetMapping
+    public UserResponseWrapper getUsers() {
         List<User> users = userService.getAllUsers();
-        List<UserInfo> userInfo = users.stream().
-                map(user -> new UserInfo(user.getName(), user.getId(), user.getRole())).
-                toList();
-        UserResponseWrapper response = new UserResponseWrapper(userInfo, userInfo.size());
-        return response;
+        List<UserInfo> userInfo = users.stream()
+                .map(user -> new UserInfo(user.getName(), user.getId(), user.getRole()))
+                .toList();
+        return new UserResponseWrapper(userInfo, userInfo.size());
     }
     
-    @GetMapping("/id/{id}")
-    public ResponseEntity<UserResponseWrapper> getUser(@PathVariable String id)
-    {
+    // 2. GET ONE USER: GET /api/v1/users/{id}
+    @GetMapping("/{id}")
+    public ResponseEntity<UserResponseWrapper> getUser(@PathVariable String id) {
         User user = userService.getUserById(id);
         List<UserInfo> user_info = List.of(new UserInfo(user.getName(), user.getId(), user.getRole()));
         UserResponseWrapper response = new UserResponseWrapper(user_info, user_info.size());
-        return ResponseEntity.status(HttpStatus.OK)
-            .body(response);
+        return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/")
+    // 3. REGISTER: POST /api/v1/users (or keep "/register" if preferred for auth symmetry)
+    @PostMapping
     public ResponseEntity<UserResponseWrapper> addNewUser(@Valid @RequestBody UpdateUserRequest user) {
         User newUser = new User(user.getName(), user.getEmail(), user.getPassword(), user.getRole());
+        User savedUser = userService.registerUser(newUser);
         
-        User SavedUser = userService.registerUser(newUser);
-        
-        List<UserInfo> user_info = List.of(new UserInfo(SavedUser.getName(), SavedUser.getId(), SavedUser.getRole()));
-        
+        List<UserInfo> user_info = List.of(new UserInfo(savedUser.getName(), savedUser.getId(), savedUser.getRole()));
         UserResponseWrapper response = new UserResponseWrapper(user_info, user_info.size());
         
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    // user wants to change email
-    @PutMapping("/id/{id}")
-    public ResponseEntity<UserResponseWrapper> updateUser(@PathVariable String id, @Valid UpdateUserRequest UpdateUserRequest)
-    {
-        // bro stop getting dostracted .
-        User user = userService.updateUser(id, UpdateUserRequest);
+    // 4. UPDATE USER: PUT /api/v1/users/{id}
+    @PutMapping("/{id}")
+    public ResponseEntity<UserResponseWrapper> updateUser(
+            @PathVariable String id, 
+            @Valid @RequestBody UpdateUserRequest updateUserRequest) { // Added missing @RequestBody
         
+        User user = userService.updateUser(id, updateUserRequest);
         List<UserInfo> user_info = List.of(new UserInfo(user.getName(), user.getId(), user.getRole()));
-        
         UserResponseWrapper response = new UserResponseWrapper(user_info, user_info.size());
         
-        return ResponseEntity.status(HttpStatus.OK) 
-            .body(response);
+        return ResponseEntity.ok(response);
     }
     
-    @DeleteMapping("/id/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable String id)
-    {
+    // 5. DELETE USER: DELETE /api/v1/users/{id}
+    // Use Spring Security annotations like @PreAuthorize("hasRole('ADMIN')") here to restrict access instead of changing the URL path
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteUser(@PathVariable String id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }

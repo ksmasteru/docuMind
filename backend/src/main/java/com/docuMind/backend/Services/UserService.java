@@ -9,15 +9,20 @@ import com.docuMind.backend.exception.UserNotFoundException;
 import com.docuMind.backend.model.UpdateUserRequest;
 import com.docuMind.backend.model.User;
 import com.docuMind.backend.model.UserResponse;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import com.docuMind.backend.repository.UserRepository;
+
 
 @Service
 public class UserService {
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
     String red = "\u001B[31m";
     String reset = "\u001B[0m";
-    public UserService(UserRepository userRepository) {
+    
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     // Business Action: Register a new user but check for duplicates first
@@ -28,6 +33,9 @@ public class UserService {
             throw new IllegalArgumentException("Email is already registered!");
         }
         // Save and return the fresh user record
+        // we should have the pasword before registering the user.
+        String encryptedPassword = passwordEncoder.encode(user.getPassword());
+        user.setPassword(encryptedPassword);
         return userRepository.save(user);
     }
 
