@@ -31,7 +31,7 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    public User updateUser(Long id, UpdateUserRequest requestedUser)
+    public User updateUser(String id, UpdateUserRequest requestedUser)
     {
         User user = userRepository.findById(id)
                 .orElseThrow(() ->
@@ -50,7 +50,7 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    public User getUserById(Long id)
+    public User getUserById(String id)
     {
         return userRepository.findById(id)
                 .orElseThrow( () -> new UserNotFoundException("User not found with id : " + id));
@@ -73,7 +73,7 @@ public class UserService {
     }
 
     // to fix : should throw an exceptionn i user doesnt exist
-    public void deleteUser(long id)
+    public void deleteUser(String id)
     {
         // busines logic : check if user exists
         boolean userExists = userRepository.findById(id).isPresent();

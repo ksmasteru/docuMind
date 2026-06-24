@@ -52,7 +52,7 @@ public class UserController {
     }
     
     @GetMapping("/id/{id}")
-    public ResponseEntity<UserResponseWrapper> getUser(@PathVariable Long id)
+    public ResponseEntity<UserResponseWrapper> getUser(@PathVariable String id)
     {
         User user = userService.getUserById(id);
         List<UserInfo> user_info = List.of(new UserInfo(user.getName(), user.getId(), user.getRole()));
@@ -77,7 +77,7 @@ public class UserController {
 
     // user wants to change email
     @PutMapping("/id/{id}")
-    public ResponseEntity<UserResponseWrapper> updateUser(@PathVariable Long id, @Valid UpdateUserRequest UpdateUserRequest)
+    public ResponseEntity<UserResponseWrapper> updateUser(@PathVariable String id, @Valid UpdateUserRequest UpdateUserRequest)
     {
         // bro stop getting dostracted .
         User user = userService.updateUser(id, UpdateUserRequest);
@@ -91,7 +91,7 @@ public class UserController {
     }
     
     @DeleteMapping("/id/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id)
+    public ResponseEntity<Void> deleteUser(@PathVariable String id)
     {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();

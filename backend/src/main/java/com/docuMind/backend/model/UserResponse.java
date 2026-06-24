@@ -2,7 +2,7 @@ package com.docuMind.backend.model;
 import com.docuMind.backend.model.enums.UserRole;
 
 public class UserResponse {
-    private Long id;
+    private String id;
     private String name;
     private String email;
     private UserRole role;
@@ -15,7 +15,7 @@ public class UserResponse {
         this.role = user.getRole();
     }
 
-    public long getId()
+    public String getId()
     {
         return this.id;
     }
