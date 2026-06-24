@@ -39,13 +39,12 @@ public class UserController {
     }
 
     @GetMapping("/")
-    public List <UserResponse> getUsers() {
+    public List <UserResponse> getUsers()
+    {
         List<User> users = userService.getAllUsers();
         List<UserResponse> userResponses = new ArrayList<>();
         for (User user : users)
-        {
             userResponses.add(new UserResponse(user));
-        }
         return userResponses;
     }
     
@@ -59,7 +58,7 @@ public class UserController {
 
     @PostMapping("/")
     public ResponseEntity<UserResponse> addNewUser(@Valid @RequestBody UpdateUserRequest user) {
-        User newUser = new User(user.getName(), user.getEmail(), user.getPassword());
+        User newUser = new User(user.getName(), user.getEmail(), user.getPassword(), user.getRole());
         User SavedUser = userService.registerUser(newUser);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new UserResponse(SavedUser));

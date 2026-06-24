@@ -1,5 +1,7 @@
 package com.docuMind.backend.model;
 
+
+import com.docuMind.backend.model.enums.UserRole;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -12,6 +14,8 @@ public class UpdateUserRequest{
     private String email;
     @NotBlank
     private String password;
+    
+    private UserRole role;
     public UpdateUserRequest(String name, String email, String password) {
         this.name = name;
         this.email = email;
@@ -31,5 +35,10 @@ public class UpdateUserRequest{
     public String getPassword()
     {
         return this.password;
+    }
+
+    public UserRole getRole()
+    {
+        return this.role;
     }
 }
