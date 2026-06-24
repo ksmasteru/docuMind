@@ -3,6 +3,7 @@ package com.docuMind.backend.services;
 import com.docuMind.backend.model.UploadFile;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
@@ -55,14 +56,18 @@ public class DocumentService {
         String fileExtension = MediaType.parseMediaType(file.getContentType()).getSubtype();
         if (!allowedExtensions.contains(fileExtension))
             throw new FileNotSupportedException("Unsupported file type---");
-        
-        PDDocument pdf = PDDocument.load(file.getInputStream()); 
-        PDFTextStripper stripper = new PDFTextStripper();
-        String content = stripper.getText(pdf);
+        String content = null;
+        if (fileExtension.equals("pdf"))
+        {
+            PDDocument pdf = PDDocument.load(file.getInputStream()); 
+            PDFTextStripper stripper = new PDFTextStripper();
+            content = stripper.getText(pdf);
+        }
+        else
+            content = new String(file.getBytes(),StandardCharsets.UTF_8);
         System.out.println(content);
         FileEntity fileToSave = new FileEntity(file.getOriginalFilename(), 
             file.getContentType(), file.getSize(), file.getBytes(), userId, content);
-        
         FileEntity returnFile = documentRepository.save(fileToSave);
         return returnFile;
     }
