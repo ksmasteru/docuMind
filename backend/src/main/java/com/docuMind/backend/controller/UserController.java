@@ -24,6 +24,8 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 
 import com.docuMind.backend.model.UpdateUserRequest;
+import com.docuMind.backend.model.UserResponseWrapper;
+import com.docuMind.backend.model.UserResponseWrapper.UserInfo;
 
 import jakarta.validation.Valid;
 
@@ -39,39 +41,53 @@ public class UserController {
     }
 
     @GetMapping("/")
-    public List <UserResponse> getUsers()
+    public UserResponseWrapper getUsers()
     {
         List<User> users = userService.getAllUsers();
-        List<UserResponse> userResponses = new ArrayList<>();
-        for (User user : users)
-            userResponses.add(new UserResponse(user));
-        return userResponses;
+        List<UserInfo> userInfo = users.stream().
+                map(user -> new UserInfo(user.getName(), user.getId(), user.getRole())).
+                toList();
+        UserResponseWrapper response = new UserResponseWrapper(userInfo, userInfo.size());
+        return response;
     }
     
     @GetMapping("/id/{id}")
-    public ResponseEntity<UserResponse> getUser(@PathVariable Long id)
+    public ResponseEntity<UserResponseWrapper> getUser(@PathVariable Long id)
     {
         User user = userService.getUserById(id);
+        List<UserInfo> user_info = List.of(new UserInfo(user.getName(), user.getId(), user.getRole()));
+        UserResponseWrapper response = new UserResponseWrapper(user_info, user_info.size());
         return ResponseEntity.status(HttpStatus.OK)
-            .body(new UserResponse(user));
+            .body(response);
     }
 
     @PostMapping("/")
-    public ResponseEntity<UserResponse> addNewUser(@Valid @RequestBody UpdateUserRequest user) {
+    public ResponseEntity<UserResponseWrapper> addNewUser(@Valid @RequestBody UpdateUserRequest user) {
         User newUser = new User(user.getName(), user.getEmail(), user.getPassword(), user.getRole());
+        
         User SavedUser = userService.registerUser(newUser);
+        
+        List<UserInfo> user_info = List.of(new UserInfo(SavedUser.getName(), SavedUser.getId(), SavedUser.getRole()));
+        
+        UserResponseWrapper response = new UserResponseWrapper(user_info, user_info.size());
+        
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new UserResponse(SavedUser));
+                .body(response);
     }
 
     // user wants to change email
     @PutMapping("/id/{id}")
-    public ResponseEntity<UserResponse> updateUser(@PathVariable Long id, @Valid UpdateUserRequest UpdateUserRequest)
+    public ResponseEntity<UserResponseWrapper> updateUser(@PathVariable Long id, @Valid UpdateUserRequest UpdateUserRequest)
     {
         // bro stop getting dostracted .
         User user = userService.updateUser(id, UpdateUserRequest);
+        
+        List<UserInfo> user_info = List.of(new UserInfo(user.getName(), user.getId(), user.getRole()));
+        
+        UserResponseWrapper response = new UserResponseWrapper(user_info, user_info.size());
+        
         return ResponseEntity.status(HttpStatus.OK) 
-            .body(new UserResponse(user));
+            .body(response);
     }
     
     @DeleteMapping("/id/{id}")
