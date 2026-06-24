@@ -4,6 +4,8 @@ import com.docuMind.backend.model.UploadFile;
 
 import java.io.IOException;
 
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -41,6 +43,12 @@ public class DocumentService {
         return seachedfiles;
     }
 
+    public List<FileEntity> filter(String keyword)
+    {
+        List<FileEntity> filtersearch = documentRepository.findByContentContainingIgnoreCase(keyword);
+        return filtersearch;
+    }
+
     public FileEntity uploadFile(MultipartFile file,
          String title, String userId) throws IOException
     {
@@ -48,8 +56,12 @@ public class DocumentService {
         if (!allowedExtensions.contains(fileExtension))
             throw new FileNotSupportedException("Unsupported file type---");
         
+        PDDocument pdf = PDDocument.load(file.getInputStream()); 
+        PDFTextStripper stripper = new PDFTextStripper();
+        String content = stripper.getText(pdf);
+        System.out.println(content);
         FileEntity fileToSave = new FileEntity(file.getOriginalFilename(), 
-            file.getContentType(), file.getSize(), file.getBytes(), userId);
+            file.getContentType(), file.getSize(), file.getBytes(), userId, content);
         
         FileEntity returnFile = documentRepository.save(fileToSave);
         return returnFile;

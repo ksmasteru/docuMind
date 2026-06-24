@@ -3,6 +3,8 @@ package com.docuMind.backend.controller;
 import java.io.IOException;
 import java.util.List;
 
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -48,6 +50,16 @@ public class  DocumentController {
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
+    @GetMapping("/api/v1/filter/{keyword}")
+    public ResponseEntity<FileResponse> filter(@PathVariable String keyword) {
+        List<FileEntity> fileList = documentService.filter(keyword);
+        List<FileInfo> files = fileList.stream()
+            .map(file -> new FileInfo(file.getName(), file.getSize(), file.getUserId()))
+            .toList();
+        FileResponse response = new FileResponse(files, files.size());
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+
     @GetMapping("/id/{id}")
     public ResponseEntity<ByteArrayResource> getFile(@PathVariable String id) {
     
@@ -83,6 +95,7 @@ public class  DocumentController {
         FileResponse response =  new FileResponse(List.of(fileInfo), 1 );
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }   
+
 
     @DeleteMapping("/id/{id}")
     public ResponseEntity<Void> deleteFile(

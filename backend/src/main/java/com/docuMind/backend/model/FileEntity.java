@@ -17,11 +17,12 @@ public class FileEntity {
     private long size;
     private byte[] data; // Holds the actual file binary content
     private String userId; // which user uploaded this file
+    private String content;
     public FileEntity(
     ) {}
 
     public FileEntity(String name, String contentType, long size, byte[] data,
-        String userId) {
+        String userId, String content) {
         this.id = UUID.randomUUID().toString();
         this.name = name;
         this.contentType = contentType;
@@ -29,6 +30,7 @@ public class FileEntity {
         this.size = size;
         this.data = data;
         this.userId = userId;
+        this.content = content;
     }
 
     // Getters and Setters
@@ -48,6 +50,9 @@ public class FileEntity {
 
     public String getUserId() {return this.userId;}
     public void setUserId(String UserId) {this.userId = UserId;}
+    
+    public String getContent(){return this.content;}
+    public void setContent(String Content){this.content = Content;}
     
     public byte[] getData() { return data; }
     public void setData(byte[] data) { this.data = data; }
