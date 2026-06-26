@@ -37,7 +37,6 @@ public class  DocumentController {
         this.documentService = documentsService;
     }
 
-
     @GetMapping("/api/v1/search/{name}")
     public ResponseEntity<FileResponse> searchFile(@PathVariable String name)
     {
@@ -95,7 +94,6 @@ public class  DocumentController {
         FileResponse response =  new FileResponse(List.of(fileInfo), 1 );
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }   
-
 
     @DeleteMapping("/id/{id}")
     public ResponseEntity<Void> deleteFile(

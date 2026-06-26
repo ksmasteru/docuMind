@@ -74,6 +74,17 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorFormat, HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(SessionExpiredException.class)
+    public ResponseEntity<ErrorFormat> handleSessionExpiredException(SessionExpiredException ex,
+        WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.BAD_REQUEST); // should be 401 : unauthorized 
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorFormat> handleException(
         Exception ex, WebRequest request)

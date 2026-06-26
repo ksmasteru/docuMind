@@ -3,24 +3,31 @@
  */
 package com.docuMind.backend.security;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.stereotype.Component;
-
-import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
+import javax.crypto.SecretKey;
+
+import com.docuMind.backend.exception.SessionExpiredException;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.stereotype.Component;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
 
 @Component
 public class JwtService {
 
+    String red = "\u001B[31m";
+    String green = "\u001B[32m";
+    String reset = "\u001B[0m";
+    
     @Value("${app.jwt.secret}")
     private String secretKey;
 
@@ -54,14 +61,29 @@ public class JwtService {
 
     // 2. Extract Username from Token
     public String extractUsername(String token) {
-        return extractClaim(token, Claims::getSubject);
+        String Username = null;
+        try {
+            Username = extractClaim(token, Claims::getSubject);
+        }
+        catch (ExpiredJwtException ex)
+        {
+            System.out.println(green + ex.getMessage() + reset);
+            throw new SessionExpiredException("Session expired please Log in") ;
+        }
+        return Username;
     }
 
     public boolean isTokenValid(String token) {
         try {
             // This will throw an exception automatically if the signature is invalid or expired
             return !isTokenExpired(token);
-        } catch (Exception e) {
+        } 
+        catch (ExpiredJwtException ex)
+        {
+            System.out.println(red + ex.getMessage() + reset);
+            throw new SessionExpiredException("Session expired please Log in") ;
+        }
+        catch (Exception e) {
             return false; // Token is tampered with, malformed, or expired
         }
     }
@@ -80,16 +102,25 @@ public class JwtService {
     }
     
     public String extractRole(String token) {
-        return Jwts.parser()
+        String Role = null;
+        try {
+            Role = Jwts.parser()
                 .verifyWith(getSigningKey())
                 .build()
                 .parseSignedClaims(token)
                 .getPayload()
                 .get("role", String.class); // Directly extracts your clean "ROLE_XXXX" string
+        }
+        catch (ExpiredJwtException ex)
+        {
+            System.out.println(red + ex.getMessage() + reset);
+            throw new SessionExpiredException("Session expired please Log in") ;  
+        }
+        return Role;
     }
 
+    private <T> T extractClaim(String token, Function<Claims, T> claimsResolver) throws ExpiredJwtException {
 
-    private <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = Jwts.parser()
                 .verifyWith(getSigningKey())
                 .build()

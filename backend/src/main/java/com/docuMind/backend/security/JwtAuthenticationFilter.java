@@ -1,26 +1,36 @@
 package com.docuMind.backend.security;
 
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import java.io.IOException;
-import java.util.List;
+import org.springframework.web.servlet.HandlerExceptionResolver;
+
+import com.docuMind.backend.exception.SessionExpiredException;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final HandlerExceptionResolver resolver;
     // Removed CustomUserDetailsService completely to eliminate database overhead on protected requests
 
-    public JwtAuthenticationFilter(JwtService jwtService) {
+    public JwtAuthenticationFilter(JwtService jwtService,
+        @Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver
+    ) {
         this.jwtService = jwtService;
+        this.resolver = resolver;
     }
 
     @Override
@@ -29,7 +39,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
-        
+        try {
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
         final String userEmail;
@@ -44,10 +54,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             
-            // Validate expiration and cryptographic signature purely via code logic
             if (jwtService.isTokenValid(jwt)) { 
                 
-                // 1. Extract the clean string role directly from the token payload (e.g. "ROLE_USER")
                 String role = jwtService.extractRole(jwt); 
                 
                 // 2. Reconstruct the authority list on the fly without database I/O
@@ -65,5 +73,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
         filterChain.doFilter(request, response);
+    }
+        catch (SessionExpiredException ex) {
+            // This forwards your custom exception directly to your Global Exception Handler!
+            resolver.resolveException(request, response, null, ex);
+        }
     }
 }
