@@ -25,6 +25,11 @@ public class RefreshToken {
     @DocumentReference
     private User user;
 
+    private boolean revoked = false; 
+
+    // Getters and Setters
+    public boolean isRevoked() { return revoked; }
+    public void setRevoked(boolean revoked) { this.revoked = revoked; }
     // Getters, Setters, and Constructors
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }

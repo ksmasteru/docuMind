@@ -1,5 +1,6 @@
 package com.docuMind.backend.controller;
 
+import com.docuMind.backend.security.RefreshTokenRepository;
 import java.lang.annotation.Repeatable;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,7 @@ import com.docuMind.backend.model.AuthResponse;
 @RequestMapping("/api/auth") /*the public api used for login in / register */
 public class AuthController {
 
+    private final RefreshTokenRepository refreshTokenRepository;
     private final UserService userService;
     private final AuthenticationManager authenticationManager;
     private final CustomUserDetailsService userDetailsService;
@@ -45,13 +47,14 @@ public class AuthController {
             AuthenticationManager authenticationManager, 
             CustomUserDetailsService userDetailsService, 
             JwtService jwtService,
-            RefreshTokenService refreshTokenService
+            RefreshTokenService refreshTokenService, RefreshTokenRepository refreshTokenRepository
     ) {
         this.userService = userService;
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
+        this.refreshTokenRepository = refreshTokenRepository;
     }
 
     @PostMapping("/register")
@@ -99,8 +102,6 @@ public class AuthController {
     public ResponseEntity<?> refreshSession(@RequestBody Map<String, String> request) {
         String clientRefreshToken = request.get("refreshToken");
         
-        System.out.println("Received keys from Postman payload: " + request.keySet());
-        System.out.println("Extracted token value string: [" + clientRefreshToken + "]");
         if (clientRefreshToken == null || clientRefreshToken.isEmpty()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Missing refresh token");
         }
@@ -110,7 +111,6 @@ public class AuthController {
         if (!refreshTokenObj.isPresent()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid token");
         }
-    
         RefreshToken tokenEntity = refreshTokenObj.get();
     
         // 2. Validate token expiration safely
@@ -132,4 +132,28 @@ public class AuthController {
         // Return the new access token along with the existing refresh token
         return ResponseEntity.ok(new AuthResponse(newAccessToken, tokenEntity.getToken(), "Bearer"));
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(@RequestBody Map<String, String> request)
+    {
+        String clientRefreshToken = request.get("refreshToken");
+        if (clientRefreshToken == null || clientRefreshToken.isEmpty())
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("empty refresh token");
+        Optional<RefreshToken> token = refreshTokenService.findByToken(clientRefreshToken);
+        if (!token.isPresent()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid token");
+        }
+        RefreshToken tokenEntity = token.get();
+    
+        // 2. Validate token expiration safely
+        try {
+            refreshTokenService.verifyExpiration(tokenEntity);
+        } catch (SessionExpiredException ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
+        }
+        tokenEntity.setRevoked(true);
+        refreshTokenRepository.save(tokenEntity);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body("Logged Out successfully");
+    }
+    
 }
