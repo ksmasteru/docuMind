@@ -3,18 +3,18 @@ package com.docuMind.backend.services;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.docuMind.backend.exception.UserNotFoundException;
 import com.docuMind.backend.model.UpdateUserRequest;
 import com.docuMind.backend.model.User;
-import com.docuMind.backend.model.UserResponse;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import com.docuMind.backend.repository.UserRepository;
 
 
 @Service
 public class UserService {
+    
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     String red = "\u001B[31m";

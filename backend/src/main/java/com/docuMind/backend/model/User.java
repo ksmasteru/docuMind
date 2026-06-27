@@ -19,7 +19,7 @@ public class User implements UserDetails { // <-- ADDED implementation
     
     private String name;
     
-    @Indexed(unique = true) 
+    @Indexed(unique = true)
     private String email;
     
     private String password;
@@ -32,7 +32,10 @@ public class User implements UserDetails { // <-- ADDED implementation
         this.name = name;
         this.email = email;
         this.password = password;
-        this.role = role;
+        if (role == null)
+            role = UserRole.USER;
+        else
+            this.role = role;
     }
 
     // =======================================================
@@ -85,5 +88,10 @@ public class User implements UserDetails { // <-- ADDED implementation
     public String getPassword() { return password; } // Fulfills UserDetails password contract
     public void setPassword(String password) { this.password = password; }
     public UserRole getRole() { return role; }
-    public void setRole(UserRole role) { this.role = role; }
+    public void setRole(UserRole role) { 
+        if (role == null)
+            this.role = UserRole.USER;
+        else
+        this.role = role;
+    }
 }

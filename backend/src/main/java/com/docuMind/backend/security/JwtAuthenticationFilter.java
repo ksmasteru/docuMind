@@ -14,6 +14,7 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import com.docuMind.backend.exception.SessionExpiredException;
 
+import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -74,7 +75,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         filterChain.doFilter(request, response);
     }
-        catch (SessionExpiredException ex) {
+        catch (SessionExpiredException | ExpiredJwtException ex) {
             // This forwards your custom exception directly to your Global Exception Handler!
             resolver.resolveException(request, response, null, ex);
         }
