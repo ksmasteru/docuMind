@@ -1,35 +1,32 @@
 package com.docuMind.backend.controller;
 
-import com.docuMind.backend.security.RefreshTokenRepository;
-import java.lang.annotation.Repeatable;
 import java.util.List;
 import java.util.Map;
-
 import java.util.Optional;
+
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.docuMind.backend.exception.SessionExpiredException;
+import com.docuMind.backend.model.AuthResponse;
 import com.docuMind.backend.model.UpdateUserRequest;
 import com.docuMind.backend.model.User;
 import com.docuMind.backend.model.UserResponseWrapper;
 import com.docuMind.backend.model.UserResponseWrapper.UserInfo;
 import com.docuMind.backend.security.JwtService;
 import com.docuMind.backend.security.RefreshToken;
+import com.docuMind.backend.security.RefreshTokenRepository;
+import com.docuMind.backend.security.RefreshTokenService;
 import com.docuMind.backend.services.CustomUserDetailsService;
 import com.docuMind.backend.services.UserService;
-import com.docuMind.backend.security.RefreshTokenService;
-import com.docuMind.backend.exception.SessionExpiredException;
-import com.docuMind.backend.model.AuthResponse;
 
 @RestController
 @RequestMapping("/api/auth") /*the public api used for login in / register */
@@ -98,7 +95,7 @@ public class AuthController {
     }
 
     // sends refreshtoken.,
-    @PostMapping("/refreshSession")
+    @PostMapping("/refresh")
     public ResponseEntity<?> refreshSession(@RequestBody Map<String, String> request) {
         String clientRefreshToken = request.get("refreshToken");
         

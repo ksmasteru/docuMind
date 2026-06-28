@@ -24,7 +24,7 @@ export function AuthProvider({ children }) {
     }
 
     apiClient
-      .post("/auth/refresh", { refreshToken })
+      .post("/api/auth/refresh", { refreshToken })
       .then(({ data }) => {
         setAccessToken(data.accessToken);
         localStorage.setItem("refreshToken", data.refreshToken);
@@ -37,10 +37,13 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = useCallback(async (email, password) => {
-    const { data } = await apiClient.post("/auth/login", { email, password });
+    const { data } = await apiClient.post("/api/auth/login", { email, password });
+    console.log(`acessToken : ${data.accessToken}`);
+    console.log(`refreshToken : ${data.refreshToken}`);
     setAccessToken(data.accessToken);
     localStorage.setItem("refreshToken", data.refreshToken);
     setUser({ email, role: data.role });
+    console.log(`data is ${data}`);
     return data;
   }, []);
 
@@ -48,7 +51,7 @@ export function AuthProvider({ children }) {
     const refreshToken = localStorage.getItem("refreshToken");
     try {
       if (refreshToken) {
-        await apiClient.post("/auth/logout", { refreshToken });
+        await apiClient.post("/api/auth/logout", { refreshToken });
       }
     } finally {
       setAccessToken(null);

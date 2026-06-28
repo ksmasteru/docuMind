@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { apiClient } from "./apiClient";
 import { useAuth } from "./AuthContext";
 
+// the backend send takes /api/v1/files/searchkeyword
+// and returns fileReponse
 const DEBOUNCE_MS = 350;
 
 export default function SearchPage() {
@@ -12,14 +14,16 @@ export default function SearchPage() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [status, setStatus] = useState("idle"); // idle | loading | success | error
+  const [fullUrl, setFullUrl] = useState("");
   const abortControllerRef = useRef(null);
 
   useEffect(() => {
     const trimmed = query.trim();
-
+    setFullUrl("/api/v1/files/" + trimmed);
     if (!trimmed) {
       setResults([]);
       setStatus("idle");
+      setFullUrl("");
       // Cancel anything still in flight from a previous keystroke
       abortControllerRef.current?.abort();
       return;
@@ -35,7 +39,7 @@ export default function SearchPage() {
       setStatus("loading");
 
       apiClient
-        .get("/documents", { params: { search: trimmed }, signal: controller.signal })
+        .get(fullUrl, {})
         .then(({ data }) => {
           setResults(data);
           setStatus("success");
@@ -88,17 +92,17 @@ export default function SearchPage() {
             <p className="text-sm text-slate-400">No documents match "{query.trim()}".</p>
           )}
 
-          {status === "success" && results.length > 0 && (
+          {status === "success" && results.filesCount > 0 && (
             <ul className="space-y-2">
-              {results.map((doc) => (
+              {results.files.map((doc) => (
                 <li
-                  key={doc.id}
+                  key={doc.name}
                   className="rounded-md border border-slate-200 bg-white p-4 shadow-sm"
                 >
-                  <p className="text-sm font-medium text-slate-900">{doc.title}</p>
+                  <p className="text-sm font-medium text-slate-900">{doc.name}</p>
                   <p className="mt-1 text-xs text-slate-400">
-                    {doc.uploaderEmail} · {formatDate(doc.uploadedAt)} ·{" "}
-                    {formatBytes(doc.sizeBytes)}
+                    {doc.userId}
+                    {formatBytes(doc.size)}
                   </p>
                   {doc.tags?.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1.5">

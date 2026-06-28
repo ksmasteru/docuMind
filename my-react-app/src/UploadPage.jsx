@@ -9,7 +9,6 @@ export default function UploadPage() {
 
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState("");
-  const [tags, setTags] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState("idle"); // idle | uploading | success | error
@@ -20,7 +19,6 @@ export default function UploadPage() {
     if (!selected) return;
     setFile(selected);
     if (!title) {
-      // Default the title to the filename minus extension, still editable
       setTitle(selected.name.replace(/\.[^/.]+$/, ""));
     }
   }
@@ -42,18 +40,15 @@ export default function UploadPage() {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("title", title);
-    formData.append(
-      "tags",
-      tags
-        .split(",")
-        .map((tag) => tag.trim())
-        .filter(Boolean)
-        .join(",")
-    );
 
     try {
-      await apiClient.post("/documents", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      // Deliberately NOT setting a Content-Type header here. FormData needs
+      // a multipart boundary in the Content-Type (e.g.
+      // "multipart/form-data; boundary=----abc123"), and the browser only
+      // generates that automatically if you let it set the header itself.
+      // Setting "multipart/form-data" manually overrides that and ships a
+      // boundary-less header, which the server can't parse correctly.
+      await apiClient.post("/api/v1/files/upload", formData, {
         onUploadProgress: (event) => {
           if (event.total) {
             setProgress(Math.round((event.loaded / event.total) * 100));
@@ -63,15 +58,18 @@ export default function UploadPage() {
       setStatus("success");
       setFile(null);
       setTitle("");
-      setTags("");
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err) {
       setStatus("error");
-      setErrorMessage(
-        err.response?.status === 413
-          ? "That file is too large."
-          : "Upload failed. Check the file and try again."
-      );
+      if (err.response?.status === 403) {
+        setErrorMessage(
+          "Forbidden — your session may lack permission for this action, or the token wasn't accepted. Check the console/network tab."
+        );
+      } else if (err.response?.status === 413) {
+        setErrorMessage("That file is too large.");
+      } else {
+        setErrorMessage("Upload failed. Check the file and try again.");
+      }
     }
   }
 
@@ -136,20 +134,9 @@ export default function UploadPage() {
             />
           </div>
 
-          <div className="mt-4">
-            <label htmlFor="tags" className="mb-1 block text-sm font-medium text-slate-700">
-              Tags
-            </label>
-            <input
-              id="tags"
-              type="text"
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              placeholder="onboarding, backend, runbook"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-            />
-            <p className="mt-1 text-xs text-slate-400">Comma-separated</p>
-          </div>
+          {/* No tags field — DocumentController's /upload only accepts
+              file + title right now. Add it here once the backend's
+              FileEntity/uploadFile actually supports tags. */}
 
           {status === "uploading" && (
             <div className="mt-4">

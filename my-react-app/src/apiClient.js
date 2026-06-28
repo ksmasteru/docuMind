@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const baseURL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
+const baseURL = import.meta.env.VITE_API_URL;
 
 export const apiClient = axios.create({ baseURL });
 
@@ -20,6 +20,8 @@ export function setAuthChangeHandler(handler) {
 }
 
 apiClient.interceptors.request.use((config) => {
+  // TEMPORARY — remove once the missing-Authorization-header issue is found.
+  console.log("[apiClient]", config.method?.toUpperCase(), config.url, "| token present:", !!accessToken);
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`;
   }
@@ -38,7 +40,7 @@ apiClient.interceptors.response.use(
     const { response, config } = error;
 
     if (!response || response.status !== 401 || config._retried) {
-      return Promise.reject(error);
+      return Promise.rejectj(error);
     }
 
     const refreshToken = localStorage.getItem("refreshToken");
@@ -58,9 +60,10 @@ apiClient.interceptors.response.use(
       }
 
       const { data } = await refreshPromise;
+      console.log(`access token is ${data.accessToken}`);
       accessToken = data.accessToken;
       localStorage.setItem("refreshToken", data.refreshToken);
-      onAuthChange?.({ role: data.role });
+      onAuthChange?.(data.accessToken);
 
       config.headers.Authorization = `Bearer ${data.accessToken}`;
       return apiClient(config);

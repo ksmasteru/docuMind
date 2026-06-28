@@ -80,4 +80,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             resolver.resolveException(request, response, null, ex);
         }
     }
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+    // Instantly skip this JWT filter if the browser is just sending a CORS preflight probe
+    return "OPTIONS".equalsIgnoreCase(request.getMethod());
+}
 }
