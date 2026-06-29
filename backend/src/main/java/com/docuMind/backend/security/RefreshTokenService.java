@@ -26,6 +26,7 @@ public class RefreshTokenService {
         User user = userRepository.findByEmail(email).
             orElseThrow(() -> new UserNotFoundException("user not found with email: " + email));
     
+        // deleting the old token(it it exists) and issuing a new one.
         refreshTokenRepository.deleteByUser(user);
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setToken(UUID.randomUUID().toString()); // Secure UUID string

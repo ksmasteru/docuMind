@@ -40,7 +40,7 @@ apiClient.interceptors.response.use(
     const { response, config } = error;
 
     if (!response || response.status !== 401 || config._retried) {
-      return Promise.rejectj(error);
+      return Promise.reject(error);
     }
 
     const refreshToken = localStorage.getItem("refreshToken");
@@ -58,16 +58,15 @@ apiClient.interceptors.response.use(
             refreshPromise = null;
           });
       }
-
       const { data } = await refreshPromise;
       console.log(`access token is ${data.accessToken}`);
       accessToken = data.accessToken;
       localStorage.setItem("refreshToken", data.refreshToken);
       onAuthChange?.(data.accessToken);
-
       config.headers.Authorization = `Bearer ${data.accessToken}`;
       return apiClient(config);
-    } catch (refreshError) {
+    }
+      catch (refreshError) {
       accessToken = null;
       localStorage.removeItem("refreshToken");
       onAuthChange?.(null);

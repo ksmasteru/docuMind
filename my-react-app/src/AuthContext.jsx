@@ -17,33 +17,42 @@ export function AuthProvider({ children }) {
   // this is a new tab) — try to mint one from the refresh token in
   // localStorage before rendering protected content.
   useEffect(() => {
-    const refreshToken = localStorage.getItem("refreshToken");
-    if (!refreshToken) {
-      setIsLoading(false);
-      return;
-    }
+    // Declare an inner async function inside the effect
+    const initializeAuth = async () => {
+      const refreshToken = localStorage.getItem("refreshToken");
+      if (!refreshToken) {
+        setIsLoading(false);
+        return;
+      }
 
-    apiClient
-      .post("/api/auth/refresh", { refreshToken })
-      .then(({ data }) => {
+      try {
+        const { data } = await apiClient.post("/api/auth/refresh", { refreshToken });
         setAccessToken(data.accessToken);
         localStorage.setItem("refreshToken", data.refreshToken);
         setUser({ role: data.role });
-      })
-      .catch(() => {
+      } catch (error) {
         localStorage.removeItem("refreshToken");
-      })
-      .finally(() => setIsLoading(false));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Execute the async function immediately
+    initializeAuth();
   }, []);
 
   const login = useCallback(async (email, password) => {
+    
     const { data } = await apiClient.post("/api/auth/login", { email, password });
-    console.log(`acessToken : ${data.accessToken}`);
-    console.log(`refreshToken : ${data.refreshToken}`);
+    
     setAccessToken(data.accessToken);
+    
     localStorage.setItem("refreshToken", data.refreshToken);
+    
     setUser({ email, role: data.role });
+    
     console.log(`data is ${data}`);
+    
     return data;
   }, []);
 
@@ -51,7 +60,7 @@ export function AuthProvider({ children }) {
     const refreshToken = localStorage.getItem("refreshToken");
     try {
       if (refreshToken) {
-        await apiClient.post("/api/auth/logout", { refreshToken });
+        await apiClient.post("/api/auth/logout", { "refreshToken" : refreshToken });
       }
     } finally {
       setAccessToken(null);

@@ -21,6 +21,7 @@ import com.docuMind.backend.model.UpdateUserRequest;
 import com.docuMind.backend.model.User;
 import com.docuMind.backend.model.UserResponseWrapper;
 import com.docuMind.backend.model.UserResponseWrapper.UserInfo;
+import com.docuMind.backend.model.enums.UserRole;
 import com.docuMind.backend.security.JwtService;
 import com.docuMind.backend.security.RefreshToken;
 import com.docuMind.backend.security.RefreshTokenRepository;
@@ -55,23 +56,29 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody UpdateUserRequest request) {
+    public ResponseEntity<?> register(@RequestBody  Map<String, String> request) {
+        
+        System.out.println("received a new register request with body :" + request);
+        
         try {
-            User toRegister = new User(request.getName(), request.getEmail(),
-                    request.getPassword(), request.getRole());
+            User toRegister = new User(request.get("name"), request.get("email"),
+                    request.get("password"), UserRole.USER);
             User registered = userService.registerUser(toRegister);
             List<UserInfo> userInfo = List.of(new UserInfo(registered.getName(), registered.getEmail(), registered.getRole()));
             UserResponseWrapper response = new UserResponseWrapper(userInfo, userInfo.size());
             return ResponseEntity.status(HttpStatus.OK)
                     .body(response);
-        } catch (RuntimeException e) {
+        }
+        catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
         @PostMapping("/login")
         public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
-        try {
+       
+            System.out.println("new login request with " + request.get("email") + " password " + request.get("password"));
+            try {
             // Step A: Bouncer validation step
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.get("email"), request.get("password"))
@@ -98,11 +105,10 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<?> refreshSession(@RequestBody Map<String, String> request) {
         String clientRefreshToken = request.get("refreshToken");
-        
+
         if (clientRefreshToken == null || clientRefreshToken.isEmpty()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Missing refresh token");
         }
-    
         // 1. Fetch token from MongoDB
         Optional<RefreshToken> refreshTokenObj = refreshTokenService.findByToken(clientRefreshToken);
         if (!refreshTokenObj.isPresent()) {
@@ -134,23 +140,29 @@ public class AuthController {
     public ResponseEntity<?> logout(@RequestBody Map<String, String> request)
     {
         String clientRefreshToken = request.get("refreshToken");
+
         if (clientRefreshToken == null || clientRefreshToken.isEmpty())
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("empty refresh token");
+        
         Optional<RefreshToken> token = refreshTokenService.findByToken(clientRefreshToken);
+        
         if (!token.isPresent()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid token");
         }
+        
         RefreshToken tokenEntity = token.get();
     
         // 2. Validate token expiration safely
         try {
             refreshTokenService.verifyExpiration(tokenEntity);
-        } catch (SessionExpiredException ex) {
+        }
+        catch (SessionExpiredException ex) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
         }
+        
         tokenEntity.setRevoked(true);
+        
         refreshTokenRepository.save(tokenEntity);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body("Logged Out successfully");
     }
-    
 }

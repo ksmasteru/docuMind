@@ -2,6 +2,7 @@ package com.docuMind.backend.model;
 
 
 import com.docuMind.backend.model.enums.UserRole;
+
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -19,11 +20,11 @@ public class UpdateUserRequest{
     
     private UserRole role;
     
-    public UpdateUserRequest(String name, String email, String password, UserRole role) {
+    public UpdateUserRequest(String name, String email, String password ){
         this.name = name;
         this.email = email;
         this.password = password;
-        this.role = role;
+        this.role = UserRole.USER;
     }
 
     public String getName()
@@ -44,5 +45,10 @@ public class UpdateUserRequest{
     public UserRole getRole()
     {
         return this.role;
+    }
+
+    public void setRole(UserRole role)
+    {
+        this.role = role;
     }
 }
