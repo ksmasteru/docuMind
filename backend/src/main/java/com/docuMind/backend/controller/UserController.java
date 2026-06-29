@@ -35,6 +35,7 @@ public class UserController {
     // 1. GET ALL USERS: GET /api/v1/users
     @GetMapping
     public UserResponseWrapper getUsers() {
+        System.out.println("received a new request");
         List<User> users = userService.getAllUsers();
         List<UserInfo> userInfo = users.stream()
                 .map(user -> new UserInfo(user.getName(), user.getId(), user.getRole()))
