@@ -10,7 +10,7 @@ export function AuthProvider({ children }) {
   // Let apiClient push state changes back here when it silently refreshes
   // or gives up and logs the user out from inside a 401 handler.
   useEffect(() => {
-    setAuthChangeHandler((data) => setUser(data));
+    setAuthChangeHandler((data) => setUser(data)); // ???
   }, []);
 
   // On first load there's no access token in memory (page was refreshed or
@@ -29,7 +29,7 @@ export function AuthProvider({ children }) {
         const { data } = await apiClient.post("/api/auth/refresh", { refreshToken });
         setAccessToken(data.accessToken);
         localStorage.setItem("refreshToken", data.refreshToken);
-        setUser({ role: data.role });
+        setUser({ role: data.Role });
       } catch (error) {
         localStorage.removeItem("refreshToken");
       } finally {
@@ -49,8 +49,10 @@ export function AuthProvider({ children }) {
     
     localStorage.setItem("refreshToken", data.refreshToken);
     
-    setUser({ email, role: data.role });
+    setUser({ email, role: data.Role });
     
+    console.log(`data is ${JSON.stringify(data)}`);
+    console.log(`user role is ${data.Role}`);
     console.log(`data is ${data}`);
     
     return data;

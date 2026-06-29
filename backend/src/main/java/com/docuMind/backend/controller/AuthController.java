@@ -4,7 +4,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Value;
 
 import com.docuMind.backend.exception.SessionExpiredException;
 import com.docuMind.backend.model.AuthResponse;
@@ -32,6 +35,8 @@ import com.docuMind.backend.services.UserService;
 @RestController
 @RequestMapping("/api/auth") /*the public api used for login in / register */
 public class AuthController {
+    @Value("${app.security.admin-key}")
+    private String adminSecretKey;
 
     private final RefreshTokenRepository refreshTokenRepository;
     private final UserService userService;
@@ -55,6 +60,28 @@ public class AuthController {
         this.refreshTokenRepository = refreshTokenRepository;
     }
 
+    @PostMapping("/register-admin")
+    public ResponseEntity<?> register_admin(@RequestBody Map<String, String> request)
+    {    
+        if (request.get("admin_key") == null || request.get("admin_key").isEmpty())
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid key");
+        String providedKey = request.get("admin_key");
+        if (!adminSecretKey.equals(providedKey)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Unauthorized token.");
+        }
+        try {
+            User toRegister = new User(request.get("name"), request.get("email"),
+            request.get("password"), UserRole.ADMIN);
+            User registered = userService.registerUser(toRegister);
+            List<UserInfo> userInfo = List.of(new UserInfo(registered.getName(), registered.getEmail(), registered.getRole()));
+            UserResponseWrapper response = new UserResponseWrapper(userInfo, userInfo.size());
+            return ResponseEntity.status(HttpStatus.OK)
+            .body(response);
+        }
+        catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody  Map<String, String> request) {
         
@@ -92,8 +119,8 @@ public class AuthController {
             String refreshToken = refreshTokenObj.getToken();
             // Step C: Construct the secure token payload
             final String accessToken = jwtService.generateToken(userDetails);
-
-            return ResponseEntity.ok(new AuthResponse(accessToken, refreshToken, "Bearer"));
+            User user = refreshTokenObj.getUser();
+            return ResponseEntity.ok(new AuthResponse(accessToken, refreshToken, "Bearer", user.getRole()));
 
         } catch (BadCredentialsException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -133,7 +160,7 @@ public class AuthController {
         final String newAccessToken = jwtService.generateToken(userDetails);
     
         // Return the new access token along with the existing refresh token
-        return ResponseEntity.ok(new AuthResponse(newAccessToken, tokenEntity.getToken(), "Bearer"));
+        return ResponseEntity.ok(new AuthResponse(newAccessToken, tokenEntity.getToken(), "Bearer", user.getRole()));
     }
 
     @PostMapping("/logout")

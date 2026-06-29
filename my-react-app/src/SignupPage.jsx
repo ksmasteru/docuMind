@@ -4,6 +4,7 @@ import { apiClient } from "./apiClient";
 import {useAuth} from "./AuthContext";
 
 export default function SignupPage() {
+  
   const navigate = useNavigate();
   const { login } = useAuth(); 
   const [name, setName] = useState("");
@@ -19,14 +20,9 @@ export default function SignupPage() {
 
     try {
       const result = await apiClient.post("/api/auth/register", {"name" : name, "email" : email, "password" : password});
-      console.log(`result is : ${JSON.stringify(result)}`);
+      //console.log(`result is : ${JSON.stringify(result)}`);
       if (result.data.users) // hna check if registered.
       {
-        console.log("user registerd!");
-        //const fetchedEmail = result.data.users[0].userId;
-        // causes rerender!!!
-        //const fetchedPassword = result.data.users[0].password;
-        //console.log(`fetched email is ${fetchedEmail} and password is ${fetchedPassword}`);
         const data = await login(email,password);
         console.log(`result of login is : ${JSON.stringify(data)}`);
         navigate("/search", { replace: true });
