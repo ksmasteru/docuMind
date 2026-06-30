@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiClient } from "./apiClient";
 import { useAuth } from "./AuthContext";
+import TopBaro from "./TopBaro";
 
 export default function SearchUsersPage() {
-  const { logout } = useAuth();
+  const { isAdmin, logout } = useAuth();
   const navigate = useNavigate();
 
   const [users, setUsers] = useState([]);
@@ -36,7 +37,7 @@ export default function SearchUsersPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <TopBar onLogout={() => logout().then(() => navigate("/login"))} />
+    <TopBaro isAdmin={isAdmin} onLogout={() => logout().then(() => navigate("/login"))} />
 
       <main className="mx-auto max-w-2xl px-4 py-10">
         <h1 className="text-xl font-semibold text-slate-900">Workspace members</h1>

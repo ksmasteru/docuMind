@@ -2,14 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiClient } from "./apiClient";
 import { useAuth } from "./AuthContext";
-
+import TopBaro from "./TopBaro";
 // the backend send takes /api/v1/files/searchkeyword
 // and returns fileReponse
 const DEBOUNCE_MS = 350;
 
 export default function SearchPage() {
   // here we only imported the logout variable form the global auth context.
-  const { logout } = useAuth();
+  const { isAdmin, logout } = useAuth();
   const navigate = useNavigate();
 
   const [query, setQuery] = useState("");
@@ -56,8 +56,7 @@ export default function SearchPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <TopBar onLogout={() => logout().then(() => navigate("/login"))} />
-
+      <TopBaro isAdmin={isAdmin} onLogout={() => logout().then(() => navigate("/login"))} />
       <main className="mx-auto max-w-2xl px-4 py-10">
         <h1 className="text-xl font-semibold text-slate-900">Search documents</h1>
 

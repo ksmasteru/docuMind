@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, isAdmin, isLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -20,8 +20,11 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      await login(email, password);
-      navigate(redirectTo, { replace: true });
+      const data = await login(email, password);
+      if (data.Role == "ADMIN")
+        navigate("/admin", {replace: true})
+      else
+        navigate(redirectTo, { replace: true });
     } catch (err) {
       const status = err.response?.status;
       if (status === 401 || status === 403) {

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
-import { apiClient } from "./apiClient";
-import { useAuth } from "./AuthContext";
-import TopBaro from "./TopBaro";
+import { apiClient } from "../api/apiClient";
+import { useAuth } from "../context/AuthContext";
+
 export default function AdminPage() {
   const { logout, isAdmin, isLoading } = useAuth();
   const navigate = useNavigate();
@@ -12,11 +12,10 @@ export default function AdminPage() {
   const [deletingId, setDeletingId] = useState(null);
   const [deleteError, setDeleteError] = useState(null);
 
-  console.log("admin page");
   useEffect(() => {
     if (!isAdmin) return; // skip the fetch entirely if we're about to redirect below
     apiClient
-      .get("/api/v1/users")
+      .get("/v1/users")
       .then(({ data }) => {
         setUsers(data.users ?? []);
         setStatus("success");
@@ -57,7 +56,8 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <TopBaro isAdmin={isAdmin} onLogout={() => logout().then(() => navigate("/login"))} />
+      <TopBar onLogout={() => logout().then(() => navigate("/login"))} />
+
       <main className="mx-auto max-w-2xl px-4 py-10">
         <h1 className="text-xl font-semibold text-slate-900">Manage members</h1>
         <p className="mt-1 text-sm text-slate-500">Admin only — deleting a user is permanent.</p>
