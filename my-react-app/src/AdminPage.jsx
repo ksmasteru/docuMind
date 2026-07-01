@@ -3,6 +3,8 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { apiClient } from "./apiClient";
 import { useAuth } from "./AuthContext";
 import TopBaro from "./TopBaro";
+import Layout from "./Layout";
+
 export default function AdminPage() {
   const { logout, isAdmin, isLoading } = useAuth();
   const navigate = useNavigate();
@@ -56,6 +58,7 @@ export default function AdminPage() {
   }
 
   return (
+    <Layout active="admin">
     <div className="min-h-screen bg-slate-50">
       <TopBaro isAdmin={isAdmin} onLogout={() => logout().then(() => navigate("/login"))} />
       <main className="mx-auto max-w-2xl px-4 py-10">
@@ -110,6 +113,7 @@ export default function AdminPage() {
         </div>
       </main>
     </div>
+    </Layout>
   );
 }
 

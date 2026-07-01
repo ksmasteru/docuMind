@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiClient } from "./apiClient";
 import {useAuth} from "./AuthContext";
+import Layout from "./Layout";
+import { ThemeToggle } from "./Layout";
 
 export default function SignupPage() {
   
@@ -40,6 +42,9 @@ export default function SignupPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+        <div className="fixed right-4 top-4">
+          <ThemeToggle />
+        </div>
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-semibold text-slate-900">DocuMind</h1>

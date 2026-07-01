@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "./AuthContext";
+import { ThemeToggle } from "./Layout";
 
 export default function LoginPage() {
   const { login, isAdmin, isLoading } = useAuth();
@@ -39,6 +40,9 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+            <div className="fixed right-4 top-4">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-semibold text-slate-900">DocuMind</h1>

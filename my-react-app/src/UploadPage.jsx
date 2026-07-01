@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiClient } from "./apiClient";
 import { useAuth } from "./AuthContext";
+import Layout from "./Layout";
 
 export default function UploadPage() {
   const { isAdmin, logout } = useAuth();
@@ -74,6 +75,7 @@ export default function UploadPage() {
   }
 
   return (
+    <Layout active="upload">
     <div className="min-h-screen bg-slate-50">
         <TopBaro isAdmin={isAdmin} onLogout={() => logout().then(() => navigate("/login"))} />
 
@@ -172,6 +174,7 @@ export default function UploadPage() {
         </form>
       </main>
     </div>
+    </Layout>
   );
 }
 

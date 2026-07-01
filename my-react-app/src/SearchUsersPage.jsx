@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { apiClient } from "./apiClient";
 import { useAuth } from "./AuthContext";
 import TopBaro from "./TopBaro";
+import Layout from "./Layout";
 
 export default function SearchUsersPage() {
   const { isAdmin, logout } = useAuth();
@@ -36,6 +37,7 @@ export default function SearchUsersPage() {
   }, [users, query]);
 
   return (
+    <Layout active="users">
     <div className="min-h-screen bg-slate-50">
     <TopBaro isAdmin={isAdmin} onLogout={() => logout().then(() => navigate("/login"))} />
 
@@ -88,6 +90,7 @@ export default function SearchUsersPage() {
         </div>
       </main>
     </div>
+    </Layout>
   );
 }
 

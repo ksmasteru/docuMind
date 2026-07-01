@@ -7,6 +7,7 @@ import AdminPage from "./AdminPage";
 import UploadPage from "./UploadPage";
 import SignupPage  from "./SignupPage";
 import SearchUsersPage from "./SearchUsersPage";
+import { ThemeProvider } from "./ThemeContext";
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -16,6 +17,7 @@ function ProtectedRoute({ children }) {
 
 export default function App() {
   return (
+  <ThemeProvider>
   <AuthProvider>
       <BrowserRouter>
         <Routes>
@@ -29,5 +31,6 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </AuthProvider>
+    </ThemeProvider>
   );
 }

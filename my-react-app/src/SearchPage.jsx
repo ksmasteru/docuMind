@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { apiClient } from "./apiClient";
 import { useAuth } from "./AuthContext";
 import TopBaro from "./TopBaro";
+import Layout from "./Layout";
+
 // the backend send takes /api/v1/files/searchkeyword
 // and returns fileReponse
 const DEBOUNCE_MS = 350;
@@ -55,6 +57,7 @@ export default function SearchPage() {
   }, [query]);
 
   return (
+    <Layout active="search">
     <div className="min-h-screen bg-slate-50">
       <TopBaro isAdmin={isAdmin} onLogout={() => logout().then(() => navigate("/login"))} />
       <main className="mx-auto max-w-2xl px-4 py-10">
@@ -123,6 +126,7 @@ export default function SearchPage() {
         </div>
       </main>
     </div>
+    </Layout>
   );
 }
 
