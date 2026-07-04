@@ -10,7 +10,6 @@ import Layout from "./Layout";
 const DEBOUNCE_MS = 350;
 
 export default function SearchPage() {
-  // here we only imported the logout variable form the global auth context.
   const { isAdmin, logout } = useAuth();
   const navigate = useNavigate();
 

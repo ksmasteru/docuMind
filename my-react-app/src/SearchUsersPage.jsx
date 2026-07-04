@@ -13,23 +13,27 @@ export default function SearchUsersPage() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("loading"); // loading | success | error
 
-  useEffect(() => {
-    apiClient
-      .get("/v1/users")
-      .then(({ data }) => {
-        // TEMPORARY — confirm the real field name, then remove this line.
-        console.log("[users response]", data);
-        setUsers(data.users ?? []);
-        setStatus("success");
-      })
-      .catch(() => setStatus("error"));
-  }, []);
+useEffect(() => {
+  const fetchUsers = async () => {
+    try {
+      const { data } = await apiClient.get("/api/v1/users");
+      // Note: Changed data.user to data.users to match your first prompt
+      setUsers(data.users ?? []);
+      setStatus("success");
+    } catch (err) {
+      setStatus("error");
+    }
+  };
+
+  fetchUsers();
+}, []);
 
   // UserController has no /filter endpoint like DocumentController does, so
   // this filters the already-fetched list in the browser rather than
   // hitting the server on every keystroke. Fine for a small team; if the
   // user list grows large, this is the place a real backend search would
   // replace it.
+
   const filtered = useMemo(() => {
     const trimmed = query.trim().toLowerCase();
     if (!trimmed) return users;
@@ -77,12 +81,21 @@ export default function SearchUsersPage() {
               {filtered.map((user) => (
                 <li
                   key={user.id}
-                  className="flex items-center justify-between rounded-md border border-slate-200 bg-white px-4 py-3 shadow-sm"
-                >
-                  <span className="text-sm font-medium text-slate-900">{user.name}</span>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-600">
-                    {user.role}
-                  </span>
+                  className="flex items-center justify-between rounded-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
+              <span className="text-sm font-medium text-slate-900">
+                {user.name}
+              </span>
+
+              <div className="flex items-center gap-2">
+                <button className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-600"
+                  onClick = {() => navigate("/uploadedFiles", {state : {user}})}>
+                  uploads
+                </button>
+
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-600">
+                  {user.role}
+                </span>
+              </div>
                 </li>
               ))}
             </ul>
@@ -94,23 +107,3 @@ export default function SearchUsersPage() {
   );
 }
 
-function TopBar({ onLogout }) {
-  return (
-    <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
-      <Link to="/search" className="text-sm font-semibold text-slate-900">
-        DocuMind
-      </Link>
-      <nav className="flex items-center gap-4 text-sm">
-        <Link to="/search" className="text-slate-500 hover:text-slate-900">
-          Documents
-        </Link>
-        <Link to="/users" className="text-slate-900">
-          Members
-        </Link>
-        <button onClick={onLogout} className="text-slate-500 hover:text-slate-900">
-          Sign out
-        </button>
-      </nav>
-    </header>
-  );
-}

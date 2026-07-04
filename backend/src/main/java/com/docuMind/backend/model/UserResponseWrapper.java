@@ -8,7 +8,7 @@ public record  UserResponseWrapper(
     int userCount 
 ) {
     public record UserInfo(
-        String name, String userId, UserRole role
+        String name, String email, UserRole role
     )
     {
 

@@ -3,8 +3,8 @@ package com.docuMind.backend.model;
 import java.util.UUID;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document; 
-import org.springframework.http.MediaType;
 
 @Document(collection = "stored_files")
 public class FileEntity {
@@ -16,7 +16,10 @@ public class FileEntity {
     private String contentType; // e.g., "application/pdf", "text/markdown", "text/plain"
     private long size;
     private byte[] data; // Holds the actual file binary content
-    private String userId; // which user uploaded this file
+    
+    @Indexed //crucial for speed
+    private String userId; // which user uploaded this file : in our case it will be  the email
+    
     private String content;
     public FileEntity(
     ) {}

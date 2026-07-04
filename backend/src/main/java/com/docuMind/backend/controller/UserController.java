@@ -35,10 +35,10 @@ public class UserController {
     // 1. GET ALL USERS: GET /api/v1/users
     @GetMapping
     public UserResponseWrapper getUsers() {
-        System.out.println("received a new request");
+        System.out.println("received a new request for get users");
         List<User> users = userService.getAllUsers();
         List<UserInfo> userInfo = users.stream()
-                .map(user -> new UserInfo(user.getName(), user.getId(), user.getRole()))
+                .map(user -> new UserInfo(user.getName(), user.getEmail(), user.getRole()))
                 .toList();
         return new UserResponseWrapper(userInfo, userInfo.size());
     }
@@ -47,7 +47,7 @@ public class UserController {
     @GetMapping("/{id}")
     public ResponseEntity<UserResponseWrapper> getUser(@PathVariable String id) {
         User user = userService.getUserById(id);
-        List<UserInfo> user_info = List.of(new UserInfo(user.getName(), user.getId(), user.getRole()));
+        List<UserInfo> user_info = List.of(new UserInfo(user.getName(), user.getEmail(), user.getRole()));
         UserResponseWrapper response = new UserResponseWrapper(user_info, user_info.size());
         return ResponseEntity.ok(response);
     }
@@ -58,7 +58,7 @@ public class UserController {
         User newUser = new User(user.getName(), user.getEmail(), user.getPassword(), user.getRole());
         User savedUser = userService.registerUser(newUser);
         
-        List<UserInfo> user_info = List.of(new UserInfo(savedUser.getName(), savedUser.getId(), savedUser.getRole()));
+        List<UserInfo> user_info = List.of(new UserInfo(savedUser.getName(), savedUser.getEmail(), savedUser.getRole()));
         UserResponseWrapper response = new UserResponseWrapper(user_info, user_info.size());
         
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -71,7 +71,7 @@ public class UserController {
             @Valid @RequestBody UpdateUserRequest updateUserRequest) { // Added missing @RequestBody
         
         User user = userService.updateUser(id, updateUserRequest);
-        List<UserInfo> user_info = List.of(new UserInfo(user.getName(), user.getId(), user.getRole()));
+        List<UserInfo> user_info = List.of(new UserInfo(user.getName(), user.getEmail(), user.getRole()));
         UserResponseWrapper response = new UserResponseWrapper(user_info, user_info.size());
         
         return ResponseEntity.ok(response);

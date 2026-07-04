@@ -85,6 +85,8 @@ public class  DocumentController {
         @RequestParam(value = "title", required = false) String title)
         throws IOException
     {
+        
+        System.out.println("receveid a request for uplloading file");
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         
         String userId = authentication.getName();
@@ -96,6 +98,24 @@ public class  DocumentController {
         FileInfo fileInfo = new FileInfo(uploadedFile.getName(), uploadedFile.getSize(), uploadedFile.getUserId());
     
         FileResponse response =  new FileResponse(List.of(fileInfo), 1 );
+        
+
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+
+    // returns the files uploaded by the user of id : email
+    @GetMapping("/user/{id}")
+    public ResponseEntity<FileResponse> getfilesUploadedByUser(
+        @PathVariable String id
+    )
+    {
+        System.out.println("received getfilesUploadedByUser : " + id);
+        List<FileEntity> userFiles = documentService.getUserFiles(id);
+        List<FileInfo> files = userFiles.stream()
+                        .map(file -> new FileInfo(file.getName(), file.getSize(), file.getUserId()))
+                        .toList();
+        
+        FileResponse response = new FileResponse(files, files.size());
         
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }

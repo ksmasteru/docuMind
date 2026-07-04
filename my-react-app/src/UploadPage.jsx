@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { apiClient } from "./apiClient";
 import { useAuth } from "./AuthContext";
 import Layout from "./Layout";
+import TopBaro from "./TopBaro";
 
 export default function UploadPage() {
   const { isAdmin, logout } = useAuth();

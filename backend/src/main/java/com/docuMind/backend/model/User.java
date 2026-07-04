@@ -1,15 +1,16 @@
 package com.docuMind.backend.model;
 
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.security.core.GrantedAuthority;                // ADDED
-import org.springframework.security.core.authority.SimpleGrantedAuthority; // ADDED
-import org.springframework.security.core.userdetails.UserDetails;          // ADDED
-import com.docuMind.backend.model.enums.UserRole;
+import java.util.Collection;
+import java.util.List;
 
-import java.util.Collection;                                               // ADDED
-import java.util.List;                                                     // ADDED
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;                // ADDED
+import org.springframework.data.mongodb.core.mapping.Document; // ADDED
+import org.springframework.security.core.GrantedAuthority;          // ADDED
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;                                               // ADDED
+
+import com.docuMind.backend.model.enums.UserRole;                                                     // ADDED
 
 @Document(collection = "users")
 public class User implements UserDetails { // <-- ADDED implementation

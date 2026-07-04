@@ -1,9 +1,8 @@
 package com.docuMind.backend.services;
 
-import com.docuMind.backend.model.UploadFile;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
@@ -13,12 +12,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.docuMind.backend.exception.FileNotFoundException;
 import com.docuMind.backend.exception.FileNotSupportedException;
-import com.docuMind.backend.repository.DocumentRepository;
-import com.docuMind.backend.model.DocumentResponse;
 import com.docuMind.backend.model.FileEntity;
-import java.util.List;
-import java.util.UUID;
-import org.springframework.util.StringUtils;
+import com.docuMind.backend.repository.DocumentRepository;
 
 // talks with repsose
 @Service
@@ -80,4 +75,11 @@ public class DocumentService {
         else
            throw new FileNotFoundException("file not found with name : " + Id);  
     }
+
+    public List<FileEntity> getUserFiles(String userId)
+    {
+        List<FileEntity> files = documentRepository.findByUserId(userId);
+        return files;
+    }
+
 }
