@@ -4,7 +4,7 @@ import { apiClient } from "./apiClient";
 import { useAuth } from "./AuthContext";
 import TopBaro from "./TopBaro";
 import Layout from "./Layout";
-
+import FilesList from "./FilesList.jsx";
 // the backend send takes /api/v1/files/searchkeyword
 // and returns fileReponse
 const DEBOUNCE_MS = 350;
@@ -96,30 +96,7 @@ export default function SearchPage() {
 
           {status === "success" && results.filesCount > 0 && (
             <ul className="space-y-2">
-              {results.files.map((doc) => (
-                <li
-                  key={doc.name}
-                  className="rounded-md border border-slate-200 bg-white p-4 shadow-sm"
-                >
-                  <p className="text-sm font-medium text-slate-900">{doc.name}</p>
-                  <p className="mt-1 text-xs text-slate-400">
-                    {doc.userId}
-                    {formatBytes(doc.size)}
-                  </p>
-                  {doc.tags?.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {doc.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-600"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </li>
-              ))}
+              {<FilesList filesList={results.files}></FilesList>}
             </ul>
           )}
         </div>
