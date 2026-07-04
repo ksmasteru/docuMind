@@ -6,7 +6,8 @@ import {useAuth} from "./AuthContext";
 import { useEffect, useState } from "react";
 import { apiClient } from "./apiClient";
 import { useLocation } from "react-router-dom";
-
+import FileItem from "./FileItem.jsx";
+import FilesList from "./FilesList.jsx";
 const UploadedFiles = () => {
 
     const {isAdmin, logout} = useAuth();
@@ -44,22 +45,7 @@ const UploadedFiles = () => {
     <div className="mt-6">
         {status === "success" && data.filesCount > 0 && (
         <ul className="space-y-2">
-        {data.files.map((file) => (
-            <li
-                  className="flex items-center justify-between rounded-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
-              <span className="text-sm font-medium text-slate-900">
-                {file.name}
-              </span>
-              <div className="flex items-center gap-2">
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-600">
-                    {file.size}
-                </span>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-600">
-                  {file.userId}
-                </span>
-              </div>
-                </li>
-              ))}
+        {<FilesList filesList={data.files}></FilesList>}
         </ul>
         )}
         {status === "success" && data.filesCount === 0 && (
