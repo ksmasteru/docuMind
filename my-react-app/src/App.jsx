@@ -10,7 +10,11 @@ import SearchUsersPage from "./SearchUsersPage";
 import { ThemeProvider } from "./ThemeContext";
 import UploadedFiles from "./UploadedFiles";
 import SearchContent from "./SearchContent";
+import { pdfjs} from "react-pdf";
 
+pdfjs.GlobalWorkerOptions.workerSrc =
+  new URL("pdfjs-dist/build/pdf.worker.min.js", import.meta.url).toString();
+  
 function ProtectedRoute({ children }) {
   const { isAuthenticated, isLoading } = useAuth();
   if (isLoading) return null; // or a spinner

@@ -43,12 +43,12 @@ export default function AdminPage() {
   async function handleDelete(user) {
     if (!window.confirm(`Delete ${user.name}? This can't be undone.`)) return;
 
-    setDeletingId(user.id);
+    setDeletingId(user.email);
     setDeleteError(null);
 
     try {
-      await apiClient.delete(`/v1/users/${user.id}`);
-      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      await apiClient.delete(`/api/v1/users/${user.email}`);
+      setUsers((prev) => prev.filter((u) => u.email !== user.email));
     } catch (err) {
       setDeleteError(`Couldn't delete ${user.name}. ${err.response?.status === 404 ? "Already gone?" : "Try again."}`);
     } finally {
@@ -89,7 +89,7 @@ export default function AdminPage() {
             <ul className="space-y-2">
               {users.map((user) => (
                 <li
-                  key={user.id}
+                  key={user.email}
                   className="flex items-center justify-between rounded-md border border-slate-200 bg-white px-4 py-3 shadow-sm"
                 >
                   <div className="flex items-center gap-3">
@@ -100,10 +100,10 @@ export default function AdminPage() {
                   </div>
                   <button
                     onClick={() => handleDelete(user)}
-                    disabled={deletingId === user.id}
+                    disabled={deletingId === user.email}
                     className="text-sm font-medium text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {deletingId === user.id ? "Deleting…" : "Delete"}
+                    {deletingId === user.email ? "Deleting…" : "Delete"}
                   </button>
                 </li>
               ))}

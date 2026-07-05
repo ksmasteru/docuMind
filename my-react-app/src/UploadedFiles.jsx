@@ -8,6 +8,7 @@ import { apiClient } from "./apiClient";
 import { useLocation } from "react-router-dom";
 import FileItem from "./FileItem.jsx";
 import FilesList from "./FilesList.jsx";
+
 const UploadedFiles = () => {
 
     const {isAdmin, logout} = useAuth();
@@ -48,16 +49,19 @@ const UploadedFiles = () => {
         {<FilesList filesList={data.files}></FilesList>}
         </ul>
         )}
+
         {status === "success" && data.filesCount === 0 && (
            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
              NO FILES FOUND
             </p>
         )}
+
         {status === "error" && (
             <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               Couldn't load files. Try again.
             </p>
         )}
+
     </div>
     </main>
     </div>

@@ -51,7 +51,7 @@ const SearchContent = () => {
     }, [query]);
     
     return (
-        <Layout active="/searchContent"> 
+        <Layout active="/searchContent">
             <div className="min-h-screen bg-slate-50">
                 <TopBaro isAdmin={isAdmin} onLogout={() => logout().then(() => navigate("/login"))} />
                 <main className="mx-auto max-w-2xl px-4 py-10">
