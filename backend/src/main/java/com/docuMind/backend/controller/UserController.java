@@ -81,7 +81,9 @@ public class UserController {
     // Use Spring Security annotations like @PreAuthorize("hasRole('ADMIN')") here to restrict access instead of changing the URL path
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
+    
     public ResponseEntity<Void> deleteUser(@PathVariable String id) {
+        System.out.println("received a delelete request");
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }

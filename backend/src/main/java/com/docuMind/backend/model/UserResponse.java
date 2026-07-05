@@ -1,7 +1,9 @@
 package com.docuMind.backend.model;
 import com.docuMind.backend.model.enums.UserRole;
 
+
 public class UserResponse {
+    
     private String id;
     private String name;
     private String email;

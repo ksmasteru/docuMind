@@ -23,6 +23,8 @@ import com.docuMind.backend.model.FileEntity;
 import com.docuMind.backend.model.FileResponse;
 import com.docuMind.backend.model.FileResponse.FileInfo;
 import com.docuMind.backend.services.DocumentService;
+import java.util.UUID;
+
 
 @RestController
 @RequestMapping("/api/v1/files")
@@ -40,7 +42,7 @@ public class  DocumentController {
         System.out.println("received a new request!!");
         List<FileEntity> fileList = documentService.searchFile(name);
         List<FileInfo> files = fileList.stream()
-            .map(file -> new FileInfo(file.getName(), file.getSize(), file.getUserId()))
+            .map(file -> new FileInfo(UUID.randomUUID(), file.getName(), file.getSize(), file.getUserId()))
             .toList();
         FileResponse response = new FileResponse(files, files.size());
         return ResponseEntity.status(HttpStatus.OK).body(response);
@@ -50,15 +52,15 @@ public class  DocumentController {
     public ResponseEntity<FileResponse> filter(@PathVariable String keyword) {
         List<FileEntity> fileList = documentService.filter(keyword);
         List<FileInfo> files = fileList.stream()
-            .map(file -> new FileInfo(file.getName(), file.getSize(), file.getUserId()))
+            .map(file -> new FileInfo(UUID.randomUUID(), file.getName(), file.getSize(), file.getUserId()))
             .toList();
         FileResponse response = new FileResponse(files, files.size());
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
     @GetMapping("/id/{id}")
-    public ResponseEntity<ByteArrayResource> getFile(@PathVariable String id) {
-    
+    public ResponseEntity<ByteArrayResource> getFile(@PathVariable String id)
+    {
         List<FileEntity> fileList = documentService.getFile(id);
         
         if (fileList == null || fileList.isEmpty()) {
@@ -79,6 +81,29 @@ public class  DocumentController {
             .body(resource);
     }
     
+    @GetMapping("/preview/id/{id}")
+    public ResponseEntity<ByteArrayResource> previewFile(@PathVariable String id)
+    {
+        List<FileEntity> fileList = documentService.getFile(id);
+        
+        if (fileList == null || fileList.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        FileEntity fileEntity = fileList.get(0);
+        byte[] data = fileEntity.getData();
+        ByteArrayResource resource = new ByteArrayResource(data);
+        
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "inline");
+        headers.setContentLength(fileEntity.getSize());
+        
+        return ResponseEntity.status(HttpStatus.OK)
+            .headers(headers)
+            .contentType(MediaType.parseMediaType(fileEntity.getContentType()))
+            .body(resource);
+    }
+
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<FileResponse> uploadFile(
         @RequestParam MultipartFile file,
@@ -95,7 +120,7 @@ public class  DocumentController {
         
         FileEntity uploadedFile =  documentService.uploadFile(file, title, userId);
         
-        FileInfo fileInfo = new FileInfo(uploadedFile.getName(), uploadedFile.getSize(), uploadedFile.getUserId());
+        FileInfo fileInfo = new FileInfo(UUID.randomUUID(), uploadedFile.getName(), uploadedFile.getSize(), uploadedFile.getUserId());
     
         FileResponse response =  new FileResponse(List.of(fileInfo), 1 );
         
@@ -112,7 +137,7 @@ public class  DocumentController {
         System.out.println("received getfilesUploadedByUser : " + id);
         List<FileEntity> userFiles = documentService.getUserFiles(id);
         List<FileInfo> files = userFiles.stream()
-                        .map(file -> new FileInfo(file.getName(), file.getSize(), file.getUserId()))
+                        .map(file -> new FileInfo(UUID.randomUUID(), file.getName(), file.getSize(), file.getUserId()))
                         .toList();
         
         FileResponse response = new FileResponse(files, files.size());

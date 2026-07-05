@@ -81,12 +81,12 @@ public class UserService {
     }
 
     // to fix : should throw an exceptionn i user doesnt exist
-    public void deleteUser(String id)
+    public void deleteUser(String email)
     {
         // busines logic : check if user exists
-        boolean userExists = userRepository.findById(id).isPresent();
+        boolean userExists = userRepository.findByEmail(email).isPresent();
         if (userExists)
-            userRepository.deleteById(id);
+            userRepository.deleteByEmail(email);
         else
             throw new UserNotFoundException("User not found");
     }
