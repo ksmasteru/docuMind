@@ -9,17 +9,24 @@ const TopBaro = ({isAdmin, onLogout}) => {
       DocuMind
     </Link>
     <nav className="flex items-center gap-4 text-sm">
+
       <Link to="/documents" className="text-slate-500 hover:text-slate-900">
         Documents
       </Link>
+      
+      <Link to="/searchContent" className="text-slate-500 hover:text-slate-900">
+        SearchContent
+      </Link>
+      
       <Link to="/users" className="text-slate-500 hover:text-slate-900">
         Members
       </Link>
+      
       { isAdmin &&
       <Link to="/admin" className="text-slate-900">
         Admin
       </Link>
-        }
+      }
     <button onClick={onLogout} className="text-slate-500 hover:text-slate-900">
         Sign out
       </button>

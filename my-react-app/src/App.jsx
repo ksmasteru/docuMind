@@ -9,6 +9,7 @@ import SignupPage  from "./SignupPage";
 import SearchUsersPage from "./SearchUsersPage";
 import { ThemeProvider } from "./ThemeContext";
 import UploadedFiles from "./UploadedFiles";
+import SearchContent from "./SearchContent";
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/documents" element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
           <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
           <Route path="/uploadedFiles" element={<UploadedFiles />}/>
+          <Route path="/searchContent" element={<SearchContent/>} />
           <Route path="*" element={<Navigate to="/documents" replace />} />
         </Routes>
       </BrowserRouter>

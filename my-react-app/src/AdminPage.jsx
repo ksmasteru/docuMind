@@ -14,7 +14,6 @@ export default function AdminPage() {
   const [deletingId, setDeletingId] = useState(null);
   const [deleteError, setDeleteError] = useState(null);
 
-  console.log("admin page");
   useEffect(() => {
     if (!isAdmin) return; // skip the fetch entirely if we're about to redirect below
     apiClient
