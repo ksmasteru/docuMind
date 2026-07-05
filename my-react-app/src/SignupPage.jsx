@@ -27,7 +27,7 @@ export default function SignupPage() {
       {
         const data = await login(email,password);
         console.log(`result of login is : ${JSON.stringify(data)}`);
-        navigate("/search", { replace: true });
+        navigate("/documents", { replace: true });
       }
     }
      catch (err) {

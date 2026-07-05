@@ -13,7 +13,7 @@ export default function LoginPage() {
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const redirectTo = location.state?.from?.pathname || "/search";
+  const redirectTo = location.state?.from?.pathname || "/documents";
 
   async function handleSubmit(event) {
     event.preventDefault();

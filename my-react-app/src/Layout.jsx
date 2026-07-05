@@ -51,11 +51,11 @@ export function TopBar({ active }) {
 
   return (
     <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-      <Link to="/search" className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+      <Link to="/documents" className="text-sm font-semibold text-slate-900 dark:text-slate-100">
         DocuMind
       </Link>
       <nav className="flex items-center gap-4">
-        <Link to="/search" className={linkClass("search")}>Documents</Link>
+        <Link to="/documents" className={linkClass("search")}>Documents</Link>
         <Link to="/upload" className={linkClass("upload")}>Upload</Link>
         <Link to="/users"  className={linkClass("users")}>Members</Link>
         {isAdmin && (

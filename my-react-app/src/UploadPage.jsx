@@ -178,24 +178,3 @@ export default function UploadPage() {
     </Layout>
   );
 }
-
-function TopBar({ onLogout }) {
-  return (
-    <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
-      <Link to="/search" className="text-sm font-semibold text-slate-900">
-        DocuMind
-      </Link>
-      <nav className="flex items-center gap-4 text-sm">
-        <Link to="/search" className="text-slate-500 hover:text-slate-900">
-          Search
-        </Link>
-        <Link to="/upload" className="text-slate-900">
-          Upload
-        </Link>
-        <button onClick={onLogout} className="text-slate-500 hover:text-slate-900">
-          Sign out
-        </button>
-      </nav>
-    </header>
-  );
-}

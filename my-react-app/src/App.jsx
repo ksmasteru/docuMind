@@ -26,10 +26,10 @@ export default function App() {
           <Route path="/users" element={<ProtectedRoute><SearchUsersPage /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/search" element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
+          <Route path="/documents" element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
           <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
           <Route path="/uploadedFiles" element={<UploadedFiles />}/>
-          <Route path="*" element={<Navigate to="/search" replace />} />
+          <Route path="*" element={<Navigate to="/documents" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
