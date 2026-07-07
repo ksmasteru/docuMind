@@ -2,61 +2,71 @@ package com.docuMind.backend.model;
 
 import java.util.UUID;
 
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document; 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.Table;
 
-@Document(collection = "stored_files")
+@Entity
+@Table(name = "files", indexes = {
+    // Replaces MongoDB's @Indexed on userId
+    @Index(name = "idx_files_user_id", columnList = "userId")
+})
+
 public class FileEntity {
 
     @Id
     private String id;
-    private String name; // name entered by user
-    private String generatedName; // unique name handled internally to avoid conflicts
-    private String contentType; // e.g., "application/pdf", "text/markdown", "text/plain"
-    private long size;
-    private byte[] data; // Holds the actual file binary content
-    
-    @Indexed //crucial for speed
-    private String userId; // which user uploaded this file : in our case it will be  the email
-    
-    private String content;
-    public FileEntity(
-    ) {}
 
-    public FileEntity(String name, String contentType, long size, byte[] data,
-        String userId, String content) {
+    @Column(nullable = false)
+    private String name;
+
+    @Column(nullable = false)
+    private String generatedName;
+
+    @Column(nullable = false)
+    private String contentType;
+
+    @Column(nullable = false)
+    private long size;
+
+    // email..
+    @Column(nullable = false)
+    private String userId;
+
+    // Extracted text content — this is the field phase 2 will chunk
+    // and embed. Stored as TEXT (no length limit) in Postgres.
+    @Column(columnDefinition = "TEXT")
+    private String content;
+
+    // No byte[] data here — that lives in FileContent now.
+
+    public FileEntity() {}
+
+    public FileEntity(String name, String contentType, long size,
+                      String userId, String content) {
         this.id = UUID.randomUUID().toString();
         this.name = name;
         this.contentType = contentType;
-        this.generatedName = id + "_" + name;
+        this.generatedName = this.id + "_" + name;
         this.size = size;
-        this.data = data;
         this.userId = userId;
         this.content = content;
     }
 
-    // Getters and Setters
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
-
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-
-    public String getGeneratedName() {return generatedName;}
-    public void setGeneratedName(String generatedName) {this.generatedName = generatedName;}
-    public String getContentType() { return contentType; }
-    public void setContentType(String contentType) { this.contentType = contentType; }
-
-    public long getSize() { return size; }
-    public void setSize(long size) { this.size = size; }
-
-    public String getUserId() {return this.userId;}
-    public void setUserId(String UserId) {this.userId = UserId;}
-    
-    public String getContent(){return this.content;}
-    public void setContent(String Content){this.content = Content;}
-    
-    public byte[] getData() { return data; }
-    public void setData(byte[] data) { this.data = data; }
+    public String getId()           { return id; }
+    public void setId(String id)    { this.id = id; }
+    public String getName()         { return name; }
+    public void setName(String n)   { this.name = n; }
+    public String getGeneratedName(){ return generatedName; }
+    public void setGeneratedName(String gn) { this.generatedName = gn; }
+    public String getContentType()  { return contentType; }
+    public void setContentType(String ct) { this.contentType = ct; }
+    public long getSize()           { return size; }
+    public void setSize(long s)     { this.size = s; }
+    public String getUserId()       { return userId; }
+    public void setUserId(String u) { this.userId = u; }
+    public String getContent()      { return content; }
+    public void setContent(String c){ this.content = c; }
 }

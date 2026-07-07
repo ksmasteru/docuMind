@@ -14,21 +14,35 @@ import com.docuMind.backend.exception.FileNotFoundException;
 import com.docuMind.backend.exception.FileNotSupportedException;
 import com.docuMind.backend.model.FileEntity;
 import com.docuMind.backend.repository.DocumentRepository;
-
+import com.docuMind.backend.repository.FileContentRepository;
+import com.docuMind.backend.model.FileContent;
 // talks with repsose
 @Service
 public class DocumentService {
     List<String> allowedExtensions = List.of("pdf", "md", "txt");
     private final DocumentRepository documentRepository;
+    private final FileContentRepository fileContentRepository;
     
-    public DocumentService(DocumentRepository documentRepository)
+    public DocumentService(DocumentRepository documentRepository, FileContentRepository fileContentRepository)
     {
         this.documentRepository = documentRepository;
+        this.fileContentRepository = fileContentRepository;
     }
 
-    public List<FileEntity> getFile(String name)
+    // changed from List<FileEntity> to FileEntity
+    // we want this to 
+    
+    public FileContent getFileData(String id)
+    {        
+        FileContent fileContent = fileContentRepository.findById(id)
+                                .orElseThrow(() -> new FileNotFoundException(""));        
+        return fileContent;
+    }
+
+    public FileEntity getFileMetaData(String id)
     {
-        List<FileEntity> returnFile = documentRepository.findByNameContainingIgnoreCase(name);
+        FileEntity returnFile = documentRepository.findById(id)
+                                .orElseThrow(() -> new FileNotFoundException(""));
         return returnFile;
     }
 
@@ -52,18 +66,27 @@ public class DocumentService {
         if (!allowedExtensions.contains(fileExtension))
             throw new FileNotSupportedException("Unsupported file type---");
         String content = null;
+        
         if (fileExtension.equals("pdf"))
         {
             PDDocument pdf = PDDocument.load(file.getInputStream()); 
             PDFTextStripper stripper = new PDFTextStripper();
             content = stripper.getText(pdf);
         }
+        
         else
             content = new String(file.getBytes(),StandardCharsets.UTF_8);
+        
         System.out.println(content);
-        FileEntity fileToSave = new FileEntity(file.getOriginalFilename(), 
-            file.getContentType(), file.getSize(), file.getBytes(), userId, content);
+        FileEntity fileToSave = new FileEntity(title != null ? title : file.getOriginalFilename(), 
+            file.getContentType(), file.getSize(), userId, content);
+        
         FileEntity returnFile = documentRepository.save(fileToSave);
+        
+        FileContent fileContent = new FileContent(returnFile.getId(), file.getBytes());
+        
+        fileContentRepository.save(fileContent);
+        
         return returnFile;
     }
 

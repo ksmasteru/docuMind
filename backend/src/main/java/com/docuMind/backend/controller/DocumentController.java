@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.docuMind.backend.model.FileContent;
 import com.docuMind.backend.model.FileEntity;
 import com.docuMind.backend.model.FileResponse;
 import com.docuMind.backend.model.FileResponse.FileInfo;
@@ -42,7 +43,7 @@ public class  DocumentController {
         System.out.println("received a new request!!");
         List<FileEntity> fileList = documentService.searchFile(name);
         List<FileInfo> files = fileList.stream()
-            .map(file -> new FileInfo(UUID.randomUUID(), file.getName(), file.getSize(), file.getUserId()))
+            .map(file -> new FileInfo(file.getId(), file.getName(), file.getSize(), file.getUserId()))
             .toList();
         FileResponse response = new FileResponse(files, files.size());
         return ResponseEntity.status(HttpStatus.OK).body(response);
@@ -52,7 +53,7 @@ public class  DocumentController {
     public ResponseEntity<FileResponse> filter(@PathVariable String keyword) {
         List<FileEntity> fileList = documentService.filter(keyword);
         List<FileInfo> files = fileList.stream()
-            .map(file -> new FileInfo(UUID.randomUUID(), file.getName(), file.getSize(), file.getUserId()))
+            .map(file -> new FileInfo(file.getId(), file.getName(), file.getSize(), file.getUserId()))
             .toList();
         FileResponse response = new FileResponse(files, files.size());
         return ResponseEntity.status(HttpStatus.OK).body(response);
@@ -60,38 +61,33 @@ public class  DocumentController {
 
     @GetMapping("/id/{id}")
     public ResponseEntity<ByteArrayResource> getFile(@PathVariable String id)
-    {
-        List<FileEntity> fileList = documentService.getFile(id);
+    {     
+        FileEntity file = documentService.getFileMetaData(id);
+        FileContent fileData = documentService.getFileData(id);
         
-        if (fileList == null || fileList.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
+        byte[] data = fileData.getData();
         
-        FileEntity fileEntity = fileList.get(0);
-        byte[] data = fileEntity.getData();
         ByteArrayResource resource = new ByteArrayResource(data);
         
         HttpHeaders headers = new HttpHeaders();
-        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileEntity.getGeneratedName() + "\"");
-        headers.setContentLength(fileEntity.getSize());
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getGeneratedName() + "\"");
+        headers.setContentLength(file.getSize());
         
         return ResponseEntity.status(HttpStatus.OK)
             .headers(headers)
-            .contentType(MediaType.parseMediaType(fileEntity.getContentType())) 
+            .contentType(MediaType.parseMediaType(file.getContentType())) 
             .body(resource);
     }
     
     @GetMapping("/preview/id/{id}")
     public ResponseEntity<ByteArrayResource> previewFile(@PathVariable String id)
     {
-        List<FileEntity> fileList = documentService.getFile(id);
+        FileEntity fileEntity = documentService.getFileMetaData(id);
         
-        if (fileList == null || fileList.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
-
-        FileEntity fileEntity = fileList.get(0);
-        byte[] data = fileEntity.getData();
+        FileContent fileData = documentService.getFileData(id);
+        
+        byte[] data = fileData.getData();
+        
         ByteArrayResource resource = new ByteArrayResource(data);
         
         HttpHeaders headers = new HttpHeaders();
@@ -112,6 +108,7 @@ public class  DocumentController {
     {
         
         System.out.println("receveid a request for uplloading file");
+        
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         
         String userId = authentication.getName();
@@ -120,10 +117,9 @@ public class  DocumentController {
         
         FileEntity uploadedFile =  documentService.uploadFile(file, title, userId);
         
-        FileInfo fileInfo = new FileInfo(UUID.randomUUID(), uploadedFile.getName(), uploadedFile.getSize(), uploadedFile.getUserId());
+        FileInfo fileInfo = new FileInfo(uploadedFile.getId(), uploadedFile.getName(), uploadedFile.getSize(), uploadedFile.getUserId());
     
         FileResponse response =  new FileResponse(List.of(fileInfo), 1 );
-        
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
@@ -135,9 +131,11 @@ public class  DocumentController {
     )
     {
         System.out.println("received getfilesUploadedByUser : " + id);
+        
         List<FileEntity> userFiles = documentService.getUserFiles(id);
+        
         List<FileInfo> files = userFiles.stream()
-                        .map(file -> new FileInfo(UUID.randomUUID(), file.getName(), file.getSize(), file.getUserId()))
+                        .map(file -> new FileInfo(file.getId(), file.getName(), file.getSize(), file.getUserId()))
                         .toList();
         
         FileResponse response = new FileResponse(files, files.size());
@@ -150,6 +148,7 @@ public class  DocumentController {
         @PathVariable String id)
     {
         documentService.deleteFile(id);
+        
         return ResponseEntity.noContent().build();
     }
 }

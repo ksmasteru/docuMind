@@ -1,15 +1,14 @@
 services:
-  mongodb:
-    image: mongo:latest
-    container_name: documind-mongodb
-    ports:
-      - "27017:27017"
+  postgres:
+    image: pgvector/pgvector:pg16   # includes pgvector extension already
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: secret_password
-      MONGO_INITDB_DATABASE: documind_db
+      POSTGRES_DB: documind
+      POSTGRES_USER: documind
+      POSTGRES_PASSWORD: hicham
+    ports:
+      - "5433:5432"
     volumes:
-      - mongo-data:/data/db
+      - postgres_data:/var/lib/postgresql/data
 
 volumes:
-  mongo-data:
+  postgres_data:

@@ -3,13 +3,13 @@ package com.docuMind.backend.repository;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import com.docuMind.backend.model.FileEntity;
 
 @Repository
-public  interface DocumentRepository extends MongoRepository<FileEntity, String>{
+public  interface DocumentRepository extends JpaRepository<FileEntity, String>{
     List<FileEntity> findByContentType(String contentType);
 
     List<FileEntity> findByNameContainingIgnoreCase(String fileName);

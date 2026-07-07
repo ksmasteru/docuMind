@@ -1,42 +1,46 @@
 package com.docuMind.backend.security;
 
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.DocumentReference;
+import jakarta.persistence.*;
 import java.time.Instant;
 import com.docuMind.backend.model.User;
 
-@Document(collection = "refresh_tokens")
+@Entity
+@Table(name = "refresh_tokens", indexes = {
+    // Replaces MongoDB's @Indexed(unique = true) on token —
+    // the column itself is unique, plus an index for fast lookup
+    // since findByToken() is called on every authenticated request.
+    @Index(name = "idx_refresh_tokens_token", columnList = "token")
+})
 public class RefreshToken {
 
     @Id
-    private String id; // MongoDB uses String IDs by default
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    @Indexed(unique = true) //helps find token FAST.
+    @Column(nullable = false, unique = true)
     private String token;
 
-    // expireAfterSeconds = 0 tells MongoDB to delete this document 
-    // the exact moment the clock hits the 'expiryDate' timestamp.
-    @Indexed(expireAfter = "0s")
+    @Column(nullable = false)
     private Instant expiryDate;
 
-    // DocumentReference links this token to your User document without embedding it
-    @DocumentReference
+    // @DocumentReference becomes a proper FK join.
+    // LAZY loading means the User isn't fetched from the DB unless
+    // you actually call getUser() — same behaviour as DocumentReference.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    private boolean revoked = false; 
+    @Column(nullable = false)
+    private boolean revoked = false;
 
-    // Getters and Setters
-    public boolean isRevoked() { return revoked; }
-    public void setRevoked(boolean revoked) { this.revoked = revoked; }
-    // Getters, Setters, and Constructors
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
-    public String getToken() { return token; }
-    public void setToken(String token) { this.token = token; }
-    public Instant getExpiryDate() { return expiryDate; }
-    public void setExpiryDate(Instant expiryDate) { this.expiryDate = expiryDate; }
-    public User getUser() { return user; }
-    public void setUser(User user) { this.user = user; }
+    public Long getId()                      { return id; }
+    public void setId(Long id)               { this.id = id; }
+    public String getToken()                 { return token; }
+    public void setToken(String token)       { this.token = token; }
+    public Instant getExpiryDate()           { return expiryDate; }
+    public void setExpiryDate(Instant t)     { this.expiryDate = t; }
+    public User getUser()                    { return user; }
+    public void setUser(User user)           { this.user = user; }
+    public boolean isRevoked()               { return revoked; }
+    public void setRevoked(boolean revoked)  { this.revoked = revoked; }
 }

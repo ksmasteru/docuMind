@@ -6,7 +6,6 @@ import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -16,11 +15,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.beans.factory.annotation.Value;
 
 import com.docuMind.backend.exception.SessionExpiredException;
 import com.docuMind.backend.model.AuthResponse;
-import com.docuMind.backend.model.UpdateUserRequest;
 import com.docuMind.backend.model.User;
 import com.docuMind.backend.model.UserResponseWrapper;
 import com.docuMind.backend.model.UserResponseWrapper.UserInfo;
@@ -82,6 +79,7 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
+
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody  Map<String, String> request) {
         
