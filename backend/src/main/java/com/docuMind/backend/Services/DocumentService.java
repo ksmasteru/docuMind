@@ -15,6 +15,9 @@ import com.docuMind.backend.exception.FileNotSupportedException;
 import com.docuMind.backend.model.FileEntity;
 import com.docuMind.backend.repository.DocumentRepository;
 import com.docuMind.backend.repository.FileContentRepository;
+
+import org.springframework.transaction.annotation.Transactional;
+
 import com.docuMind.backend.model.FileContent;
 // talks with repsose
 @Service
@@ -59,6 +62,7 @@ public class DocumentService {
         return filtersearch;
     }
 
+    @Transactional
     public FileEntity uploadFile(MultipartFile file,
          String title, String userId) throws IOException
     {
@@ -90,6 +94,7 @@ public class DocumentService {
         return returnFile;
     }
 
+    @Transactional
     public void deleteFile(String Id)
     {
         List<FileEntity> fileToDelete = documentRepository.findByNameContainingIgnoreCase(Id);

@@ -11,6 +11,8 @@ import com.docuMind.backend.model.UpdateUserRequest;
 import com.docuMind.backend.model.User;
 import com.docuMind.backend.repository.UserRepository;
 
+import jakarta.transaction.Transactional;
+
 
 @Service
 public class UserService {
@@ -26,6 +28,7 @@ public class UserService {
     }
 
     // Business Action: Register a new user but check for duplicates first
+    @Transactional
     public User registerUser(User user) {
         // Business Rule: Check if email is already taken
         boolean emailExists = userRepository.findByEmail(user.getEmail()).isPresent();
@@ -39,6 +42,7 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    @Transactional
     public User updateUser(String id, UpdateUserRequest requestedUser)
     {
         User user = userRepository.findById(id)
@@ -81,6 +85,7 @@ public class UserService {
     }
 
     // to fix : should throw an exceptionn i user doesnt exist
+    @Transactional
     public void deleteUser(String email)
     {
         // busines logic : check if user exists

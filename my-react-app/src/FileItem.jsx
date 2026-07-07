@@ -38,7 +38,7 @@ export default function FileItem({ file }) {
 
     try {
       const response = await apiClient.get(
-        `/api/v1/files/id/${encodeURIComponent(file.name)}`,
+        `/api/v1/files/id/${encodeURIComponent(file.id)}`,
         { responseType: 'blob' }
       );
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -69,7 +69,7 @@ const handlePreview = async (e) => {
 
   try {
     const response = await apiClient.get(
-      `/api/v1/files/id/${encodeURIComponent(file.name)}?inline=true`,
+      `/api/v1/files/id/${encodeURIComponent(file.id)}?inline=true`,
       { responseType: "blob" }
     );
 

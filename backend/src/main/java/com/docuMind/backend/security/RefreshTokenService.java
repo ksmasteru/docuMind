@@ -1,14 +1,18 @@
 package com.docuMind.backend.security;
 
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
+
 import org.springframework.stereotype.Service;
-import com.docuMind.backend.repository.UserRepository;
-import com.docuMind.backend.model.User;
+
 import com.docuMind.backend.exception.SessionExpiredException;
 import com.docuMind.backend.exception.UserNotFoundException;
-import java.util.Optional;
+import com.docuMind.backend.model.User;
+import com.docuMind.backend.repository.UserRepository;
 
-import java.time.Instant;
-import java.util.UUID;
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
 public class RefreshTokenService {
     private final RefreshTokenRepository refreshTokenRepository;
@@ -21,6 +25,7 @@ public class RefreshTokenService {
         this.userRepository = userRepository;
     }
     
+    @Transactional
     public RefreshToken generateRefreshToken(String email)
     {
         User user = userRepository.findByEmail(email).
@@ -35,10 +40,12 @@ public class RefreshTokenService {
         return refreshTokenRepository.save(refreshToken);
     }
     
+    @Transactional(readOnly = true)
     public Optional<RefreshToken> findByToken(String token) {
         return refreshTokenRepository.findByToken(token);
     }
-
+ 
+    @Transactional(readOnly = true) // BECAUSE THIS CAN MAKE A WHOLE OPERATION FAILL
     public RefreshToken verifyExpiration(RefreshToken token) {
         if (token.getExpiryDate().isBefore(Instant.now()) || token.isRevoked()) {
             refreshTokenRepository.delete(token);

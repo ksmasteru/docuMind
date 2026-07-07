@@ -11,6 +11,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -57,6 +58,7 @@ public class AuthController {
         this.refreshTokenRepository = refreshTokenRepository;
     }
 
+    @Transactional     
     @PostMapping("/register-admin")
     public ResponseEntity<?> register_admin(@RequestBody Map<String, String> request)
     {    
@@ -79,7 +81,8 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
-
+ 
+    @Transactional
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody  Map<String, String> request) {
         
@@ -99,6 +102,7 @@ public class AuthController {
         }
     }
 
+        @Transactional
         @PostMapping("/login")
         public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
        
@@ -127,6 +131,7 @@ public class AuthController {
     }
 
     // sends refreshtoken.,
+    @Transactional
     @PostMapping("/refresh")
     public ResponseEntity<?> refreshSession(@RequestBody Map<String, String> request) {
         String clientRefreshToken = request.get("refreshToken");
@@ -161,6 +166,7 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponse(newAccessToken, tokenEntity.getToken(), "Bearer", user.getRole()));
     }
 
+    @Transactional
     @PostMapping("/logout")
     public ResponseEntity<?> logout(@RequestBody Map<String, String> request)
     {

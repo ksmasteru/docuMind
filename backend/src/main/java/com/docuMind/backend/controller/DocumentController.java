@@ -24,7 +24,6 @@ import com.docuMind.backend.model.FileEntity;
 import com.docuMind.backend.model.FileResponse;
 import com.docuMind.backend.model.FileResponse.FileInfo;
 import com.docuMind.backend.services.DocumentService;
-import java.util.UUID;
 
 
 @RestController
