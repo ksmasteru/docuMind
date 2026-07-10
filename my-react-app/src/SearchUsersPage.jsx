@@ -1,12 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiClient } from "./apiClient";
-import { useAuth } from "./AuthContext";
-import TopBaro from "./TopBaro";
 import Layout from "./Layout";
 
 export default function SearchUsersPage() {
-  const { isAdmin, logout } = useAuth();
   const navigate = useNavigate();
 
   const [users, setUsers] = useState([]);
@@ -42,11 +39,9 @@ useEffect(() => {
 
   return (
     <Layout active="users">
-    <div className="min-h-screen bg-slate-50">
-    <TopBaro isAdmin={isAdmin} onLogout={() => logout().then(() => navigate("/login"))} />
-
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <main className="mx-auto max-w-2xl px-4 py-10">
-        <h1 className="text-xl font-semibold text-slate-900">Workspace members</h1>
+        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Workspace members</h1>
 
         <input
           type="text"
@@ -54,26 +49,26 @@ useEffect(() => {
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Filter by name…"
           autoFocus
-          className="mt-4 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+          className="mt-4 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-indigo-900"
         />
 
         <div className="mt-6">
           {status === "loading" && (
             <ul className="space-y-2">
               {[0, 1, 2].map((i) => (
-                <li key={i} className="h-12 animate-pulse rounded-md bg-slate-100" />
+                <li key={i} className="h-12 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" />
               ))}
             </ul>
           )}
 
           {status === "error" && (
-            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
               Couldn't load members. Try again.
             </p>
           )}
 
           {status === "success" && filtered.length === 0 && (
-            <p className="text-sm text-slate-400">No members match "{query.trim()}".</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500">No members match "{query.trim()}".</p>
           )}
 
           {status === "success" && filtered.length > 0 && (
@@ -81,18 +76,18 @@ useEffect(() => {
               {filtered.map((user) => (
                 <li
                   key={user.id}
-                  className="flex items-center justify-between rounded-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
-              <span className="text-sm font-medium text-slate-900">
+                  className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+              <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
                 {user.name}
               </span>
 
               <div className="flex items-center gap-2">
-                <button className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-600"
+                <button className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-300"
                   onClick = {() => navigate("/uploadedFiles", {state : {user}})}>
                   uploads
                 </button>
 
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-600">
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-300">
                   {user.role}
                 </span>
               </div>

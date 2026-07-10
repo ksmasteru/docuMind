@@ -103,7 +103,7 @@ const handlePreview = async (e) => {
       <button
         ref={toggleRef}
         type="button"
-        className={`text-sm font-medium text-slate-900 select-none ${
+        className={`text-sm font-medium text-slate-900 select-none dark:text-slate-100 ${
           isDownloading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:underline'
         }`}
         onClick={() => setShowActions((s) => !s)}
@@ -114,13 +114,13 @@ const handlePreview = async (e) => {
       {showActions && (
         <div
           ref={menuRef}
-          className="absolute z-10 mt-2 w-36 rounded-md bg-white border shadow-sm right-0"
+          className="absolute z-10 mt-2 w-36 rounded-2xl border border-slate-200 bg-white shadow-sm right-0 dark:border-slate-700 dark:bg-slate-800"
         >
           <div className="py-1">
             <button
               type="button"
               onClick={handlePreview}
-              className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
+              className="w-full text-left px-3 py-2 text-sm text-slate-900 hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-slate-700"
             >
               Preview
             </button>
@@ -128,8 +128,8 @@ const handlePreview = async (e) => {
               type="button"
               onClick={handleDownload}
               disabled={isDownloading}
-              className={`w-full text-left px-3 py-2 text-sm ${
-                isDownloading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-50'
+              className={`w-full text-left px-3 py-2 text-sm text-slate-900 dark:text-slate-100 ${
+                isDownloading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-50 dark:hover:bg-slate-700'
               }`}
             >
               {isDownloading ? 'Downloading…' : 'Download'}
@@ -144,20 +144,20 @@ const handlePreview = async (e) => {
     onClick={() => setIsPreviewOpen(false)}
   >
     <div
-      className="relative h-[90vh] w-[90vw] max-w-6xl rounded-lg bg-white p-2 shadow-xl"
+      className="relative h-[90vh] w-[90vw] max-w-6xl rounded-2xl bg-white p-2 shadow-xl dark:bg-slate-800"
       onClick={(e) => e.stopPropagation()}
     >
       <button
         type="button"
         onClick={() => setIsPreviewOpen(false)}
-        className="absolute right-2 top-2 z-10 rounded bg-slate-800 px-2 py-1 text-sm text-white"
+        className="absolute right-2 top-2 z-10 rounded-full bg-slate-800 px-2 py-1 text-sm text-white dark:bg-slate-700"
       >
         ✕
       </button>
 
-      <div className="h-full overflow-auto rounded bg-slate-50 p-2">
+      <div className="h-full overflow-auto rounded-xl bg-slate-50 p-2 dark:bg-slate-900">
         {isPreviewLoading && (
-          <div className="flex h-full items-center justify-center text-sm text-slate-600">
+          <div className="flex h-full items-center justify-center text-sm text-slate-600 dark:text-slate-400">
             Loading preview...
           </div>
         )}
@@ -171,20 +171,20 @@ const handlePreview = async (e) => {
         )}
 
         {!isPreviewLoading && previewType === "text" && (
-          <pre className="whitespace-pre-wrap break-words text-sm text-slate-800">
+          <pre className="whitespace-pre-wrap break-words text-sm text-slate-800 dark:text-slate-200">
             {previewText}
           </pre>
         )}
 
         {!isPreviewLoading && previewType === "unsupported" && (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               This file type cannot be previewed inline.
             </p>
             <button
               type="button"
               onClick={handleDownload}
-              className="rounded bg-slate-800 px-3 py-2 text-sm text-white"
+              className="rounded-2xl bg-slate-800 px-3 py-2 text-sm text-white dark:bg-slate-700"
             >
               Download file
             </button>

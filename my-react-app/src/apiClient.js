@@ -15,6 +15,10 @@ export function setAccessToken(token) {
   accessToken = token;
 }
 
+export function getAccessToken() {
+  return accessToken;
+}
+
 export function setAuthChangeHandler(handler) {
   onAuthChange = handler;
 }

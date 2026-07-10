@@ -57,6 +57,7 @@ export function TopBar({ active }) {
       <nav className="flex items-center gap-4">
         <Link to="/documents" className={linkClass("search")}>Documents</Link>
         <Link to="/upload" className={linkClass("upload")}>Upload</Link>
+        <Link to="/ask" className={linkClass("ask")}>Ask</Link>
         <Link to="/users"  className={linkClass("users")}>Members</Link>
         {isAdmin && (
           <Link to="/admin" className={linkClass("admin")}>Admin</Link>

@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { apiClient } from "./apiClient";
 import { useAuth } from "./AuthContext";
-import TopBaro from "./TopBaro";
 import Layout from "./Layout";
 
 export default function AdminPage() {
-  const { logout, isAdmin, isLoading } = useAuth();
-  const navigate = useNavigate();
+  const { isAdmin, isLoading } = useAuth();
 
   const [users, setUsers] = useState([]);
   const [status, setStatus] = useState("loading"); // loading | success | error
@@ -58,14 +56,13 @@ export default function AdminPage() {
 
   return (
     <Layout active="admin">
-    <div className="min-h-screen bg-slate-50">
-      <TopBaro isAdmin={isAdmin} onLogout={() => logout().then(() => navigate("/login"))} />
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <main className="mx-auto max-w-2xl px-4 py-10">
-        <h1 className="text-xl font-semibold text-slate-900">Manage members</h1>
-        <p className="mt-1 text-sm text-slate-500">Admin only — deleting a user is permanent.</p>
+        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Manage members</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Admin only — deleting a user is permanent.</p>
 
         {deleteError && (
-          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
             {deleteError}
           </p>
         )}
@@ -74,13 +71,13 @@ export default function AdminPage() {
           {status === "loading" && (
             <ul className="space-y-2">
               {[0, 1, 2].map((i) => (
-                <li key={i} className="h-12 animate-pulse rounded-md bg-slate-100" />
+                <li key={i} className="h-12 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" />
               ))}
             </ul>
           )}
 
           {status === "error" && (
-            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
               Couldn't load members. Try again.
             </p>
           )}
@@ -90,18 +87,18 @@ export default function AdminPage() {
               {users.map((user) => (
                 <li
                   key={user.email}
-                  className="flex items-center justify-between rounded-md border border-slate-200 bg-white px-4 py-3 shadow-sm"
+                  className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-800"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium text-slate-900">{user.name}</span>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-600">
+                    <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{user.name}</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-300">
                       {user.role}
                     </span>
                   </div>
                   <button
                     onClick={() => handleDelete(user)}
                     disabled={deletingId === user.email}
-                    className="text-sm font-medium text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="text-sm font-medium text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-60 dark:text-red-400 dark:hover:text-red-300"
                   >
                     {deletingId === user.email ? "Deleting…" : "Delete"}
                   </button>

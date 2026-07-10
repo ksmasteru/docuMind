@@ -1,8 +1,6 @@
 
-import TopBaro  from "./TopBaro";
 import Layout from "./Layout";
-import { Link, useNavigate } from "react-router-dom";
-import {useAuth} from "./AuthContext";
+import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { apiClient } from "./apiClient";
 import { useLocation } from "react-router-dom";
@@ -11,10 +9,8 @@ import FilesList from "./FilesList.jsx";
 
 const UploadedFiles = () => {
 
-    const {isAdmin, logout} = useAuth();
     const [data, setData] = useState([]);
     const [status, setStatus] = useState("");
-    const navigate = useNavigate();
     const location = useLocation();
     const currentUser = location.state?.user;
 
@@ -39,10 +35,9 @@ const UploadedFiles = () => {
     // on mount load uplaoded files by user id.
     return(
     <Layout active="uploadedFiles">
-    <div className="min-h-screen bg-slate-50">
-    <TopBaro isAdmin={isAdmin} onLogout={() => logout().then(() => navigate("/login"))} />
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
      <main className="mx-auto max-w-2xl px-4 py-10">
-        <h1 className="text-xl font-semibold text-slate-900">Uploaded files by User: {currentUser.name}</h1>
+        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Uploaded files by User: {currentUser.name}</h1>
     <div className="mt-6">
         {status === "success" && data.filesCount > 0 && (
         <ul className="space-y-2">
@@ -51,13 +46,13 @@ const UploadedFiles = () => {
         )}
 
         {status === "success" && data.filesCount === 0 && (
-           <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+           <p className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
              NO FILES FOUND
             </p>
         )}
 
         {status === "error" && (
-            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
               Couldn't load files. Try again.
             </p>
         )}

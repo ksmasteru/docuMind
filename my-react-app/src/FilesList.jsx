@@ -17,13 +17,13 @@ const FilesList = ({filesList}) =>
         <>
          {filesList.map((file, index) => (
               <li
-                  className="flex items-center justify-between rounded-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                  className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-800">
                     <FileItem key={file.id ?? `${file.name ?? "user"}-${index}`} file={file}></FileItem>
                       <div className="flex items-center gap-2">
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-600">
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-300">
                         {file.size + "kb"}
                       </span>
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-600">
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-300">
                         {file.userId}
                       </span>
                       </div>
