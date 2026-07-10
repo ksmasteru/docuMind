@@ -35,10 +35,10 @@ public class IngestionService {
         float[] embedding = embeddingModel.embed(question);
         String embeddingLiteral = Arrays.toString(embedding);
         // find similar vectors
-        List<ChunkRepository.ChunkTextOnly> chunks = chunkRepository.findSimilarChunks("hicham@gmail.com",embeddingLiteral,5);
+        List<DocumentChunks> chunks = chunkRepository.findSimilarChunks("hicham@gmail.com",embeddingLiteral,5);
 
         return chunks.stream()
-            .map(ChunkRepository.ChunkTextOnly::getChunkText)
+            .map(DocumentChunks::getChunkText)
             .collect(Collectors.joining("\n"));
     }
 

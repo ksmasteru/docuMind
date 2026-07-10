@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.Type;
 
 @Entity
 @Table(name = "document_chunks", indexes = {
@@ -32,6 +33,7 @@ public class DocumentChunks {
 
     // pgvector column — 1536 dimensions matches OpenAI's
     // text-embedding-3-small output size.
+    @Type(VectorType.class)
     @Column(columnDefinition = "vector(1536)")
     private float[] embedding;
 
