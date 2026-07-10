@@ -44,6 +44,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(AbstractHttpConfigurer::disable) // Disable CSRF since JWT is stateless
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/error").permitAll()               // Allow Tomcat's internal error dispatch
                 .requestMatchers("/api/auth/**").permitAll()        // Allow registration/login endpoints
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")  // Strictly enforce ADMIN role
                 .anyRequest().authenticated()                       // Protect everything else
@@ -51,6 +52,10 @@ public class SecurityConfig {
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS) // No HTTP sessions
             )
+            // JwtAuthenticationFilter only sets the ThreadLocal SecurityContext; without this,
+            // it isn't persisted anywhere, so streaming/async responses (e.g. AskController)
+            // lose authentication on the async re-dispatch and get denied.
+            .securityContext(securityContext -> securityContext.requireExplicitSave(false))
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class); // Hook up JWT Filter
 
         return http.build();
