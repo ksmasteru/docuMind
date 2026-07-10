@@ -2,6 +2,7 @@ package com.docuMind.backend.controller;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -38,7 +40,6 @@ public class  DocumentController {
     @GetMapping("/{name}")
     public ResponseEntity<FileResponse> searchFile(@PathVariable String name)
     {
-        // looking by generated name.
         System.out.println("received a new request!!");
         List<FileEntity> fileList = documentService.searchFile(name);
         List<FileInfo> files = fileList.stream()
@@ -142,6 +143,15 @@ public class  DocumentController {
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
+    @PostMapping("/ask")
+    public ResponseEntity<Map<String, String>> answer(@RequestBody Map<String, String> map)
+    {
+        String question = map.get("question");
+        // we delegate this to ingestionn service.
+        String theAnswer = documentService.answer(question);
+        return ResponseEntity.status(HttpStatus.OK).body(Map.of("response", theAnswer)); 
+    }
+
     @DeleteMapping("/id/{id}")
     public ResponseEntity<Void> deleteFile(
         @PathVariable String id)
@@ -150,4 +160,5 @@ public class  DocumentController {
         
         return ResponseEntity.noContent().build();
     }
+
 }

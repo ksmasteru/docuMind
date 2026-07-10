@@ -12,16 +12,23 @@ import com.docuMind.backend.model.DocumentChunks;
 @Repository
 
 public interface ChunkRepository extends JpaRepository<DocumentChunks,String>{
+
+    interface ChunkTextOnly {
+        String getChunkText();
+    }
+
     @Query(value = """
-    SELECT * FROM document_chunks
-    WHERE user_id = :userId
+    SELECT chunk_text AS chunkText FROM document_chunks
+    WHERE user_email= :userEmail
     ORDER BY embedding <=> CAST(:embedding AS vector)
     LIMIT :limit
     """, nativeQuery = true)
-List<DocumentChunks> findSimilarChunks(
-    @Param("userId") String userId,
-    @Param("embedding") float[] embedding,
+List<ChunkTextOnly> findSimilarChunks(
+    @Param("userEmail") String userEmail,
+    @Param("embedding") String embedding,
     @Param("limit") int limit
 );
 void deleteByFileId(String id);
+    
+
 }

@@ -1,7 +1,9 @@
 package com.docuMind.backend.services;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.stereotype.Service;
@@ -25,6 +27,21 @@ public class IngestionService {
         this.embeddingModel = embeddingModel;
         this.chunkRepository = chunkRepository;
     }
+
+    @Transactional
+    public String answer(String question)
+    {
+        // transform this string to query
+        float[] embedding = embeddingModel.embed(question);
+        String embeddingLiteral = Arrays.toString(embedding);
+        // find similar vectors
+        List<ChunkRepository.ChunkTextOnly> chunks = chunkRepository.findSimilarChunks("hicham@gmail.com",embeddingLiteral,5);
+
+        return chunks.stream()
+            .map(ChunkRepository.ChunkTextOnly::getChunkText)
+            .collect(Collectors.joining("\n"));
+    }
+
     @Transactional
     public void ingest(FileContent file) {
         // 1. Get the extracted text from FileEntity.content

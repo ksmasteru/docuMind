@@ -91,4 +91,9 @@ public class DocumentChunks {
     {     
         this.embedding = embedding;    
     }
+
+    public float[] getEmbedding()
+    {
+        return this.embedding;
+    }
 }

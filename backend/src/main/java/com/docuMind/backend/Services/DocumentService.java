@@ -113,6 +113,13 @@ public class DocumentService {
            throw new FileNotFoundException("file not found with name : " + Id);
     }
 
+    @Transactional
+    public String answer(String question)
+    {
+        String theAnswer = ingestionService.answer(question);
+        return theAnswer;    
+    }
+
     public List<FileEntity> getUserFiles(String userId)
     {
         List<FileEntity> files = documentRepository.findByUserId(userId);
