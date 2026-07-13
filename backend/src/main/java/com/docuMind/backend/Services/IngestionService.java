@@ -12,6 +12,10 @@ import com.docuMind.backend.model.DocumentChunks;
 import com.docuMind.backend.model.FileContent;
 import com.docuMind.backend.repository.ChunkRepository;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Lazy;
+
 import jakarta.transaction.Transactional;
 @Service
 public class IngestionService {
@@ -20,13 +24,24 @@ public class IngestionService {
     private final EmbeddingModel embeddingModel;  // Spring AI injects this
     private final ChunkRepository chunkRepository;
 
-        public IngestionService(ChunkingService chunkingService, 
+    // Self-injected proxy: calling getEmbedding(...) through `self` (instead of
+    // `this`) routes the call back through Spring's AOP proxy, which is what
+    // actually makes @Cacheable take effect. A plain `this.getEmbedding(...)`
+    // call bypasses the proxy entirely and silently skips the cache.
+    // @Lazy breaks the circular dependency this self-reference would otherwise
+    // create during bean construction.
+    @Autowired
+    @Lazy
+    private IngestionService self;
+
+        public IngestionService(ChunkingService chunkingService,
                            EmbeddingModel embeddingModel,
                            ChunkRepository chunkRepository) {
         this.chunkingService = chunkingService;
         this.embeddingModel = embeddingModel;
         this.chunkRepository = chunkRepository;
     }
+ 
 
     @Transactional
     public String answer(String question)

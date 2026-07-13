@@ -194,6 +194,7 @@ public class AuthController {
         tokenEntity.setRevoked(true);
         
         refreshTokenRepository.save(tokenEntity);
+        
         return ResponseEntity.status(HttpStatus.ACCEPTED).body("Logged Out successfully");
     }
 }
