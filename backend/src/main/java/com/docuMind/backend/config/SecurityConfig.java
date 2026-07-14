@@ -44,9 +44,10 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(AbstractHttpConfigurer::disable) // Disable CSRF since JWT is stateless
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/error").permitAll()               // Allow Tomcat's internal error dispatch
+                .requestMatchers("/error").permitAll()              // Allow Tomcat's internal error dispatch
                 .requestMatchers("/api/auth/**").permitAll()        // Allow registration/login endpoints
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")  // Strictly enforce ADMIN role
+                .requestMatchers("/actuator/**").permitAll() // should be Admin
                 .anyRequest().authenticated()                       // Protect everything else
             )
             .sessionManagement(session -> session

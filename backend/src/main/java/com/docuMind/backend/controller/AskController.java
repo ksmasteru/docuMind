@@ -19,10 +19,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
+import com.docuMind.backend.metrics.RagMetrics;
 import com.docuMind.backend.model.DocumentChunks;
 import com.docuMind.backend.repository.ChunkRepository;
 
+import io.micrometer.core.instrument.Timer;
 import reactor.core.publisher.Flux;
 
 @RestController
@@ -32,6 +33,7 @@ public class AskController {
     private final EmbeddingModel embeddingModel;
     private final ChatModel chatModel;
     private final ChunkRepository chunkRepository;
+    private final RagMetrics ragMetrics;
 
     // Self-injected proxy: calling questionEmbedding(...) through `self` (instead
     // of a plain call) routes it back through Spring's AOP proxy, which is what
@@ -42,10 +44,13 @@ public class AskController {
     @Lazy
     private AskController self;
 
-    public AskController(EmbeddingModel embeddingModel, ChatModel chatModel, ChunkRepository chunkRepository) {
+    public AskController(EmbeddingModel embeddingModel, ChatModel chatModel, ChunkRepository chunkRepository,
+        RagMetrics ragMetrics)
+    {
         this.embeddingModel = embeddingModel;
         this.chatModel = chatModel;
         this.chunkRepository = chunkRepository;
+        this.ragMetrics = ragMetrics;
     }
 
     @Cacheable(value = "ragResponses", key = "T(org.apache.commons.codec.digest.DigestUtils).sha256Hex(#text)")
@@ -58,20 +63,23 @@ public class AskController {
         If the answer is not in the context, say so clearly.
         Do not make up information.
         """;
-
+        Timer.Sample retSample = ragMetrics.startTimer();
         Prompt prompt = new Prompt(List.of(
             new SystemMessage(systemPrompt),
             new UserMessage(text)
         ));
 
         ChatResponse chatResponse = chatModel.call(prompt);
+        ragMetrics.recordRetrieval(retSample);
         return chatResponse.getResult().getOutput().getText();
     }
 
     @Cacheable(value = "embeddings", key = "T(org.apache.commons.codec.digest.DigestUtils).sha256Hex(#text)")
     public String questionEmbedding(String text) {
         System.out.println("questionEmedding method called no cache for :" + text);
+        Timer.Sample embSample = ragMetrics.startTimer();
         float[] embedding = embeddingModel.embed(text);
+        ragMetrics.recordEmbedding(embSample);
         return Arrays.toString(embedding);
     }
 
@@ -80,6 +88,7 @@ public class AskController {
             @RequestBody AskRequest request,
             Authentication authentication) {
 
+        ragMetrics.incrementAsk();
         System.out.println("ask controller ask called");
         String userId = authentication.getName();
 
@@ -109,10 +118,13 @@ public class AskController {
             """.formatted(relevantChunks.stream()
                 .map(c -> "--- From document chunk ---\n" + c.getChunkText())
                 .collect(Collectors.joining("\n\n")), request.question());
+        
         String answer = "";
+        
         try {
             answer = self.getAnswer(userPrompt);
         }
+        
         catch (Exception ex)
         {
             System.out.println(ex.getMessage());
@@ -126,6 +138,7 @@ public class AskController {
                 new SystemMessage(systemPrompt),
                 new UserMessage(userPrompt)
             ));
+    
             ChatResponse chatResponse = chatModel.call(prompt);
             answer = chatResponse.getResult().getOutput().getText();
         }

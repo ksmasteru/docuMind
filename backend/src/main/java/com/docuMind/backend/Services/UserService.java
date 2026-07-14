@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import com.docuMind.backend.exception.UserNotFoundException;
 import com.docuMind.backend.model.UpdateUserRequest;
 import com.docuMind.backend.model.User;
+import com.docuMind.backend.model.enums.UserRole;
 import com.docuMind.backend.repository.UserRepository;
 
 import jakarta.transaction.Transactional;
@@ -39,6 +40,7 @@ public class UserService {
         // we should have the pasword before registering the user.
         String encryptedPassword = passwordEncoder.encode(user.getPassword());
         user.setPassword(encryptedPassword);
+        user.setRole(UserRole.USER);
         return userRepository.save(user);
     }
 
