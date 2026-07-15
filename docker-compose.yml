@@ -1,0 +1,67 @@
+services:
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    depends_on:
+      - postgres
+      - redis
+    env_file:
+      - ./backend/.env.local
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend:/app
+      - maven_repo:/root/.m2
+  front_end:
+    build:
+      context: ./my-react-app
+      dockerfile: Dockerfile
+    depends_on: 
+      - backend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./my-react-app:/app
+      - frontend_node_modules:/app/node_modules
+
+  postgres:
+    build:
+      context: ./postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./backend/prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+volumes:
+  postgres_data:
+  redis_data:
+  grafana_data:
+  maven_repo:
+  frontend_node_modules:

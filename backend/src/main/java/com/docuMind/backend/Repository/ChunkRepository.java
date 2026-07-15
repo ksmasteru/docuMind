@@ -10,7 +10,6 @@ import org.springframework.stereotype.Repository;
 import com.docuMind.backend.model.DocumentChunks;
 
 @Repository
-
 public interface ChunkRepository extends JpaRepository<DocumentChunks,String>{
     @Query(value = """
     SELECT * FROM document_chunks
