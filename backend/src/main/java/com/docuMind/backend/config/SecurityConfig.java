@@ -67,7 +67,9 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         
         // Exact React origin (DO NOT use "*" if allowCredentials is true)
-        configuration.setAllowedOrigins(List.of("http://localhost:5173")); 
+        configuration.setAllowedOrigins(List.of("http://localhost:5173",
+            "https://docu-mind-ashen-seven.vercel.app"
+        )); 
         
         // Explicitly list all allowed HTTP methods
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
