@@ -84,7 +84,7 @@ public class DocumentService {
 
         FileEntity returnFile = documentRepository.save(fileToSave);
 
-        FileContent fileContent = new FileContent(returnFile.getId(), rawBytes, null, returnFile.getUserId());
+        FileContent fileContent = new FileContent(returnFile.getId(), rawBytes, "ignore", returnFile.getUserId());
 
         fileContentRepository.save(fileContent);
 
