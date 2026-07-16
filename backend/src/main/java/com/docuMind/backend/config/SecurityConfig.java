@@ -68,7 +68,7 @@ public class SecurityConfig {
         
         // Exact React origin (DO NOT use "*" if allowCredentials is true)
         configuration.setAllowedOrigins(List.of("http://localhost:5173",
-            "https://docu-mind-ashen-seven.vercel.app"
+            "https://docu-mind-mxx2di4vi-docu-mind.vercel.app"
         )); 
         
         // Explicitly list all allowed HTTP methods
