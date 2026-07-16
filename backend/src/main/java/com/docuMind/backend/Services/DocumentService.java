@@ -17,7 +17,6 @@ import com.docuMind.backend.model.FileContent;
 import com.docuMind.backend.model.FileEntity;
 import com.docuMind.backend.repository.DocumentRepository;
 import com.docuMind.backend.repository.FileContentRepository;
-import com.docuMind.backend.services.IngestionService;
 
 // talks with repsose
 @Service
@@ -76,7 +75,6 @@ public class DocumentService {
         if (!allowedExtensions.contains(fileExtension))
             throw new FileNotSupportedException("Unsupported file type---");
         String content = null;
-        
         if (fileExtension.equals("pdf"))
         {
             PDDocument pdf = PDDocument.load(file.getInputStream());
@@ -86,9 +84,7 @@ public class DocumentService {
     
         else
             content = new String(file.getBytes(),StandardCharsets.UTF_8);
-        
-        //System.out.println(content);
-    
+            
         FileEntity fileToSave = new FileEntity(title != null ? title : file.getOriginalFilename(), 
             file.getContentType(), file.getSize(), userId, content);
         

@@ -10,11 +10,15 @@ import org.springframework.stereotype.Service;
 
 import com.docuMind.backend.model.DocumentChunks;
 import com.docuMind.backend.model.FileContent;
+import com.docuMind.backend.model.FileEntity;
+import com.docuMind.backend.model.IngestionStatus;
 import com.docuMind.backend.repository.ChunkRepository;
+import com.docuMind.backend.repository.DocumentRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.scheduling.annotation.Async;
 
 import jakarta.transaction.Transactional;
 @Service
@@ -23,6 +27,7 @@ public class IngestionService {
     private final ChunkingService chunkingService;
     private final EmbeddingModel embeddingModel;  // Spring AI injects this
     private final ChunkRepository chunkRepository;
+    private final DocumentRepository documentRepository;
 
     // Self-injected proxy: calling getEmbedding(...) through `self` (instead of
     // `this`) routes the call back through Spring's AOP proxy, which is what
@@ -36,10 +41,12 @@ public class IngestionService {
 
         public IngestionService(ChunkingService chunkingService,
                            EmbeddingModel embeddingModel,
-                           ChunkRepository chunkRepository) {
+                           ChunkRepository chunkRepository,
+                           DocumentRepository documentRepository) {
         this.chunkingService = chunkingService;
         this.embeddingModel = embeddingModel;
         this.chunkRepository = chunkRepository;
+        this.documentRepository = documentRepository;
     }
  
 
@@ -57,39 +64,55 @@ public class IngestionService {
             .collect(Collectors.joining("\n"));
     }
 
+    @Async("ingestionExecutor")
     @Transactional
     public void ingest(FileContent file) {
-        // 1. Get the extracted text from FileEntity.content
-        String text = file.getContent();
-        if (text == null || text.isBlank()) return;
+        try {
+            // 1. Get the extracted text from FileEntity.content
+            String text = file.getContent();
+            if (text == null || text.isBlank()) {
+                markStatus(file.getId(), IngestionStatus.FAILED);
+                return;
+            }
 
-        // 2. Delete any existing chunks for this file
-        //    (handles re-upload of the same document)
-        chunkRepository.deleteByFileId(file.getId());
+            // 2. Delete any existing chunks for this file
+            //    (handles re-upload of the same document)
+            chunkRepository.deleteByFileId(file.getId());
 
-        // 3. Split into chunks
-        List<String> chunks = chunkingService.chunk(text);
+            // 3. Split into chunks
+            List<String> chunks = chunkingService.chunk(text);
 
-        // 4. Embed all chunks in one API call (batching = fewer round trips)
-        List<float[]> embeddings = embeddingModel
-            .embedForResponse(chunks)
-            .getResults()
-            .stream()
-            .map(r -> r.getOutput())
-            .toList();
+            // 4. Embed all chunks in one API call (batching = fewer round trips)
+            List<float[]> embeddings = embeddingModel
+                .embedForResponse(chunks)
+                .getResults()
+                .stream()
+                .map(r -> r.getOutput())
+                .toList();
 
-        System.out.println("Ai response is  : " + embeddings);
-        // 5. Persist each chunk with its embedding
-        List<DocumentChunks> entities = new ArrayList<>();
-        for (int i = 0; i < chunks.size(); i++) {
-            DocumentChunks chunk = new DocumentChunks();
-            chunk.setFileId(file.getId());
-            chunk.setUserEmail(file.getUserEmail());
-            chunk.setChunkText(chunks.get(i));
-            chunk.setChunkIndex(i);
-            chunk.setEmbedding(embeddings.get(i));
-            entities.add(chunk);
+            // 5. Persist each chunk with its embedding
+            List<DocumentChunks> entities = new ArrayList<>();
+            for (int i = 0; i < chunks.size(); i++) {
+                DocumentChunks chunk = new DocumentChunks();
+                chunk.setFileId(file.getId());
+                chunk.setUserEmail(file.getUserEmail());
+                chunk.setChunkText(chunks.get(i));
+                chunk.setChunkIndex(i);
+                chunk.setEmbedding(embeddings.get(i));
+                entities.add(chunk);
+            }
+            chunkRepository.saveAll(entities);
+
+            markStatus(file.getId(), IngestionStatus.READY);
+        } catch (Exception ex) {
+            markStatus(file.getId(), IngestionStatus.FAILED);
         }
-        chunkRepository.saveAll(entities);
+    }
+
+    private void markStatus(String fileId, IngestionStatus status) {
+        documentRepository.findById(fileId).ifPresent(entity -> {
+            entity.setStatus(status);
+            documentRepository.save(entity);
+        });
     }
 }

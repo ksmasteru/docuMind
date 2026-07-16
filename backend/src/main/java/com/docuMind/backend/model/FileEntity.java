@@ -4,6 +4,8 @@ import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
@@ -42,6 +44,13 @@ public class FileEntity {
 
     // No byte[] data here — that lives in FileContent now.
 
+    // Ingestion (chunking + embedding) runs async after the upload response
+    // is already sent, so the frontend needs this to know when a file
+    // actually becomes searchable/askable.
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private IngestionStatus status = IngestionStatus.PENDING;
+
     public FileEntity() {}
 
     public FileEntity(String name, String contentType, long size,
@@ -69,4 +78,6 @@ public class FileEntity {
     public void setUserId(String u) { this.userId = u; }
     public String getContent()      { return content; }
     public void setContent(String c){ this.content = c; }
+    public IngestionStatus getStatus()        { return status; }
+    public void setStatus(IngestionStatus s)  { this.status = s; }
 }
