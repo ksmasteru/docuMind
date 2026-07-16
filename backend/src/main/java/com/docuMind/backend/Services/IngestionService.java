@@ -85,10 +85,11 @@ public class IngestionService {
 
             // Now that we have the text, persist it onto the rows the upload
             // response already returned to the client.
+            /*
             documentRepository.findById(fileId).ifPresent(entity -> {
                 entity.setContent(text);
                 documentRepository.save(entity);
-            });
+            });*/
             fileContentRepository.findById(fileId).ifPresent(fc -> {
                 fc.setContent(text);
                 fileContentRepository.save(fc);
