@@ -1,11 +1,8 @@
 package com.docuMind.backend.services;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -71,31 +68,28 @@ public class DocumentService {
          String title, String userId) throws IOException
     {
         String fileExtension = MediaType.parseMediaType(file.getContentType()).getSubtype();
-        
+
         if (!allowedExtensions.contains(fileExtension))
             throw new FileNotSupportedException("Unsupported file type---");
-        String content = null;
-        if (fileExtension.equals("pdf"))
-        {
-            PDDocument pdf = PDDocument.load(file.getInputStream());
-            PDFTextStripper stripper = new PDFTextStripper();
-            content = stripper.getText(pdf);
-        }
-    
-        else
-            content = new String(file.getBytes(),StandardCharsets.UTF_8);
-            
-        FileEntity fileToSave = new FileEntity(title != null ? title : file.getOriginalFilename(), 
-            file.getContentType(), file.getSize(), userId, content);
-        
+
+        // Read into a plain byte[] now, on the request thread — a MultipartFile's
+        // backing temp storage isn't guaranteed to survive past this request, so
+        // it can't be handed to a background thread that runs after we respond.
+        byte[] rawBytes = file.getBytes();
+
+        // Text extraction (PDF parsing, chunking, embeddings) is the slow, CPU-heavy
+        // part — deferred entirely to the background so upload responds immediately.
+        FileEntity fileToSave = new FileEntity(title != null ? title : file.getOriginalFilename(),
+            file.getContentType(), file.getSize(), userId, null);
+
         FileEntity returnFile = documentRepository.save(fileToSave);
 
-        FileContent fileContent = new FileContent(returnFile.getId(), file.getBytes(), content, returnFile.getUserId());
+        FileContent fileContent = new FileContent(returnFile.getId(), rawBytes, null, returnFile.getUserId());
 
         fileContentRepository.save(fileContent);
-    
-        ingestionService.ingest(fileContent);
-    
+
+        ingestionService.processAndIngest(returnFile.getId(), fileExtension, rawBytes, returnFile.getUserId());
+
         return returnFile;
     }
 
