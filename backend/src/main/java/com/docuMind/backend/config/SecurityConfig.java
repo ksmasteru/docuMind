@@ -6,9 +6,11 @@ your configuration class to link the filters, encode passwords via BCrypt,
 
 package com.docuMind.backend.config;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -32,6 +34,9 @@ import com.docuMind.backend.security.JwtAuthenticationFilter;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
+
+    @Value("${app.cors.frontend-url:}")
+    private String frontendUrl;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthFilter) {
         this.jwtAuthFilter = jwtAuthFilter;
@@ -67,9 +72,13 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         
         // Exact React origin (DO NOT use "*" if allowCredentials is true)
-        configuration.setAllowedOrigins(List.of("http://localhost:5173",
-            "https://docu-mind-mxx2di4vi-docu-mind.vercel.app"
-        )); 
+        List<String> allowedOrigins = new ArrayList<>(List.of(
+            "http://localhost:5173"
+        ));
+        if (frontendUrl != null && !frontendUrl.isBlank()) {
+            allowedOrigins.add(frontendUrl);
+        }
+        configuration.setAllowedOrigins(allowedOrigins);
         
         // Explicitly list all allowed HTTP methods
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
