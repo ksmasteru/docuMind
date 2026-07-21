@@ -1,0 +1,9 @@
+services:
+
+  backend:
+    volumes:
+      - ./backend:/app
+      - maven_repo:/root/.m2
+
+volumes:
+  maven_repo:

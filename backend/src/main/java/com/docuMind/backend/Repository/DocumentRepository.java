@@ -17,7 +17,6 @@ public  interface DocumentRepository extends JpaRepository<FileEntity, String>{
 
     List<FileEntity> findByGeneratedNameContainingIgnoreCase(String fileName);
 
-    List<FileEntity> findByContentContainingIgnoreCase(String keyword);
 
     List<FileEntity> findByUserId(String userId);
 }

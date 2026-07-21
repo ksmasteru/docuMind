@@ -43,7 +43,7 @@ public class  DocumentController {
         System.out.println("received a new request!!");
         List<FileEntity> fileList = documentService.searchFile(name);
         List<FileInfo> files = fileList.stream()
-            .map(file -> new FileInfo(file.getId(), file.getName(), file.getSize(), file.getUserId(), file.getStatus()))
+            .map(file -> new FileInfo(file.getId(), file.getName(), file.getSize(), file.getUserId()))
             .toList();
         FileResponse response = new FileResponse(files, files.size());
         return ResponseEntity.status(HttpStatus.OK).body(response);
@@ -53,7 +53,7 @@ public class  DocumentController {
     public ResponseEntity<FileResponse> filter(@PathVariable String keyword) {
         List<FileEntity> fileList = documentService.filter(keyword);
         List<FileInfo> files = fileList.stream()
-            .map(file -> new FileInfo(file.getId(), file.getName(), file.getSize(), file.getUserId(), file.getStatus()))
+            .map(file -> new FileInfo(file.getId(), file.getName(), file.getSize(), file.getUserId()))
             .toList();
         FileResponse response = new FileResponse(files, files.size());
         return ResponseEntity.status(HttpStatus.OK).body(response);
@@ -114,10 +114,10 @@ public class  DocumentController {
         String userId = authentication.getName();
 
         System.out.println("received an upload from user : " + userId);
-        
+    
         FileEntity uploadedFile =  documentService.uploadFile(file, title, userId);
         
-        FileInfo fileInfo = new FileInfo(uploadedFile.getId(), uploadedFile.getName(), uploadedFile.getSize(), uploadedFile.getUserId(), uploadedFile.getStatus());
+        FileInfo fileInfo = new FileInfo(uploadedFile.getId(), uploadedFile.getName(), uploadedFile.getSize(), uploadedFile.getUserId());
     
         FileResponse response =  new FileResponse(List.of(fileInfo), 1 );
 
@@ -135,7 +135,7 @@ public class  DocumentController {
         List<FileEntity> userFiles = documentService.getUserFiles(id);
         
         List<FileInfo> files = userFiles.stream()
-                        .map(file -> new FileInfo(file.getId(), file.getName(), file.getSize(), file.getUserId(), file.getStatus()))
+                        .map(file -> new FileInfo(file.getId(), file.getName(), file.getSize(), file.getUserId()))
                         .toList();
         
         FileResponse response = new FileResponse(files, files.size());

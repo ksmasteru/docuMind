@@ -107,6 +107,7 @@ public class AskController {
         List<DocumentChunks> relevantChunks = chunkRepository
             .findSimilarChunks(userId, embeddingLiteral, 5);
 
+        System.out.println("relevant chunks are : " + relevantChunks);
         if (relevantChunks.isEmpty()) {
             return Flux.just("No relevant documents found for your question.");
         }
@@ -118,6 +119,8 @@ public class AskController {
             """.formatted(relevantChunks.stream()
                 .map(c -> "--- From document chunk ---\n" + c.getChunkText())
                 .collect(Collectors.joining("\n\n")), request.question());
+
+        //System.out.println("User promp is : " + userPrompt);
         
         String answer = "";
         

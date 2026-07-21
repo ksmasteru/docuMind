@@ -1,0 +1,6 @@
+services:
+
+  backend:
+    image: documind-backend-prod
+    build:
+      dockerfile: Dockerfile.prod

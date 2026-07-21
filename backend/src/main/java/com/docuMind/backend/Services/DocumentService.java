@@ -1,8 +1,11 @@
 package com.docuMind.backend.services;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,12 +21,12 @@ import com.docuMind.backend.repository.FileContentRepository;
 // talks with repsose
 @Service
 public class DocumentService {
-    List<String> allowedExtensions = List.of("pdf", "md", "txt");
-    
+    List<String> allowedExtensions = List.of("pdf", "markdown", "plain");
+
     private final DocumentRepository documentRepository;
-    
+
     private final FileContentRepository fileContentRepository;
-    
+
     private final IngestionService ingestionService;
 
     public DocumentService(DocumentRepository documentRepository, FileContentRepository fileContentRepository,
@@ -35,18 +38,18 @@ public class DocumentService {
     }
 
     // changed from List<FileEntity> to FileEntity
-    // we want this to     
+    // we want this to
     public FileContent getFileData(String id)
-    {        
+    {
         FileContent fileContent = fileContentRepository.findById(id)
-                                .orElseThrow(() -> new FileNotFoundException(""));        
+                                .orElseThrow(() -> new FileNotFoundException(""));
         return fileContent;
     }
 
     public FileEntity getFileMetaData(String id)
     {
         FileEntity returnFile = documentRepository.findById(id)
-                                .orElseThrow(() -> new FileNotFoundException(""));
+            .orElseThrow(() -> new FileNotFoundException(""));
         return returnFile;
     }
 
@@ -59,8 +62,12 @@ public class DocumentService {
 
     public List<FileEntity> filter(String keyword)
     {
+        // search in file content :)
+        return null;
+        /*
         List<FileEntity> filtersearch = documentRepository.findByContentContainingIgnoreCase(keyword);
         return filtersearch;
+        */
     }
 
     @Transactional
@@ -68,27 +75,31 @@ public class DocumentService {
          String title, String userId) throws IOException
     {
         String fileExtension = MediaType.parseMediaType(file.getContentType()).getSubtype();
-
+        System.out.println("file extension is : " + fileExtension);
         if (!allowedExtensions.contains(fileExtension))
             throw new FileNotSupportedException("Unsupported file type---");
+        String content = null;
+        if (fileExtension.equals("pdf"))
+        {
+            PDDocument pdf = PDDocument.load(file.getInputStream());
+            PDFTextStripper stripper = new PDFTextStripper();
+            content = stripper.getText(pdf);
+        }
 
-        // Read into a plain byte[] now, on the request thread — a MultipartFile's
-        // backing temp storage isn't guaranteed to survive past this request, so
-        // it can't be handed to a background thread that runs after we respond.
-        byte[] rawBytes = file.getBytes();
+        else
+            content = new String(file.getBytes(),StandardCharsets.UTF_8);
 
-        // Text extraction (PDF parsing, chunking, embeddings) is the slow, CPU-heavy
-        // part — deferred entirely to the background so upload responds immediately.
         FileEntity fileToSave = new FileEntity(title != null ? title : file.getOriginalFilename(),
-            file.getContentType(), file.getSize(), userId, null);
+            file.getContentType(), file.getSize(), userId);
 
         FileEntity returnFile = documentRepository.save(fileToSave);
 
-        FileContent fileContent = new FileContent(returnFile.getId(), rawBytes, "ignore", returnFile.getUserId());
+        FileContent fileContent = new FileContent(returnFile.getId(), file.getBytes(), content, returnFile.getUserId());
 
-        fileContentRepository.save(fileContent);
+        FileContent savedFile = fileContentRepository.save(fileContent);
+        //System.out.println("saved file content " + savedFile.getContent());
 
-        ingestionService.processAndIngest(returnFile.getId(), fileExtension, rawBytes, returnFile.getUserId());
+        ingestionService.ingest(fileContent);
 
         return returnFile;
     }
@@ -107,7 +118,7 @@ public class DocumentService {
     public String answer(String question)
     {
         String theAnswer = ingestionService.answer(question);
-        return theAnswer;    
+        return theAnswer;
     }
 
     public List<FileEntity> getUserFiles(String userId)

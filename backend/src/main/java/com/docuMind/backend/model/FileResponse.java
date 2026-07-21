@@ -13,7 +13,6 @@ public record FileResponse(
         String id,
         String name,
         Long size,
-        String userId,
-        IngestionStatus status
+        String userId
     ){}
 }

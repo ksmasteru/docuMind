@@ -1,20 +1,14 @@
-# --- Stage 1: Build the application ---
-FROM maven:3.9-eclipse-temurin-17-alpine AS builder
-WORKDIR /build
+FROM maven:3.9-eclipse-temurin-17
 
-# Copy the pom.xml and source code
-COPY pom.xml .
-COPY src ./src
-
-# Package the application (skipping tests for speed)
-RUN mvn clean package -DskipTests
-
-# --- Stage 2: Create the runtime image ---
-FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
-# Copy the built jar from the builder stage
-COPY --from=builder /build/target/*.jar app.jar
+COPY pom.xml .
+COPY mvnw .
+COPY .mvn .mvn
+RUN chmod +x mvnw
 
-EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+COPY src ./src
+
+# Bind-mounted over by docker-compose in dev, so "clean" here also covers a
+# fresh checkout with no volume attached (e.g. `docker build` standalone).
+CMD ["./mvnw", "clean", "spring-boot:run", "-DskipTests"]

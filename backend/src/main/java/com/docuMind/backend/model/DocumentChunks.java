@@ -51,7 +51,7 @@ public class DocumentChunks {
     
     public String getFileId()
     {
-        return this.id;
+        return this.fileId;
     }
 
     public void setFileId(String fileId)
@@ -79,7 +79,7 @@ public class DocumentChunks {
         this.chunkText = ChunkText;
     }
     
-    public int chunckIndex()
+    public int getChunkIndex()
     {
         return this.chunkIndex;
     }
