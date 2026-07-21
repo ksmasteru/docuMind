@@ -41,7 +41,7 @@ class DocumentServiceTest {
         MockMultipartFile file = new MockMultipartFile(
             "file",                                    // the form field name
             "notes.txt",                               // original filename
-            "text/txt",                                // content type — subtype must be in allowedExtensions
+            "text/plain",                              // content type — subtype must be in allowedExtensions
             textContent.getBytes(StandardCharsets.UTF_8)
         );
 
@@ -57,12 +57,12 @@ class DocumentServiceTest {
         // Assert — the returned entity looks right
         assertThat(result.getId()).isNotBlank();
         assertThat(result.getName()).isEqualTo("My Notes");
-        assertThat(result.getContentType()).isEqualTo("text/txt");
+        assertThat(result.getContentType()).isEqualTo("text/plain");
         assertThat(result.getUserId()).isEqualTo("hicham@gmail.com");
 
         // Assert — the service actually talked to its dependencies as expected
         verify(documentRepository).save(any(FileEntity.class));
         verify(fileContentRepository).save(any(FileContent.class));
-        verify(ingestionService).ingest(any(FileContent.class));
+        verify(ingestionService).ingest(any(FileContent.class), any(String.class));
     }
 }

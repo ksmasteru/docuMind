@@ -1,10 +1,15 @@
 package com.docuMind.backend.services;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.stereotype.Service;
 
@@ -70,9 +75,15 @@ public class IngestionService {
 
     @Async("ingestionExecutor")
     @Transactional
-    public void ingest(FileContent file) {
-        // 1. Get the extracted text from FileEntity.content
-        String text = file.getContent();
+    public void ingest(FileContent file, String fileExtension) {
+        // 1. Extraction (PDF parsing, or plain text) — the slow, memory-heavy
+        //    part that must never run on the upload request thread.
+        String text;
+        try {
+            text = extractText(fileExtension, file.getData());
+        } catch (IOException ex) {
+            return;
+        }
         if (text == null || text.isBlank()) return ;
         // 2. Delete any existing chunks for this file
         //    (handles re-upload of the same document)
@@ -102,6 +113,15 @@ public class IngestionService {
             entities.add(chunk);
         }
         chunkRepository.saveAll(entities);
+    }
+
+    private String extractText(String fileExtension, byte[] rawBytes) throws IOException {
+        if (fileExtension.equals("pdf")) {
+            try (PDDocument pdf = PDDocument.load(new ByteArrayInputStream(rawBytes))) {
+                return new PDFTextStripper().getText(pdf);
+            }
+        }
+        return new String(rawBytes, StandardCharsets.UTF_8);
     }
 }
  
