@@ -36,21 +36,24 @@ docuMind/
 ├── backend/         # Spring Boot API (auth, documents, ask/RAG, users)
 ├── my-react-app/    # React frontend
 ├── postgres/        # Postgres image with pgvector enabled
+├── grafana/         # Auto-provisioned Prometheus datasource + RAG dashboard
 └── docker-compose*.yml
 ```
 
 ## 📊 Monitoring
 
-RAG pipeline metrics (questions asked, cache hit/miss ratio, embedding & retrieval latency) are exposed at `/actuator/prometheus` and scraped by Prometheus, then visualized in Grafana.
+RAG pipeline metrics (questions asked, cache hit/miss ratio, embedding & retrieval latency) are exposed at `/actuator/prometheus`, scraped by Prometheus, and auto-provisioned into a ready-made Grafana dashboard (`grafana/dashboards/rag-pipeline.json`) — no manual setup needed. Log in to Grafana at http://localhost:3001 and open **docuMind → docuMind - RAG Pipeline**.
+
+The dashboard ships with 4 panels:
 
 <!-- TODO: Replace with Grafana dashboard screenshots -->
-| Overview | RAG Latency |
+| Questions Asked (rate) | Cache Hit Rate |
 |---|---|
-| ![Grafana overview dashboard](PLACEHOLDER_GRAFANA_OVERVIEW_CHART_URL) | ![Grafana RAG latency chart](PLACEHOLDER_GRAFANA_LATENCY_CHART_URL) |
+| ![Questions asked chart](PLACEHOLDER_GRAFANA_ASK_RATE_CHART_URL) | ![Cache hit rate chart](PLACEHOLDER_GRAFANA_CACHE_CHART_URL) |
 
-| Cache Hit Rate |
-|---|
-| ![Grafana cache hit rate chart](PLACEHOLDER_GRAFANA_CACHE_CHART_URL) |
+| Embedding Duration (p95/p50) | Retrieval Duration (p95/p50) |
+|---|---|
+| ![Embedding duration chart](PLACEHOLDER_GRAFANA_EMBEDDING_CHART_URL) | ![Retrieval duration chart](PLACEHOLDER_GRAFANA_RETRIEVAL_CHART_URL) |
 
 ## 🚀 Getting Started
 
