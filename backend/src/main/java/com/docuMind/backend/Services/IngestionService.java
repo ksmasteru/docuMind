@@ -12,7 +12,6 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.stereotype.Service;
-
 import com.docuMind.backend.model.DocumentChunks;
 import com.docuMind.backend.model.FileContent;
 import com.docuMind.backend.repository.ChunkRepository;
@@ -82,6 +81,7 @@ public class IngestionService {
         try {
             text = extractText(fileExtension, file.getData());
         } catch (IOException ex) {
+            System.out.println(ex.getMessage());
             return;
         }
         if (text == null || text.isBlank()) return ;
@@ -115,13 +115,26 @@ public class IngestionService {
         chunkRepository.saveAll(entities);
     }
 
-    private String extractText(String fileExtension, byte[] rawBytes) throws IOException {
-        if (fileExtension.equals("pdf")) {
-            try (PDDocument pdf = PDDocument.load(new ByteArrayInputStream(rawBytes))) {
-                return new PDFTextStripper().getText(pdf);
+
+    private String extractText(String fileExtension, byte[] rawBytes) throws IOException
+    {
+        if (fileExtension.equals("pdf"))
+        {
+        PDDocument document = null;
+        try {
+            document = PDDocument.load(rawBytes);
+            PDFTextStripper stripper = new PDFTextStripper();
+            String text = stripper.getText(document);
+            document.close();
+            return text;
+        }
+        finally{
+        if (document != null) {
+            document.close();
             }
         }
-        return new String(rawBytes, StandardCharsets.UTF_8);
+        }
+        return new String(rawBytes, StandardCharsets.UTF_8);  
     }
 }
  
