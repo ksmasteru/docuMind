@@ -21,10 +21,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.docuMind.backend.model.DataAnalysis;
 import com.docuMind.backend.model.FileContent;
 import com.docuMind.backend.model.FileEntity;
 import com.docuMind.backend.model.FileResponse;
 import com.docuMind.backend.model.FileResponse.FileInfo;
+import com.docuMind.backend.repository.DataAnalysisRepository;
+import com.docuMind.backend.services.DataAnalysisService;
 import com.docuMind.backend.services.DocumentService;
 
 
@@ -32,9 +35,21 @@ import com.docuMind.backend.services.DocumentService;
 @RequestMapping("/api/v1/files")
 public class  DocumentController {
     private final DocumentService documentService;
-    public DocumentController(DocumentService documentsService)
+    private final DataAnalysisService dataAnalysisService;
+    private final DataAnalysisRepository dataAnalysisRepository;
+
+    public DocumentController(DocumentService documentsService, DataAnalysisRepository dataAnalysisRepository
+        ,DataAnalysisService dataAnalysisService)
     {
         this.documentService = documentsService;
+        this.dataAnalysisService = dataAnalysisService;
+        this.dataAnalysisRepository =dataAnalysisRepository;
+    }
+
+    @GetMapping("/{fileId}/analysis")
+    public ResponseEntity<DataAnalysis> getAnalysis(@PathVariable String fileId) {
+        DataAnalysis analysis = dataAnalysisService.getAnalysis(fileId);
+        return ResponseEntity.status(HttpStatus.OK).body(analysis);
     }
 
     @GetMapping("/{name}")
@@ -129,6 +144,7 @@ public class  DocumentController {
     public ResponseEntity<FileResponse> getfilesUploadedByUser(
         @PathVariable String id
     )
+    
     {
         System.out.println("received getfilesUploadedByUser : " + id);
         
@@ -147,8 +163,9 @@ public class  DocumentController {
     public ResponseEntity<Map<String, String>> answer(@RequestBody Map<String, String> map)
     {
         String question = map.get("question");
-        // we delegate this to ingestionn service.
+
         String theAnswer = documentService.answer(question);
+    
         return ResponseEntity.status(HttpStatus.OK).body(Map.of("response", theAnswer)); 
     }
 

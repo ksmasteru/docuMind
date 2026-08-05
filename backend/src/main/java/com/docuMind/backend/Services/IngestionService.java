@@ -1,6 +1,5 @@
 package com.docuMind.backend.services;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -11,23 +10,28 @@ import java.util.stream.Collectors;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.ai.embedding.EmbeddingModel;
-import org.springframework.stereotype.Service;
-import com.docuMind.backend.model.DocumentChunks;
-import com.docuMind.backend.model.FileContent;
-import com.docuMind.backend.repository.ChunkRepository;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.docuMind.backend.model.DocumentChunks;
+import com.docuMind.backend.model.FileContent;
+import com.docuMind.backend.model.FileEntity;
+import com.docuMind.backend.repository.ChunkRepository;
+import com.docuMind.backend.model.AnalysisResult;
+
 @Service
 public class IngestionService {
 
     private final ChunkingService chunkingService;
     private final EmbeddingModel embeddingModel;  // Spring AI injects this
     private final ChunkRepository chunkRepository;
-
+    private final DataAnalysisService dataAnalysisService;
+    
     // Self-injected proxy: calling getEmbedding(...) through `self` (instead of
     // `this`) routes the call back through Spring's AOP proxy, which is what
     // actually makes @Cacheable take effect. A plain `this.getEmbedding(...)`
@@ -40,10 +44,12 @@ public class IngestionService {
 
         public IngestionService(ChunkingService chunkingService,
                            EmbeddingModel embeddingModel,
-                           ChunkRepository chunkRepository) {
+                           ChunkRepository chunkRepository,
+                            DataAnalysisService dataAnalysisService) {
         this.chunkingService = chunkingService;
         this.embeddingModel = embeddingModel;
         this.chunkRepository = chunkRepository;
+        this.dataAnalysisService = dataAnalysisService;
     }
 
 
@@ -74,16 +80,18 @@ public class IngestionService {
 
     @Async("ingestionExecutor")
     @Transactional
-    public void ingest(FileContent file, String fileExtension) {
+    public void ingest(FileContent file, MultipartFile rawFile, String fileExtension,
+        FileEntity fileToSave) {
         // 1. Extraction (PDF parsing, or plain text) — the slow, memory-heavy
         //    part that must never run on the upload request thread.
         String text;
         try {
-            text = extractText(fileExtension, file.getData());
+            text = extractText(fileExtension, file.getData(), fileToSave, rawFile);
         } catch (IOException ex) {
             System.out.println(ex.getMessage());
             return;
         }
+
         if (text == null || text.isBlank()) return ;
         // 2. Delete any existing chunks for this file
         //    (handles re-upload of the same document)
@@ -100,8 +108,6 @@ public class IngestionService {
             .map(r -> r.getOutput())
             .toList();
 
-    //System.out.println("Ai response is  : " + embeddings.stream().map(Arrays::toString).toList());
-        // 5. Persist each chunk with its embedding
         List<DocumentChunks> entities = new ArrayList<>();
         for (int i = 0; i < chunks.size(); i++) {
             DocumentChunks chunk = new DocumentChunks();
@@ -115,24 +121,29 @@ public class IngestionService {
         chunkRepository.saveAll(entities);
     }
 
-
-    private String extractText(String fileExtension, byte[] rawBytes) throws IOException
+    private String extractText(String fileExtension, byte[] rawBytes, FileEntity file, MultipartFile rawFile) throws IOException
     {
         if (fileExtension.equals("pdf"))
         {
-        PDDocument document = null;
-        try {
-            document = PDDocument.load(rawBytes);
-            PDFTextStripper stripper = new PDFTextStripper();
-            String text = stripper.getText(document);
-            document.close();
-            return text;
-        }
-        finally{
-        if (document != null) {
-            document.close();
+            PDDocument document = null;
+            try {
+                document = PDDocument.load(rawBytes);
+                PDFTextStripper stripper = new PDFTextStripper();
+                String text = stripper.getText(document);
+                document.close();
+                return text;
+            }
+            finally{
+            if (document != null) {
+                document.close();
+                }
             }
         }
+        if (fileExtension.equals("csv"))
+        {
+            // analysis service should also extract the text from the file (fileEntity, RawFile)
+            AnalysisResult result = dataAnalysisService.analyseAndStore(file, rawFile);
+            return result.getTextSummary();   
         }
         return new String(rawBytes, StandardCharsets.UTF_8);  
     }

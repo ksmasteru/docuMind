@@ -8,6 +8,7 @@ services:
       - postgres
       - redis
     env_file:
+      - .env
       - ./backend/.env.local
     ports:
       - "8080:8080"
@@ -15,17 +16,29 @@ services:
     build:
       context: ./my-react-app
       dockerfile: Dockerfile
-    depends_on: 
+    depends_on:
       - backend
+    env_file:
+      - .env
     ports:
       - "5173:5173"
     volumes:
       - ./my-react-app:/app
       - frontend_node_modules:/app/node_modules
+  analysis-service:
+    build: ./analysis-service
+    env_file:
+      - .env
+    ports:
+      - "8001:8001"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
   postgres:
     build:
       context: ./postgres
       dockerfile: Dockerfile
+    env_file:
+      - .env
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -36,12 +49,16 @@ services:
       - postgres_data:/var/lib/postgresql/data
   redis:
     image: redis:7-alpine
+    env_file:
+      - .env
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
   prometheus:
     image: prom/prometheus:latest
+    env_file:
+      - .env
     ports:
       - "9090:9090"
     volumes:
@@ -53,6 +70,8 @@ services:
       - "3001:3000"
     depends_on:
       - prometheus
+    env_file:
+      - .env
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     volumes:

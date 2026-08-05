@@ -18,7 +18,7 @@ import com.docuMind.backend.repository.FileContentRepository;
 // talks with repsose
 @Service
 public class DocumentService {
-    List<String> allowedExtensions = List.of("pdf", "markdown", "plain");
+    List<String> allowedExtensions = List.of("pdf", "markdown", "plain", "csv");
 
     private final DocumentRepository documentRepository;
 
@@ -92,7 +92,7 @@ public class DocumentService {
 
         FileContent savedFile = fileContentRepository.save(fileContent);
 
-        ingestionService.ingest(savedFile, fileExtension);
+        ingestionService.ingest(savedFile, file, fileExtension, fileToSave);
 
         return returnFile;
     }
