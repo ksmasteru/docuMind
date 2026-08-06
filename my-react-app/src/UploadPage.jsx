@@ -101,7 +101,7 @@ export default function UploadPage() {
               ref={fileInputRef}
               type="file"
               className="hidden"
-              accept=".pdf,.txt,.md"
+              accept=".pdf,.txt,.md,.csv,.xls,.xlsx"
               onChange={(e) => pickFile(e.target.files?.[0])}
             />
             {file ? (
@@ -111,7 +111,7 @@ export default function UploadPage() {
                 <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
                   Drop a file here, or click to choose one
                 </p>
-                <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">PDF, TXT, or MD — up to 25MB</p>
+                <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">PDF, TXT, CSV, EXCEL or MD — up to 25MB</p>
               </>
             )}
           </div>

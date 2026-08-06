@@ -139,11 +139,14 @@ public class IngestionService {
                 }
             }
         }
-        if (fileExtension.equals("csv"))
+        if (fileExtension.equals("csv")
+            || fileExtension.equals("vnd.ms-excel")
+            || fileExtension.equals("vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
         {
-            // analysis service should also extract the text from the file (fileEntity, RawFile)
+            // Both CSV and Excel go through analysis-service — it picks
+            // pd.read_csv vs pd.read_excel based on the filename itself.
             AnalysisResult result = dataAnalysisService.analyseAndStore(file, rawFile);
-            return result.getTextSummary();   
+            return result.getTextSummary();
         }
         return new String(rawBytes, StandardCharsets.UTF_8);  
     }

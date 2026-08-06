@@ -18,7 +18,11 @@ import com.docuMind.backend.repository.FileContentRepository;
 // talks with repsose
 @Service
 public class DocumentService {
-    List<String> allowedExtensions = List.of("pdf", "markdown", "plain", "csv");
+    List<String> allowedExtensions = List.of(
+        "pdf", "markdown", "plain", "csv",
+        "vnd.ms-excel",                                                  // .xls
+        "vnd.openxmlformats-officedocument.spreadsheetml.sheet"          // .xlsx
+    );
 
     private final DocumentRepository documentRepository;
 
