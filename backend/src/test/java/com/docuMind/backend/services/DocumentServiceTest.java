@@ -13,6 +13,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.docuMind.backend.model.FileContent;
 import com.docuMind.backend.model.FileEntity;
@@ -63,6 +64,7 @@ class DocumentServiceTest {
         // Assert — the service actually talked to its dependencies as expected
         verify(documentRepository).save(any(FileEntity.class));
         verify(fileContentRepository).save(any(FileContent.class));
-        verify(ingestionService).ingest(any(FileContent.class), any(String.class));
+        verify(ingestionService).ingest(any(FileContent.class), any(MultipartFile.class),
+            any(String.class), any(FileEntity.class));
     }
 }

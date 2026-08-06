@@ -42,6 +42,7 @@ public class DataAnalysisService {
         
         DataAnalysis analysis = new DataAnalysis();
         analysis.setFileId(file.getId());
+        analysis.setUserId(file.getUserId());
         analysis.setAnalysisJson(toJson(result));
         analysis.setTextSummary(result.getTextSummary());
         analysis.setRowCount(result.getShape().getRows());
