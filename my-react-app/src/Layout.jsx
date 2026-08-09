@@ -58,6 +58,7 @@ export function TopBar({ active }) {
         <Link to="/documents" className={linkClass("search")}>Documents</Link>
         <Link to="/upload" className={linkClass("upload")}>Upload</Link>
         <Link to="/ask" className={linkClass("ask")}>Ask</Link>
+        <Link to="/data-visualisor" className={linkClass("visualize")}>Visualize</Link>
         <Link to="/users"  className={linkClass("users")}>Members</Link>
         {isAdmin && (
           <Link to="/admin" className={linkClass("admin")}>Admin</Link>
