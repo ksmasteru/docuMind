@@ -103,9 +103,12 @@ public class AskController {
             System.out.println(ex.getMessage());
             embeddingLiteral = Arrays.toString(embeddingModel.embed(request.question()));
         } 
-        // 2. Retrieve top 5 relevant chunks
-        List<DocumentChunks> relevantChunks = chunkRepository
-            .findSimilarChunks(userId, embeddingLiteral, 5);
+        // 2. Retrieve top 5 relevant chunks — scoped to one document when the
+        // caller is asking from the data visualizer about a specific upload,
+        // otherwise searched across everything the user has.
+        List<DocumentChunks> relevantChunks = (request.fileId() != null && !request.fileId().isBlank())
+            ? chunkRepository.findSimilarChunksinDocument(userId, embeddingLiteral, 5, request.fileId())
+            : chunkRepository.findSimilarChunks(userId, embeddingLiteral, 5);
 
         System.out.println("relevant chunks are : " + relevantChunks);
         if (relevantChunks.isEmpty()) {
@@ -150,4 +153,7 @@ public class AskController {
     }
 }
 
-record AskRequest(String question) {}
+// fileId comes from the data visualizer page — the id of whichever file is
+// currently selected there. Optional: when absent, retrieval falls back to
+// searching across all of the user's documents (see ask() above).
+record AskRequest(String question, String fileId) {}

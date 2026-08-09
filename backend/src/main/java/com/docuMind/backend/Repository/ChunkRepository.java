@@ -23,6 +23,20 @@ List<DocumentChunks> findSimilarChunks(
     @Param("embedding") String embedding,
     @Param("limit") int limit
 );
+
+    @Query(value = """
+        SELECT * FROM  document_chunks
+        WHERE  user_email= :userEmail AND
+        file_id= :fileId
+        ORDER BY embedding <=> CAST(:embedding AS vector)
+        LIMIT :limit
+    """, nativeQuery = true)
+List<DocumentChunks> findSimilarChunksinDocument(
+    @Param("userEmail") String userEmail,
+    @Param("embedding") String embedding,
+    @Param("limit") int limit,
+    @Param("fileId") String fileId
+);
 void deleteByFileId(String id);
     
 }

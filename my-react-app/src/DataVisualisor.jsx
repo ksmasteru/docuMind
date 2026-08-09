@@ -6,6 +6,7 @@ import { useCallback, useRef, useState } from "react";
 import { TopBar } from "./Layout";
 import { apiClient } from "./apiClient";
 import AskChat from "./AskChat";
+import AnalysisPanel from "./AnalysisPanel";
 
 const ACCEPTED_TYPES = ".csv,.xls,.xlsx";
 
@@ -43,13 +44,16 @@ function StatusBadge({ status }) {
 
 // Left panel — drop/select CSV or Excel files; each one uploads immediately
 // (title defaults to the filename, same as UploadPage does when left blank).
-function UploadPanel() {
-  const [files, setFiles] = useState([]); // [{ name, status: "uploading"|"success"|"error" }]
+// selectedFileId/onSelectFile let you click a previously-uploaded file to
+// bring its analysis back up in the middle panel; onUploaded auto-selects
+// whatever just finished uploading.
+function UploadPanel({ selectedFileId, onSelectFile, onUploaded }) {
+  const [files, setFiles] = useState([]); // [{ name, status: "uploading"|"success"|"error", fileId }]
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
   async function uploadFile(selected) {
-    const entry = { name: selected.name, status: "uploading" };
+    const entry = { name: selected.name, status: "uploading", fileId: null };
     setFiles((prev) => [entry, ...prev]);
 
     const formData = new FormData();
@@ -59,8 +63,10 @@ function UploadPanel() {
     try {
       // No explicit Content-Type — see UploadPage.jsx for why (the browser
       // needs to set its own multipart boundary).
-      await apiClient.post("/api/v1/files/upload", formData);
-      setFiles((prev) => prev.map((f) => (f === entry ? { ...f, status: "success" } : f)));
+      const { data } = await apiClient.post("/api/v1/files/upload", formData);
+      const uploaded = data.files?.[0];
+      setFiles((prev) => prev.map((f) => (f === entry ? { ...f, status: "success", fileId: uploaded?.id } : f)));
+      if (uploaded?.id) onUploaded({ id: uploaded.id, name: selected.name });
     } catch {
       setFiles((prev) => prev.map((f) => (f === entry ? { ...f, status: "error" } : f)));
     }
@@ -119,15 +125,25 @@ function UploadPanel() {
 
       {files.length > 0 && (
         <ul className="space-y-2">
-          {files.map((f, i) => (
-            <li
-              key={i}
-              className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-800"
-            >
-              <span className="truncate text-xs text-slate-700 dark:text-slate-300">{f.name}</span>
-              <StatusBadge status={f.status} />
-            </li>
-          ))}
+          {files.map((f, i) => {
+            const isSelected = f.fileId && f.fileId === selectedFileId;
+            return (
+              <li
+                key={i}
+                onClick={() => f.status === "success" && onSelectFile({ id: f.fileId, name: f.name })}
+                className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 transition ${
+                  f.status === "success" ? "cursor-pointer" : ""
+                } ${
+                  isSelected
+                    ? "border-indigo-400 bg-indigo-50 dark:border-indigo-500 dark:bg-indigo-950"
+                    : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800"
+                }`}
+              >
+                <span className="truncate text-xs text-slate-700 dark:text-slate-300">{f.name}</span>
+                <StatusBadge status={f.status} />
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
@@ -135,6 +151,8 @@ function UploadPanel() {
 }
 
 export default function DataVisualisor() {
+  const [selectedFile, setSelectedFile] = useState(null); // { id, name }
+
   return (
     <div className="flex h-screen flex-col bg-white dark:bg-slate-900">
       <TopBar active="visualize" />
@@ -142,20 +160,28 @@ export default function DataVisualisor() {
       <div className="flex flex-1 min-h-0">
         {/* Left — upload (20%) */}
         <aside className="w-1/5 shrink-0 overflow-y-auto border-r border-slate-200 dark:border-slate-700">
-          <UploadPanel />
+          <UploadPanel
+            selectedFileId={selectedFile?.id}
+            onSelectFile={setSelectedFile}
+            onUploaded={setSelectedFile}
+          />
         </aside>
 
-        {/* Middle — chart canvas, wired up later (60%) */}
-        <main className="flex w-3/5 flex-1 flex-col items-center justify-center overflow-y-auto border-r border-slate-200 p-6 dark:border-slate-700">
-          <div className="text-center text-slate-400 dark:text-slate-500">
-            <ChartPlaceholderIcon />
-            <p className="mt-3 text-sm">Visualizations will show up here.</p>
-          </div>
+        {/* Middle — stats + charts for whichever file is selected (60%) */}
+        <main className="flex w-3/5 flex-1 flex-col overflow-hidden border-r border-slate-200 dark:border-slate-700">
+          {selectedFile ? (
+            <AnalysisPanel key={selectedFile.id} fileId={selectedFile.id} fileName={selectedFile.name} />
+          ) : (
+            <div className="flex flex-1 flex-col items-center justify-center p-6 text-center text-slate-400 dark:text-slate-500">
+              <ChartPlaceholderIcon />
+              <p className="mt-3 text-sm">Upload a CSV or Excel file to see stats and charts here.</p>
+            </div>
+          )}
         </main>
 
-        {/* Right — Ask chat (20%) */}
+        {/* Right — Ask chat (20%), scoped to whichever file is selected */}
         <aside className="w-1/5 shrink-0 overflow-hidden">
-          <AskChat compact />
+          <AskChat key={selectedFile?.id ?? "none"} compact fileId={selectedFile?.id} fileName={selectedFile?.name} />
         </aside>
       </div>
     </div>

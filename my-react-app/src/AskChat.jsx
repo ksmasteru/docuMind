@@ -38,7 +38,7 @@ function TypingDots() {
 
 // compact=true trims the hero copy/padding down for narrow sidebar use;
 // the streaming logic underneath is identical either way.
-export default function AskChat({ compact = false }) {
+export default function AskChat({ compact = false, fileId, fileName }) {
   const [messages, setMessages] = useState([]); // { role: "user" | "assistant", text }
   const [question, setQuestion] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -80,7 +80,7 @@ export default function AskChat({ compact = false }) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${getAccessToken()}`,
         },
-        body: JSON.stringify({ question: trimmed }),
+        body: JSON.stringify({ question: trimmed, fileId }),
         signal: controller.signal,
       });
 
@@ -151,7 +151,7 @@ export default function AskChat({ compact = false }) {
           <h1 className={compact
             ? "text-sm font-semibold text-slate-800 dark:text-slate-100"
             : "text-3xl font-semibold text-slate-800 dark:text-slate-100"}>
-            {compact ? "Ask about your data" : "What do you want to know?"}
+            {compact ? (fileName ? `Ask about ${fileName}` : "Ask about your data") : "What do you want to know?"}
           </h1>
           {!compact && (
             <p className="mt-2 text-sm text-slate-400 dark:text-slate-500">
@@ -162,6 +162,7 @@ export default function AskChat({ compact = false }) {
           <div className={compact ? "mt-4 w-full" : "mt-8 w-full max-w-2xl"}>
             <Composer
               compact={compact}
+              fileName={fileName}
               question={question}
               setQuestion={setQuestion}
               isStreaming={isStreaming}
@@ -214,6 +215,7 @@ export default function AskChat({ compact = false }) {
               )}
               <Composer
                 compact={compact}
+                fileName={fileName}
                 question={question}
                 setQuestion={setQuestion}
                 isStreaming={isStreaming}
@@ -229,34 +231,52 @@ export default function AskChat({ compact = false }) {
   );
 }
 
-function Composer({ compact, question, setQuestion, isStreaming, onSubmit, onKeyDown, textareaRef }) {
+// Small "attached file" pill, chatbot-style, that sits right above the
+// input box whenever the conversation is scoped to a specific document.
+function FileScopeChip({ name }) {
   return (
-    <form
-      onSubmit={onSubmit}
-      className={`flex items-end gap-2 rounded-3xl border border-slate-200 bg-white shadow-sm transition focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100 dark:border-slate-700 dark:bg-slate-800 dark:focus-within:ring-indigo-900 ${compact ? "px-3 py-2" : "px-4 py-2.5"}`}
-    >
-      <textarea
-        ref={textareaRef}
-        rows={1}
-        value={question}
-        onChange={(e) => setQuestion(e.target.value)}
-        onKeyDown={onKeyDown}
-        placeholder={compact ? "Ask about your data…" : "Ask a question about your documents…"}
-        disabled={isStreaming}
-        autoFocus={!compact}
-        className={`flex-1 resize-none bg-transparent py-1.5 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60 dark:text-slate-100 ${compact ? "max-h-[120px]" : "max-h-[200px]"}`}
-      />
-      <button
-        type="submit"
-        disabled={isStreaming || !question.trim()}
-        aria-label="Send question"
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:bg-slate-700"
+    <div className="mb-2 inline-flex max-w-full items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+        <path d="M14 2v6h6" />
+      </svg>
+      <span className="truncate">{name}</span>
+    </div>
+  );
+}
+
+function Composer({ compact, fileName, question, setQuestion, isStreaming, onSubmit, onKeyDown, textareaRef }) {
+  return (
+    <div>
+      {fileName && <FileScopeChip name={fileName} />}
+      <form
+        onSubmit={onSubmit}
+        className={`flex items-end gap-2 rounded-3xl border border-slate-200 bg-white shadow-sm transition focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100 dark:border-slate-700 dark:bg-slate-800 dark:focus-within:ring-indigo-900 ${compact ? "px-3 py-2" : "px-4 py-2.5"}`}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 19V5M5 12l7-7 7 7" />
-        </svg>
-      </button>
-    </form>
+        <textarea
+          ref={textareaRef}
+          rows={1}
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder={compact ? "Ask about your data…" : "Ask a question about your documents…"}
+          disabled={isStreaming}
+          autoFocus={!compact}
+          className={`flex-1 resize-none bg-transparent py-1.5 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60 dark:text-slate-100 ${compact ? "max-h-[120px]" : "max-h-[200px]"}`}
+        />
+        <button
+          type="submit"
+          disabled={isStreaming || !question.trim()}
+          aria-label="Send question"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:bg-slate-700"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 19V5M5 12l7-7 7 7" />
+          </svg>
+        </button>
+      </form>
+    </div>
   );
 }

@@ -35,16 +35,26 @@ public class DataAnalysisService {
        orElseThrow(() -> new FileNotFoundException("file not found with id: " + fileId));
     }
     
+    // Used by IngestionService (extractChunks) — it needs the raw AnalysisResult
+    // to pull textChunks out of. Also persists a DataAnalysis row as a side
+    // effect so GET /{fileId}/analysis (used by the visualizer page) has
+    // something to find; previously this method returned without saving
+    // anything, which left that endpoint 404ing for every csv/excel upload.
     @Transactional
     public AnalysisResult analyse(FileEntity file, byte[] fileBytes, String originalFilename)
     {
         AnalysisResult result = client.analyse(fileBytes, originalFilename);
+        persist(file, result);
         return result;
     }
 
     @Transactional
     public DataAnalysis analyseAndStore(FileEntity file, byte[] fileBytes, String originalFilename) {
-        AnalysisResult result = analyse(file, fileBytes, originalFilename);
+        AnalysisResult result = client.analyse(fileBytes, originalFilename);
+        return persist(file, result);
+    }
+
+    private DataAnalysis persist(FileEntity file, AnalysisResult result) {
         DataAnalysis analysis = new DataAnalysis();
         analysis.setFileId(file.getId());
         analysis.setUserId(file.getUserId());
@@ -52,11 +62,10 @@ public class DataAnalysisService {
         analysis.setTextSummary(result.getTextSummary());
         analysis.setRowCount(result.getShape().getRows());
         analysis.setColCount(result.getShape().getCols());
-        repository.save(analysis);
-        return analysis;
+        return repository.save(analysis);
     }
 
-    
+
     private String toJson(AnalysisResult result) {
         try {
             return objectMapper.writeValueAsString(result);
