@@ -3,7 +3,6 @@ package com.docuMind.backend.services;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,9 +36,15 @@ public class DataAnalysisService {
     }
     
     @Transactional
-    public AnalysisResult analyseAndStore(FileEntity file, MultipartFile rawFile) {
-        AnalysisResult result = client.analyse(rawFile);
-        
+    public AnalysisResult analyse(FileEntity file, byte[] fileBytes, String originalFilename)
+    {
+        AnalysisResult result = client.analyse(fileBytes, originalFilename);
+        return result;
+    }
+
+    @Transactional
+    public DataAnalysis analyseAndStore(FileEntity file, byte[] fileBytes, String originalFilename) {
+        AnalysisResult result = analyse(file, fileBytes, originalFilename);
         DataAnalysis analysis = new DataAnalysis();
         analysis.setFileId(file.getId());
         analysis.setUserId(file.getUserId());
@@ -48,9 +53,10 @@ public class DataAnalysisService {
         analysis.setRowCount(result.getShape().getRows());
         analysis.setColCount(result.getShape().getCols());
         repository.save(analysis);
-        return result;
+        return analysis;
     }
 
+    
     private String toJson(AnalysisResult result) {
         try {
             return objectMapper.writeValueAsString(result);

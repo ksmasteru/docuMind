@@ -96,7 +96,10 @@ public class DocumentService {
 
         FileContent savedFile = fileContentRepository.save(fileContent);
 
-        ingestionService.ingest(savedFile, file, fileExtension, fileToSave);
+        // Pass the original filename through as a plain String, same reason as
+        // rawBytes above — nothing downstream in the async pipeline may touch
+        // the MultipartFile itself once this request has returned.
+        ingestionService.ingest(savedFile, rawBytes, file.getOriginalFilename(), fileExtension, fileToSave);
 
         return returnFile;
     }

@@ -76,7 +76,7 @@ public class  DocumentController {
 
     @GetMapping("/id/{id}")
     public ResponseEntity<ByteArrayResource> getFile(@PathVariable String id)
-    {     
+    {
         FileEntity file = documentService.getFileMetaData(id);
         FileContent fileData = documentService.getFileData(id);
         

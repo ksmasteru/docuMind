@@ -18,11 +18,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.docuMind.backend.model.AnalysisResult;
+import com.docuMind.backend.model.DataAnalysis;
 import com.docuMind.backend.model.DocumentChunks;
 import com.docuMind.backend.model.FileContent;
 import com.docuMind.backend.model.FileEntity;
 import com.docuMind.backend.repository.ChunkRepository;
-import com.docuMind.backend.model.AnalysisResult;
 
 @Service
 public class IngestionService {
@@ -32,6 +33,8 @@ public class IngestionService {
     private final ChunkRepository chunkRepository;
     private final DataAnalysisService dataAnalysisService;
     
+    public static final String ANSI_RESET = "\u001B[0m";
+    public static final String ANSI_GREEN = "\u001B[32m";
     // Self-injected proxy: calling getEmbedding(...) through `self` (instead of
     // `this`) routes the call back through Spring's AOP proxy, which is what
     // actually makes @Cacheable take effect. A plain `this.getEmbedding(...)`
@@ -80,40 +83,39 @@ public class IngestionService {
 
     @Async("ingestionExecutor")
     @Transactional
-    public void ingest(FileContent file, MultipartFile rawFile, String fileExtension,
+    public void ingest(FileContent file,  byte[] rawBytes, String originalFilename, String fileExtension,
         FileEntity fileToSave) {
         // 1. Extraction (PDF parsing, or plain text) — the slow, memory-heavy
         //    part that must never run on the upload request thread.
-        String text;
+        //FileContent file, byte[] rawBytes,String originalFilename, String fileExtension,
+        List<String> chunkies;
         try {
-            text = extractText(fileExtension, file.getData(), fileToSave, rawFile);
-        } catch (IOException ex) {
-            System.out.println(ex.getMessage());
+            chunkies = extractChunks(file.getData(), originalFilename, fileExtension,fileToSave);
+        } catch (Exception ex) {
+            System.out.println("hi");
+            System.out.println(ANSI_GREEN + ex.getMessage() + ANSI_RESET);
             return;
         }
 
-        if (text == null || text.isBlank()) return ;
+        if (chunkies == null || chunkies.isEmpty()) return ;
         // 2. Delete any existing chunks for this file
         //    (handles re-upload of the same document)
         //chunkRepository.deleteByFileId(file.getId());
 
-        // 3. Split into chunks
-        List<String> chunks = chunkingService.chunk(text);
-
         // 4. Embed all chunks in one API call (batching = fewer round trips)
         List<float[]> embeddings = embeddingModel
-            .embedForResponse(chunks)
+            .embedForResponse(chunkies)
             .getResults()
             .stream()
             .map(r -> r.getOutput())
             .toList();
 
         List<DocumentChunks> entities = new ArrayList<>();
-        for (int i = 0; i < chunks.size(); i++) {
+        for (int i = 0; i < chunkies.size(); i++) {
             DocumentChunks chunk = new DocumentChunks();
             chunk.setFileId(file.getId());
             chunk.setUserEmail(file.getUserEmail());
-            chunk.setChunkText(chunks.get(i));
+            chunk.setChunkText(chunkies.get(i));
             chunk.setChunkIndex(i);
             chunk.setEmbedding(embeddings.get(i));
             entities.add(chunk);
@@ -121,34 +123,45 @@ public class IngestionService {
         chunkRepository.saveAll(entities);
     }
 
-    private String extractText(String fileExtension, byte[] rawBytes, FileEntity file, MultipartFile rawFile) throws IOException
+    private List<String> extractChunks(byte[] rawBytes,String originalFilename, String fileExtension,
+        FileEntity fileToSave) throws Exception
     {
+        List<String> result = null;
         if (fileExtension.equals("pdf"))
         {
-            PDDocument document = null;
-            try {
-                document = PDDocument.load(rawBytes);
-                PDFTextStripper stripper = new PDFTextStripper();
-                String text = stripper.getText(document);
-                document.close();
-                return text;
+            String extractedText = extractText(fileExtension, rawBytes,  fileToSave,originalFilename);
+            result = chunkingService.chunk(extractedText);
+        }
+        else if (fileExtension.equals("csv")
+            || fileExtension.equals("vnd.ms-excel")
+            || fileExtension.equals("vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+        {
+            AnalysisResult dataAnalysis = dataAnalysisService.analyse(fileToSave, rawBytes, originalFilename);
+            result = dataAnalysis.getTextChunks();
+            System.out.println("gotted chunks from analyse-service: \n" + result);
+        }
+        else {
+            String extractedText =  new String(rawBytes, StandardCharsets.UTF_8);  
+            result = chunkingService.chunk(extractedText);
+        }
+        return result;
+    }
+
+    private String extractText(String fileExtension, byte[] rawBytes, FileEntity file, String originalFilename) throws Exception
+    {
+        PDDocument document = null;
+        try {
+            document = PDDocument.load(rawBytes);
+            PDFTextStripper stripper = new PDFTextStripper();
+            String text = stripper.getText(document);
+            document.close();
+            return text;
             }
-            finally{
+        finally{
             if (document != null) {
                 document.close();
                 }
             }
-        }
-        if (fileExtension.equals("csv")
-            || fileExtension.equals("vnd.ms-excel")
-            || fileExtension.equals("vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-        {
-            // Both CSV and Excel go through analysis-service — it picks
-            // pd.read_csv vs pd.read_excel based on the filename itself.
-            AnalysisResult result = dataAnalysisService.analyseAndStore(file, rawFile);
-            return result.getTextSummary();
-        }
-        return new String(rawBytes, StandardCharsets.UTF_8);  
     }
 }
  

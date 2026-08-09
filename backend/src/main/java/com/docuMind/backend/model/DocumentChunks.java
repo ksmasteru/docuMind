@@ -98,4 +98,14 @@ public class DocumentChunks {
     {
         return this.embedding;
     }
+
+    // Deliberately omits `embedding` (1536 floats — floods logs) and includes
+    // `chunkText` in full, since that's the field you actually need to see
+    // when debugging why retrieval did/didn't surface the right content.
+    @Override
+    public String toString()
+    {
+        return "DocumentChunks{id='%s', fileId='%s', chunkIndex=%d, chunkText='%s'}"
+            .formatted(id, fileId, chunkIndex, chunkText);
+    }
 }

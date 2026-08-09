@@ -23,7 +23,139 @@ def fig_to_base64(fig):
     buf.seek(0)
     plt.close(fig)
     return base64.b64encode(buf.read()).decode("utf-8")
+def generate_rich_summary(df: pd.DataFrame, filename: str) -> list[str]:
+    """
+    Returns a list of text chunks — each one focused on a specific
+    aspect of the dataset. These get chunked and embedded separately,
+    so retrieval is precise instead of averaged across everything.
+    """
+    chunks = []
+    numeric_cols     = df.select_dtypes(include=np.number).columns.tolist()
+    categorical_cols = df.select_dtypes(include="object").columns.tolist()
 
+    # ── Chunk 1: Dataset overview ─────────────────────────────────
+    chunks.append(f"""
+        Dataset overview for {filename}:
+        This dataset contains {df.shape[0]} rows and {df.shape[1]} columns.
+        The columns are: {', '.join(df.columns.tolist())}.
+        There are {len(numeric_cols)} numeric columns: {', '.join(numeric_cols)}.
+        There are {len(categorical_cols)} categorical columns: {', '.join(categorical_cols)}.
+        Total missing values across the dataset: {df.isnull().sum().sum()}.
+        """.strip())
+
+    # ── Chunk per numeric column ──────────────────────────────────
+    for col in numeric_cols:
+        s      = df[col]
+        nulls  = int(s.isnull().sum())
+        q25    = round(float(s.quantile(0.25)), 2)
+        q75    = round(float(s.quantile(0.75)), 2)
+        skew   = round(float(s.skew()), 2)
+        skew_desc = (
+            "roughly symmetric" if abs(skew) < 0.5
+            else "right-skewed (tail toward higher values)" if skew > 0
+            else "left-skewed (tail toward lower values)"
+        )
+
+        chunks.append(f"""
+            Column: {col} (numeric)
+            The {col} column has {len(s)} total values with {nulls} missing values
+            ({round(nulls/len(s)*100, 1)}% missing).
+            The average {col} is {round(float(s.mean()), 2)}, with a median of
+            {round(float(s.median()), 2)} and a standard deviation of {round(float(s.std()), 2)}.
+            The minimum value is {round(float(s.min()), 2)} and the maximum is {round(float(s.max()), 2)}.
+            25% of values are below {q25} and 75% are below {q75}.
+            The distribution is {skew_desc}.
+            """.strip())
+
+    # ── Chunk per categorical column ──────────────────────────────
+    for col in categorical_cols:
+        s          = df[col]
+        nulls      = int(s.isnull().sum())
+        top_values = s.value_counts().head(10)
+        top_desc   = ", ".join([
+            f"{val} ({count} records, {round(count/len(s)*100, 1)}%)"
+            for val, count in top_values.items()
+        ])
+
+        chunks.append(f"""
+            Column: {col} (categorical)
+            The {col} column has {s.nunique()} unique values and {nulls} missing values.
+            The most common values are: {top_desc}.
+            """.strip())
+
+    # ── Cross-column relationships ────────────────────────────────
+    # For each categorical column, compute the mean of each numeric
+    # column grouped by that category — this is what makes RAG
+    # actually answerable for business questions
+    for cat_col in categorical_cols:
+        if df[cat_col].nunique() > 15:
+            continue  # skip high-cardinality columns like IDs
+
+        lines = [f"Relationship between {cat_col} and numeric columns:"]
+        for num_col in numeric_cols:
+            group = df.groupby(cat_col)[num_col].mean().round(2)
+            group_desc = ", ".join([
+                f"{k}: {v}" for k, v in group.items()
+            ])
+            lines.append(
+                f"Average {num_col} by {cat_col} — {group_desc}."
+            )
+        chunks.append("\n".join(lines))
+
+    # ── Correlation insights ──────────────────────────────────────
+    if len(numeric_cols) >= 2:
+        corr = df[numeric_cols].corr()
+        strong_pairs = []
+
+        for i in range(len(numeric_cols)):
+            for j in range(i+1, len(numeric_cols)):
+                c = corr.iloc[i, j]
+                if abs(c) >= 0.5:  # only report meaningful correlations
+                    direction = "positively" if c > 0 else "negatively"
+                    strength  = (
+                        "strongly" if abs(c) > 0.7
+                        else "moderately"
+                    )
+                    strong_pairs.append(
+                        f"{numeric_cols[i]} and {numeric_cols[j]} are "
+                        f"{strength} {direction} correlated (r={round(c, 2)})"
+                    )
+
+        if strong_pairs:
+            chunks.append(
+                "Correlation insights:\n" + "\n".join(strong_pairs)
+            )
+
+    # ── Sample rows as natural language ──────────────────────────
+    # Convert 20 sample rows to natural language sentences.
+    # This lets RAG answer questions about specific record patterns.
+    sample = df.sample(min(20, len(df)), random_state=42)
+    row_descriptions = []
+    for _, row in sample.iterrows():
+        parts = [f"{col}={row[col]}" for col in df.columns]
+        row_descriptions.append("Record: " + ", ".join(parts))
+
+    chunks.append(
+        "Sample records from the dataset:\n" +
+        "\n".join(row_descriptions)
+    )
+
+    # ── Missing values analysis ───────────────────────────────────
+    missing = df.isnull().sum()
+    missing_cols = missing[missing > 0]
+    if len(missing_cols) > 0:
+        lines = ["Missing value analysis:"]
+        for col, count in missing_cols.items():
+            lines.append(
+                f"{col} has {count} missing values "
+                f"({round(count/len(df)*100, 1)}% of rows)"
+            )
+        chunks.append("\n".join(lines))
+    else:
+        chunks.append(
+            "Missing value analysis: this dataset has no missing values."
+        )
+    return chunks
 @app.post("/analyse")
 async def analyse(file: UploadFile = File(...)):
     # Read file
@@ -38,7 +170,6 @@ async def analyse(file: UploadFile = File(...)):
     # ── Basic info ────────────────────────────────────────────────
     result["shape"] = {"rows": int(df.shape[0]), "cols": int(df.shape[1])}
     result["columns"] = df.columns.tolist()
-
     # ── Column profiles ───────────────────────────────────────────
     col_profiles = []
     for col in df.columns:
@@ -108,31 +239,8 @@ async def analyse(file: UploadFile = File(...)):
 
     result["charts"] = charts
 
-    # ── Text summary for RAG embedding ────────────────────────────
-    # This is what gets chunked and embedded — lets the LLM answer
-    # questions about the dataset without seeing all the raw data
-    summary_lines = [
-        f"Dataset has {df.shape[0]} rows and {df.shape[1]} columns.",
-        f"Columns: {', '.join(df.columns.tolist())}",
-        "",
-        "Column details:",
-    ]
-    for p in col_profiles:
-        line = f"- {p['name']} ({p['dtype']}): {p['null_count']} nulls"
-        if "stats" in p:
-            s = p["stats"]
-            line += f", mean={s['mean']}, std={s['std']}, range=[{s['min']}, {s['max']}]"
-        elif "top_values" in p:
-            top = list(p["top_values"].keys())[:3]
-            line += f", top values: {', '.join(str(v) for v in top)}"
-        summary_lines.append(line)
-
-    # Sample rows as context
-    summary_lines.append("\nSample rows (first 5):")
-    summary_lines.append(df.head(5).to_string())
-
-    result["text_summary"] = "\n".join(summary_lines)
-
+    result["text_chunks"] = generate_rich_summary(df, file.filename)
+    result["text_summary"] = result["text_chunks"][0]
     return result
 
 @app.get("/health")

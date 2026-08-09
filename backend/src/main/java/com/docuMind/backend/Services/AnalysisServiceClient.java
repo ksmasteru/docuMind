@@ -2,6 +2,7 @@
 package com.docuMind.backend.services;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -10,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.docuMind.backend.model.AnalysisResult;
 
@@ -19,21 +19,33 @@ public class AnalysisServiceClient {
 
     private final RestTemplate restTemplate;
 
-    @Value("${analysis.service.url:http://localhost:8001}")
+    @Value("${analysis.service.url}")
     private String analysisServiceUrl;
 
     public AnalysisServiceClient() {
         this.restTemplate = new RestTemplate();
     }
 
-    public AnalysisResult analyse(MultipartFile file) {
+    public AnalysisResult analyse(byte[] fileBytes, String originalFilename) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
+        // Plain ByteArrayResource has no filename by default, and analysis-service
+        // (FastAPI) needs one to know it's dealing with an UploadFile part at all
+        // and to pick .csv vs .xlsx parsing — hence the override. Built from the
+        // in-memory bytes captured on the original request thread, not a
+        // MultipartFile: that object's backing temp file on disk is gone by the
+        // time this runs, since ingestion happens asynchronously after the
+        // upload request has already completed.
+        ByteArrayResource fileResource = new ByteArrayResource(fileBytes) {
+            @Override
+            public String getFilename() {
+                return originalFilename;
+            }
+        };
+
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        // MultipartFile#getResource() already carries the original filename
-        // through, so no custom Resource wrapper is needed here.
-        body.add("file", file.getResource());
+        body.add("file", fileResource);
 
         HttpEntity<MultiValueMap<String, Object>> request =
             new HttpEntity<>(body, headers);

@@ -1,11 +1,20 @@
 package com.docuMind.backend.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import java.util.List;
 import java.util.Map;
 
 // JsonIgnoreProperties — if Python adds new fields later,
 // Jackson won't throw an error, it'll just ignore them
+//
+// JsonNaming(SnakeCaseStrategy) — analysis-service (FastAPI/Python) returns
+// snake_case keys (text_summary, column_profiles, null_count, ...); without
+// this, Jackson only matches exact field names, so every snake_case field
+// silently deserializes as null instead of erroring (ignoreUnknown above
+// hides the mismatch rather than surfacing it).
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class AnalysisResult {
 
@@ -14,6 +23,7 @@ public class AnalysisResult {
     private List<ColumnProfile> columnProfiles;
     private List<Chart> charts;
     private String textSummary;
+    private List<String> textChunks;
 
     // ── Shape ─────────────────────────────────────────────────────
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -28,6 +38,10 @@ public class AnalysisResult {
     }
 
     // ── Column Profile ────────────────────────────────────────────
+    // Nested classes each need their own @JsonNaming — it doesn't cascade
+    // from the enclosing class. This one is the one that actually has
+    // snake_case fields (null_count, null_pct, unique_count, top_values).
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class ColumnProfile {
         private String name;
@@ -84,4 +98,6 @@ public class AnalysisResult {
     public void setCharts(List<Chart> c)         { this.charts = c; }
     public String getTextSummary()               { return textSummary; }
     public void setTextSummary(String t)         { this.textSummary = t; }
+    public List<String> getTextChunks()          { return textChunks; }
+    public void setTextChunks(List<String> t)    { this.textChunks = t; }
 }
