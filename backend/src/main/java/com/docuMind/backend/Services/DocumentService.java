@@ -2,7 +2,9 @@ package com.docuMind.backend.services;
 
 import java.io.IOException;
 import java.util.List;
-
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -100,6 +102,32 @@ public class DocumentService {
         // rawBytes above — nothing downstream in the async pipeline may touch
         // the MultipartFile itself once this request has returned.
         ingestionService.ingest(savedFile, rawBytes, file.getOriginalFilename(), fileExtension, fileToSave);
+
+        return returnFile;
+    }
+
+    // FileEntity uploadedFile = documentService.uploadScannedText(scannedText);
+    @Transactional
+    public FileEntity uploadScannedText(String text, String userId) throws IOException
+    {
+        if (text.isBlank())
+            throw new FileNotSupportedException("Unsupported file type---");
+        byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+        // Timestamped so two scans never collide: deleteFile() and searchFile()
+        // both look documents up by name, so a fixed literal would make every
+        // scanned page indistinguishable from the last.
+        String name = LocalDateTime.now()
+            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss")) + ".txt";
+        FileEntity fileToSave = new FileEntity(name, MediaType.TEXT_PLAIN_VALUE, bytes.length, userId);
+        FileEntity returnFile = documentRepository.save(fileToSave);
+
+        FileContent fileContent = new FileContent(returnFile.getId(), bytes, "ignore", returnFile.getUserId());
+        FileContent savedFile = fileContentRepository.save(fileContent);
+
+        // "plain" is the MIME subtype of text/plain — the same form uploadFile
+        // derives via getSubtype(), and the value extractChunks() falls through
+        // to its plain-text branch on.
+        ingestionService.ingest(savedFile, bytes, name, "plain", fileToSave);
 
         return returnFile;
     }

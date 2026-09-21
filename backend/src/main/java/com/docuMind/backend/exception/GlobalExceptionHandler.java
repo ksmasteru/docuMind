@@ -85,6 +85,28 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorFormat, HttpStatus.BAD_REQUEST); // should be 401 : unauthorized 
     }
 
+    @ExceptionHandler(NoChunksException.class)
+    public ResponseEntity<ErrorFormat> handleNoChunksException(NoChunksException ex,
+        WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(NoAiResultException.class)
+    public ResponseEntity<ErrorFormat> handleNoAiResultException(NoAiResultException ex,
+        WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.BAD_GATEWAY);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorFormat> handleException(
         Exception ex, WebRequest request)

@@ -4,156 +4,71 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.model.ChatResponse;
-import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.embedding.EmbeddingModel;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.context.annotation.Lazy;
-import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import com.docuMind.backend.metrics.RagMetrics;
-import com.docuMind.backend.model.DocumentChunks;
-import com.docuMind.backend.repository.ChunkRepository;
+import org.springframework.web.multipart.MultipartFile;
 
-import io.micrometer.core.instrument.Timer;
-import reactor.core.publisher.Flux;
+import com.docuMind.backend.model.AiResponse;
+import com.docuMind.backend.model.AiResponse.chatAnswer;
+import com.docuMind.backend.model.AskRequest;
+import com.docuMind.backend.services.AskService;
 
 @RestController
 @RequestMapping("/api/v1/ask")
 public class AskController {
-
-    private final EmbeddingModel embeddingModel;
-    private final ChatModel chatModel;
-    private final ChunkRepository chunkRepository;
-    private final RagMetrics ragMetrics;
-
-    // Self-injected proxy: calling questionEmbedding(...) through `self` (instead
-    // of a plain call) routes it back through Spring's AOP proxy, which is what
-    // actually makes @Cacheable take effect. A direct in-class call bypasses the
-    // proxy entirely and silently skips the cache. @Lazy breaks the circular
-    // dependency this self-reference would otherwise create during construction.
-    @Autowired
-    @Lazy
-    private AskController self;
-
-    public AskController(EmbeddingModel embeddingModel, ChatModel chatModel, ChunkRepository chunkRepository,
-        RagMetrics ragMetrics)
-    {
-        this.embeddingModel = embeddingModel;
-        this.chatModel = chatModel;
-        this.chunkRepository = chunkRepository;
-        this.ragMetrics = ragMetrics;
-    }
-
-    @Cacheable(value = "ragResponses", key = "T(org.apache.commons.codec.digest.DigestUtils).sha256Hex(#text)")
-    public String getAnswer(String text)
-    {
-        System.out.println("get answer method called : nno chaching !! ");
-        String systemPrompt = """
-        You are a helpful assistant that answers questions
-        strictly based on the provided document context.
-        If the answer is not in the context, say so clearly.
-        Do not make up information.
-        """;
-        Timer.Sample retSample = ragMetrics.startTimer();
-        Prompt prompt = new Prompt(List.of(
-            new SystemMessage(systemPrompt),
-            new UserMessage(text)
-        ));
-
-        ChatResponse chatResponse = chatModel.call(prompt);
-        ragMetrics.recordRetrieval(retSample);
-        return chatResponse.getResult().getOutput().getText();
-    }
-
-    @Cacheable(value = "embeddings", key = "T(org.apache.commons.codec.digest.DigestUtils).sha256Hex(#text)")
-    public String questionEmbedding(String text) {
-        System.out.println("questionEmedding method called no cache for :" + text);
-        Timer.Sample embSample = ragMetrics.startTimer();
-        float[] embedding = embeddingModel.embed(text);
-        ragMetrics.recordEmbedding(embSample);
-        return Arrays.toString(embedding);
-    }
-
-    @PostMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<String> ask(
-            @RequestBody AskRequest request,
-            Authentication authentication) {
-
-        ragMetrics.incrementAsk();
-        System.out.println("ask controller ask called");
-        String userId = authentication.getName();
-
-        // 1. Embed the question
-        // caching -- we cache this function
-        String embeddingLiteral = "";
-        try{
-            embeddingLiteral = self.questionEmbedding(request.question());
-        }
-        catch(Exception ex)
-        {
-            System.out.println(ex.getMessage());
-            embeddingLiteral = Arrays.toString(embeddingModel.embed(request.question()));
-        } 
-        // 2. Retrieve top 5 relevant chunks — scoped to one document when the
-        // caller is asking from the data visualizer about a specific upload,
-        // otherwise searched across everything the user has.
-        List<DocumentChunks> relevantChunks = (request.fileId() != null && !request.fileId().isBlank())
-            ? chunkRepository.findSimilarChunksinDocument(userId, embeddingLiteral, 5, request.fileId())
-            : chunkRepository.findSimilarChunks(userId, embeddingLiteral, 5);
-
-        System.out.println("relevant chunks are : " + relevantChunks);
-        if (relevantChunks.isEmpty()) {
-            return Flux.just("No relevant documents found for your question.");
-        }
-        String userPrompt = """
-            Context:
-            %s
-
-            Question: %s
-            """.formatted(relevantChunks.stream()
-                .map(c -> "--- From document chunk ---\n" + c.getChunkText())
-                .collect(Collectors.joining("\n\n")), request.question());
-
-        //System.out.println("User promp is : " + userPrompt);
-        
-        String answer = "";
-        
-        try {
-            answer = self.getAnswer(userPrompt);
-        }
-        
-        catch (Exception ex)
-        {
-            System.out.println(ex.getMessage());
-            String systemPrompt = """
-            You are a helpful assistant that answers questions
-            strictly based on the provided document context.
-            If the answer is not in the context, say so clearly.
-            Do not make up information.
-            """;
-            Prompt prompt = new Prompt(List.of(
-                new SystemMessage(systemPrompt),
-                new UserMessage(userPrompt)
-            ));
     
-            ChatResponse chatResponse = chatModel.call(prompt);
-            answer = chatResponse.getResult().getOutput().getText();
-        }
+    private final AskService askService;
+    public AskController(AskService askService)
+    {
+        this.askService = askService;
+    }
 
-        return Flux.just(answer);
+    
+    @PostMapping("/image")
+    public ResponseEntity<AiResponse>askImage(
+           @RequestParam("image") MultipartFile file, Authentication authentication) 
+    {
+        String answer = askService.answerImageQuestions(file, authentication.getName());
+        List<chatAnswer> answers = Arrays.stream(answer.split("\\r?\\n|\\r"))
+            .filter(line -> !line.isBlank())
+            .map(singleAnswer -> singleAnswer.split("\\.\\s*", 2))
+            // A line the model wrote without a leading "N." splits into one part,
+            // so guard on the length: the lone part is the answer, not a key.
+            .map(parts -> parts.length > 1
+                ? new chatAnswer(parts[0].trim(), parts[1].trim())
+                : new chatAnswer("-", parts[0].trim()))
+            .collect(Collectors.toList());
+        AiResponse response = new AiResponse(answers, answers.size());
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+
+   @PostMapping
+   public ResponseEntity<AiResponse>ask(
+        @RequestBody AskRequest request,
+        Authentication authentication)
+   {
+        String answer = askService.answerWithAiRag(request, authentication.getName());
+        chatAnswer chatAnswer = new chatAnswer("-", answer);
+        AiResponse response = new AiResponse(List.of(chatAnswer), 1);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+   }
+
+    // using ai transcribe an audio to text
+    @PostMapping("/transcribe")
+    public ResponseEntity<AiResponse>transcribe(
+        @RequestParam("audio") MultipartFile file, Authentication authentication)
+    {
+        String answer = askService.transcribe(file, authentication.getName());
+        // Same AiResponse envelope as /ask: the transcript is one answer keyed
+        // "-", so the client parses every endpoint the same way.
+        chatAnswer chatAnswer = new chatAnswer("-", answer);
+        AiResponse response = new AiResponse(List.of(chatAnswer), 1);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 }
-
-// fileId comes from the data visualizer page — the id of whichever file is
-// currently selected there. Optional: when absent, retrieval falls back to
-// searching across all of the user's documents (see ask() above).
-record AskRequest(String question, String fileId) {}

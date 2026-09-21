@@ -2,6 +2,11 @@
 // The actual RAG chat widget behind the /ask page — pulled out of Ask.jsx so
 // it can be reused in tighter spaces (e.g. the sidebar on the data
 // visualizer page) without dragging along the full-page Layout/TopBar.
+
+
+
+
+// ! frontend needs to be rebuild test new changes.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { getAccessToken } from "./apiClient";
 
@@ -84,47 +89,44 @@ export default function AskChat({ compact = false, fileId, fileName }) {
         signal: controller.signal,
       });
 
-      if (!response.ok || !response.body) {
-        throw new Error(`Request failed with status ${response.status}`);
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-
-        // SSE frames are separated by a blank line; each frame carries one
-        // or more "data:" lines that we need to strip and re-join.
-        const frames = buffer.split("\n\n");
-        buffer = frames.pop() ?? "";
-
-        for (const frame of frames) {
-          const chunk = frame
-            .split("\n")
-            .filter((line) => line.startsWith("data:"))
-            .map((line) => line.slice(5))
-            .join("\n");
-
-          if (!chunk) continue;
-
-          setMessages((prev) => {
-            const next = [...prev];
-            next[next.length - 1] = {
-              ...next[next.length - 1],
-              text: next[next.length - 1].text + chunk,
-            };
-            return next;
-          });
+      if (!response.ok) {
+        // The backend reports failures with a real status and an ErrorFormat
+        // body now, so show what it said rather than a generic line.
+        let detail = null;
+        try {
+          const problem = await response.json();
+          detail = problem?.message ?? null;
+        } catch {
+          // non-JSON error body — fall back to the status code below
         }
+        throw new Error(detail ?? `Request failed with status ${response.status}`);
       }
+
+      // AiResponse: { answer: [{ key, answer }], answerCount }.
+      // /api/v1/ask always returns a single element keyed "-", but join
+      // defensively so this widget can also render a multi-answer payload.
+      const data = await response.json();
+      const text = (data?.answer ?? [])
+        .map((item) => item.answer)
+        .filter(Boolean)
+        .join("\n\n");
+
+      setMessages((prev) => {
+        const next = [...prev];
+        next[next.length - 1] = {
+          ...next[next.length - 1],
+          text: text || "No answer was returned.",
+        };
+        return next;
+      });
     } catch (err) {
       if (err.name === "AbortError") return;
-      setErrorMessage("Something went wrong while streaming the answer. Try again.");
+      setErrorMessage(err.message || "Something went wrong. Try again.");
+      // Drop the optimistic assistant bubble so it doesn't sit there empty.
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        return last?.role === "assistant" && !last.text ? prev.slice(0, -1) : prev;
+      });
     } finally {
       setIsStreaming(false);
     }

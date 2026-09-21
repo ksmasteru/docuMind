@@ -139,6 +139,28 @@ public class  DocumentController {
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
+    @PostMapping(value = "/scan")
+    public ResponseEntity<FileResponse> scanDocument(
+        @RequestBody Map<String, String> text)throws IOException
+    {
+        System.out.println("received a request for uploading scanned document");
+        
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        
+        String userId = authentication.getName();
+
+        String scannedText = text.get("text");
+            
+        FileEntity uploadedFile = documentService.uploadScannedText(scannedText, userId);
+
+        FileInfo fileInfo = new FileInfo(uploadedFile.getId(), uploadedFile.getName(), uploadedFile.getSize(), uploadedFile.getUserId());
+
+        FileResponse response = new FileResponse(List.of(fileInfo), 1);
+
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+
+
     // returns the files uploaded by the user of id : email
     @GetMapping("/user/{id}")
     public ResponseEntity<FileResponse> getfilesUploadedByUser(
