@@ -4,7 +4,6 @@
     "mustContain": "discharge valve",
     "source": "AHLSTAR.pdf" },
 
-
   { "id": "otw-vibration-limit-ungrouted",
     "question": "What is the maximum r.m.s. vibration velocity for an OTW pump on a baseplate without grouting, with a shaft centerline height above 225 mm?",
     "mustContain": "7.1 mm/s",
@@ -42,7 +41,7 @@
 
   { "id": "otw-price-not-documented",
     "question": "How much does an OTW pump cost?",
-    "mustContain": null,
+    "mustContain": "null",
     "source": null },
 
   { "id": "two-pumps-rejected",
@@ -52,6 +51,6 @@
 
   { "id": "off-topic-refusal",
     "question": "What is the capital of France?",
-    "mustContain": null,
+    "mustContain": "null",
     "source": null }
 ]

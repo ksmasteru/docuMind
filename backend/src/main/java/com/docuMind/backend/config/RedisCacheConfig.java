@@ -40,6 +40,13 @@ public class RedisCacheConfig {
             .withCacheConfiguration("ragResponses", ragConfig)
             .build();
 
+        // Built here rather than by the container, so nothing calls the
+        // InitializingBean hook that AbstractCacheManager relies on. Without
+        // this, loadCaches() never runs and getCacheNames() reports nothing
+        // until a cache is first touched — which silently made the startup
+        // cache reset a no-op.
+        redisCacheManager.afterPropertiesSet();
+
         return new MetricsCacheManager(redisCacheManager, ragMetrics);
     }
 }

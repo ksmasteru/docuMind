@@ -79,13 +79,10 @@ public class RagEvalTest {
         // MUST CONTAIN.
         String answer = response.answer().get(0).answer();
         // will handle handling no answer later.
-        if (c.mustContain() != null)
-        {
-            Assertions.assertTrue(
+        Assertions.assertTrue(
                 answer.contains(c.mustContain()),
                     "Error in case '" + c.id() + "': AI answer did not contain the required text -> "
              + c.mustContain());
-        }
     }
     // ASSERT
     // how ?
