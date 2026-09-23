@@ -1,0 +1,56 @@
+[
+  { "id": "otw-shutdown-first-step",
+    "question": "What is the first step when shutting down an OTW pump?",
+    "mustContain": "discharge valve",
+    "source": "AHLSTAR.pdf" },
+
+  { "id": "otw-vibration-limit-ungrouted",
+    "question": "What is the maximum r.m.s. vibration velocity for an OTW pump on a baseplate without grouting, with a shaft centerline height above 225 mm?",
+    "mustContain": "7.1 mm/s",
+    "source": "AHLSTAR.pdf" },
+
+  { "id": "otw-hydrostatic-test-pressure",
+    "question": "At what pressure are the pressure-containing parts of an OTW pump hydrostatically tested?",
+    "mustContain": "1.5",
+    "source": "AHLSTAR.pdf" },
+
+  { "id": "otw-balance-grade",
+    "question": "To which ISO 1940 balance grade is an OTW pump normally balanced?",
+    "mustContain": "6.3",
+    "source": "AHLSTAR.pdf" },
+
+  { "id": "phb2-impeller-removal-heat",
+    "question": "How hot should the impeller periphery be heated before removing the impeller from a PHB2 pump shaft?",
+    "mustContain": "204",
+    "source": "HDX.pdf" },
+
+  { "id": "phb2-bearing-oil-temperature",
+    "question": "What is the desirable bearing housing oil operating temperature for a PHB2 pump?",
+    "mustContain": "71",
+    "source": "HDX.pdf" },
+
+  { "id": "phova-headquarters",
+    "question": "Where is the headquarters of Phova Technology located?",
+    "mustContain": "Benguerir",
+    "source": "rapport_pfa_phova.pdf" },
+
+  { "id": "phova-founding-year",
+    "question": "In what year was Phova Technology founded?",
+    "mustContain": "2016",
+    "source": "rapport_pfa_phova.pdf" },
+
+  { "id": "otw-price-not-documented",
+    "question": "How much does an OTW pump cost?",
+    "mustContain": null,
+    "source": null },
+
+  { "id": "two-pumps-rejected",
+    "question": "Compare the bearing oil temperature of the OTW and PHB2 pumps.",
+    "mustContain": "1 pump",
+    "source": null },
+
+  { "id": "off-topic-refusal",
+    "question": "What is the capital of France?",
+    "mustContain": null,
+    "source": null }
+]

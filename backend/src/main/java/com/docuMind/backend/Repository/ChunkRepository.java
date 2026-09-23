@@ -6,7 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.transaction.annotation.Transactional;
 import com.docuMind.backend.model.DocumentChunks;
 
 @Repository
@@ -43,6 +44,7 @@ List<DocumentChunks> findSimilarChunksinDocument(
     // real or just the least-unrelated chunk in the corpus.
     @Query(value = """
     SELECT id AS "id",
+           file_id AS "fileId",
            chunk_text AS "chunkText",
            embedding <=> CAST(:embedding AS vector) AS "distance"
     FROM document_chunks
@@ -58,6 +60,7 @@ List<DocumentChunks> findSimilarChunksinDocument(
 
     @Query(value = """
     SELECT id AS "id",
+           file_id AS "fileId",
            chunk_text AS "chunkText",
            embedding <=> CAST(:embedding AS vector) AS "distance"
     FROM document_chunks
@@ -76,8 +79,18 @@ List<DocumentChunks> findSimilarChunksinDocument(
         String getId();
         String getChunkText();
         Double getDistance();
+        // Getter-style name on purpose: Spring Data maps projection methods by
+        // JavaBean property, so a bare fileId() is not recognised and throws.
+        String getFileId();
     }
-
-void deleteByFileId(String id);
+    // if we have multiplel files uploading the same content we should delete all those files.
+    @Modifying
+    @Transactional
+    @Query(value = """
+        DELETE FROM document_chunks
+        WHERE file_id = :fileId
+        """, nativeQuery = true)
+    int deleteFileChunks(
+        @Param("fileId") String fileId);
     
 }

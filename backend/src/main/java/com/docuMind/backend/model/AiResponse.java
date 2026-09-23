@@ -4,7 +4,7 @@ import java.util.List;
 
 public record AiResponse(
     List<chatAnswer> answer,
-    int answerCount    
+    int answerCount
 )
 {
     public record chatAnswer(

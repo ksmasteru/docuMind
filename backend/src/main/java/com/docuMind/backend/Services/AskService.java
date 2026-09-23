@@ -5,7 +5,9 @@ import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.regex.Matcher;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -130,10 +132,13 @@ public class AskService{
     System.out.println("replaced question is " + question);
 
     if (matchedPumps.size() > 1)
-        return ("Please ask about 1 pump at each question");
-      String embeddingLiteral = self.questionEmbedding(question);
+    {
+      return("Please ask about 1 pump at each question"); 
+    }
+    int chunksnumber = 12;
+    String embeddingLiteral = self.questionEmbedding(question);
       // here we can specefiy wich file to look into ; based on the question
-      // make api call or manually ?
+      // make api call or manually ?  
       // api call
       //[[OCW1, OCW2, OCW3], [OTW1, OTW2, OTW3], [PHH1, PHH2, PHH3]]
       // user only allowed one pump type
@@ -142,27 +147,42 @@ public class AskService{
       if (filesId != null)
       {
         for (int i = 0 ; i < filesId.size(); i++)
-          allChunks.addAll(chunkRepository.findSimilarChunksInDocumentWithDistance(userId, embeddingLiteral, 12, filesId.get(i).getId()));
+          allChunks.addAll(chunkRepository.findSimilarChunksInDocumentWithDistance(userId, embeddingLiteral, chunksnumber, filesId.get(i).getId()));
       }
       // A named pump only ever uses its own files: falling back to all documents
       // would let another pump's data answer the question.
       List<ChunkMatch> relevantChunks = matchedPumps.isEmpty()
-          ? chunkRepository.findSimilarChunksWithDistance(userId, embeddingLiteral, 12)
+          ? chunkRepository.findSimilarChunksWithDistance(userId, embeddingLiteral, chunksnumber)
           : allChunks;
-      for (ChunkMatch chunk : relevantChunks) {
-          String preview = chunk.getChunkText().replace("\n", " ");
+
+      //List<String> docs = new ArrayList<>();
+      //for (ChunkMatch chunk : relevantChunks) {
+          /*String preview = chunk.getChunkText().replace("\n", " ");
           System.out.printf("distance=%.4f  %s%n", chunk.getDistance(),
               preview.substring(0, Math.min(140, preview.length())));
-        }
+          */
+     //     String doc = documentService.getFileMetaData(chunk.getFileId()).getName();
+     //   if (!docs.contains(doc))
+     //       docs.add(doc);
+     // }
+      /*
+      String citations = "citations :  ";
+      for (String doc : docs)
+        citations += doc + " ";
+      */
       if (relevantChunks.isEmpty())
             throw new NoChunksException("no relevant document chunks for this question");
+      Map<String, String> fileNames = documentService.getFileNames(relevantChunks.stream()
+          .map(ChunkMatch::getFileId)
+          .collect(Collectors.toSet()));
       String userPrompt = """
           Context:
             %s
 
             Question: %s
-            """.formatted(relevantChunks.stream()
-                .map(c -> "--- From document chunk ---\n" + c.getChunkText())
+            """.formatted(IntStream.range(0, relevantChunks.size())
+                // numbered so the model has an index to cite in its "chunks:" line
+                .mapToObj(i -> "--- Chunk " + i + " --- file : " + fileNames.getOrDefault(relevantChunks.get(i).getFileId(), "unknown") + " \n" + relevantChunks.get(i).getChunkText())
                 .collect(Collectors.joining("\n\n")), question);
         String systemPrompt = """
         You are a helpful assistant that answers questions using only the
@@ -178,8 +198,48 @@ public class AskService{
 
         Never add facts from your own knowledge, and never invent specifics
         (numbers, names, commands) that the context does not contain.
+
+        At the end of the answer add a line containing the name of files
+        that were used to build the answer following this format "sources : filename1, filename2..."
+        if the subject isn't covered by the chunks do not return the sources line
         """;
         String answer = self.getAnswer(userPrompt, systemPrompt);
+        // extract the citations from the answer
+        // the model is asked to end with "chunks: 0 12 24 30", but it may wrap
+        // it in markdown, use commas, or forget it, so find the line instead of
+        // trusting it to be last, and keep only indexes that point at a chunk.
+        /*
+        String answer = fullanswer.trim();
+        List<Integer> indexes = new ArrayList<>();
+        Matcher chunksLine = Pattern.compile("(?im)^[^\\n]*chunks:([^\\n]*)$").matcher(answer);
+        String indexes_string = null;
+        int chunksLineStart = -1;
+        while (chunksLine.find()) {
+          indexes_string = chunksLine.group(1);
+          chunksLineStart = chunksLine.start();
+        }
+        if (indexes_string != null) {
+          answer = answer.substring(0, chunksLineStart).trim();
+          Matcher number = Pattern.compile("-?\\d+").matcher(indexes_string);
+          while (number.find()) {
+            int chunk_index = Integer.parseInt(number.group());
+            if (chunk_index >= 0 && chunk_index < relevantChunks.size())
+              indexes.add(chunk_index);
+          }
+        }
+        List<String> docs = new ArrayList<>();
+
+        for (int i = 0; i < indexes.size(); i++)
+        {
+          ChunkMatch chunk = relevantChunks.get(indexes.get(i));
+          String doc = documentService.getFileMetaData(chunk.getFileId()).getName();
+          if (!docs.contains(doc))
+            docs.add(doc);
+        }
+        String citations =  "sources : ";
+        for (String doc : docs)
+          citations += doc  + " ";
+        */
         return answer;
     }
 

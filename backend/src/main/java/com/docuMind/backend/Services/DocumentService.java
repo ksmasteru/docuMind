@@ -1,7 +1,10 @@
 package com.docuMind.backend.services;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -16,7 +19,7 @@ import com.docuMind.backend.model.FileContent;
 import com.docuMind.backend.model.FileEntity;
 import com.docuMind.backend.repository.DocumentRepository;
 import com.docuMind.backend.repository.FileContentRepository;
-
+import com.docuMind.backend.repository.ChunkRepository;
 // talks with repsose
 @Service
 public class DocumentService {
@@ -32,12 +35,16 @@ public class DocumentService {
 
     private final IngestionService ingestionService;
 
+    private final ChunkRepository chunkRepository;
+
+    
     public DocumentService(DocumentRepository documentRepository, FileContentRepository fileContentRepository,
-        IngestionService ingestionService)
+        IngestionService ingestionService, ChunkRepository chunkRepository)
     {
         this.documentRepository = documentRepository;
         this.fileContentRepository = fileContentRepository;
         this.ingestionService = ingestionService;
+        this.chunkRepository = chunkRepository;
     }
 
     // changed from List<FileEntity> to FileEntity
@@ -54,6 +61,14 @@ public class DocumentService {
         FileEntity returnFile = documentRepository.findById(id)
             .orElseThrow(() -> new FileNotFoundException(""));
         return returnFile;
+    }
+
+    // One query for every file a set of chunks came from, keyed by file id,
+    // instead of a findById per chunk.
+    public Map<String, String> getFileNames(Collection<String> ids)
+    {
+        return documentRepository.findAllById(ids).stream()
+            .collect(Collectors.toMap(FileEntity::getId, FileEntity::getName));
     }
 
     public List<FileEntity> searchFile(String name)
@@ -132,14 +147,39 @@ public class DocumentService {
         return returnFile;
     }
 
+    // deletes a single file by id
     @Transactional
-    public void deleteFile(String Id)
+    public void deleteFile(String id)
     {
-        List<FileEntity> fileToDelete = documentRepository.findByNameContainingIgnoreCase(Id);
+        documentRepository.deleteFileById(id);
+        int deleted = chunkRepository.deleteFileChunks(id);
+        fileContentRepository.deleteById(id);
+        System.out.println("Deleted chunks : " +  deleted);
+    }
+
+    // this deletes all the files that share the same name.
+    // should also delete the file_contents
+    // in the future return data to front about deleted files.
+    @Transactional
+    public void deleteFileByName(String name)
+    {
+        List<FileEntity> fileToDelete = documentRepository.findByNameContainingIgnoreCase(name);
         if (!fileToDelete.isEmpty())
-            documentRepository.delete(fileToDelete.get(0));
+        {
+            int i = 0;
+            int deletedChunks = 0;
+            int deletedFileEntities = 0;
+            while (i < fileToDelete.size())
+            {
+                deletedFileEntities += documentRepository.deleteFileById(fileToDelete.get(i).getId());
+                deletedChunks += chunkRepository.deleteFileChunks(fileToDelete.get(i).getId());
+                fileContentRepository.deleteById(fileToDelete.get(i).getId());
+                i += 1;
+            }
+            System.out.println("deleted files : "  + deletedFileEntities + " deleted chuks : " + deletedChunks);
+        }
         else
-           throw new FileNotFoundException("file not found with name : " + Id);
+            throw new FileNotFoundException("file not found with name : " + name);
     }
 
     @Transactional
@@ -154,5 +194,4 @@ public class DocumentService {
         List<FileEntity> files = documentRepository.findByUserId(userId);
         return files;
     }
-
 }

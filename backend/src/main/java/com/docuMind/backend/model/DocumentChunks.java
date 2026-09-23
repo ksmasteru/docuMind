@@ -20,7 +20,7 @@ public class DocumentChunks {
     private String id;
 
     @Column(nullable = false)
-    private String fileId;       // FK to FileEntity
+    private String fileId;   // FK to FileEntity
 
     @Column(nullable = false)
     private String userEmail;       // for filtering by owner

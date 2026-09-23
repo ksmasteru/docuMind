@@ -30,7 +30,6 @@ import com.docuMind.backend.repository.DataAnalysisRepository;
 import com.docuMind.backend.services.DataAnalysisService;
 import com.docuMind.backend.services.DocumentService;
 
-
 @RestController
 @RequestMapping("/api/v1/files")
 public class  DocumentController {
@@ -191,7 +190,8 @@ public class  DocumentController {
         return ResponseEntity.status(HttpStatus.OK).body(Map.of("response", theAnswer)); 
     }
 
-    @DeleteMapping("/id/{id}")
+    // outdated
+    @DeleteMapping("/delete/id/{id}")
     public ResponseEntity<Void> deleteFile(
         @PathVariable String id)
     {
@@ -200,4 +200,11 @@ public class  DocumentController {
         return ResponseEntity.noContent().build();
     }
 
+    @DeleteMapping("/delete/{name}")
+    public ResponseEntity<Void> deleteFileByName(
+        @PathVariable String name)
+    {
+        documentService.deleteFileByName(name);
+        return ResponseEntity.noContent().build();
+    }
 }

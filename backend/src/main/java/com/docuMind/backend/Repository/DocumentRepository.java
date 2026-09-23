@@ -13,10 +13,12 @@ public  interface DocumentRepository extends JpaRepository<FileEntity, String>{
     List<FileEntity> findByContentType(String contentType);
 
     List<FileEntity> findByNameContainingIgnoreCase(String fileName);
+    
     Optional <FileEntity> findById(String id);
 
     List<FileEntity> findByGeneratedNameContainingIgnoreCase(String fileName);
 
-
     List<FileEntity> findByUserId(String userId);
+
+    int deleteFileById(String id);
 }

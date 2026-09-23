@@ -53,9 +53,11 @@ public class AskController {
         @RequestBody AskRequest request,
         Authentication authentication)
    {
+        //  to includes citations we can simply return an array of string first is answer, second citation.
+        // test backend first : if it returns the data we expect
         String answer = askService.answerWithAiRag(request, authentication.getName());
         chatAnswer chatAnswer = new chatAnswer("-", answer);
-        AiResponse response = new AiResponse(List.of(chatAnswer), 1);
+        AiResponse response = new AiResponse(List.of(chatAnswer) ,1);
         return ResponseEntity.status(HttpStatus.OK).body(response);
    }
 

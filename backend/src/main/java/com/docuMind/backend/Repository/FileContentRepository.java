@@ -9,4 +9,7 @@ import java.util.Optional;
 @Repository
 public interface FileContentRepository extends JpaRepository<FileContent, String>{
     Optional<FileContent> findById(String id);
+
+    // ashmen id fihom ? dyal filecontent ola fileEntity ? they share same id :)
+    void deleteById(String id);
 }

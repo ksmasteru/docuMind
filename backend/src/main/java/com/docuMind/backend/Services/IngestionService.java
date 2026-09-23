@@ -100,8 +100,6 @@ public class IngestionService {
         if (chunkies == null || chunkies.isEmpty()) return ;
         // 2. Delete any existing chunks for this file
         //    (handles re-upload of the same document)
-        //chunkRepository.deleteByFileId(file.getId());
-
         // 4. Embed all chunks in one API call (batching = fewer round trips)
         List<float[]> embeddings = embeddingModel
             .embedForResponse(chunkies)
