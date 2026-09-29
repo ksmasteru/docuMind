@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-
+ 
 import com.docuMind.backend.model.AiResponse;
 import com.docuMind.backend.model.AiResponse.chatAnswer;
 import com.docuMind.backend.model.AskRequest;
@@ -29,12 +29,12 @@ public class AskController {
         this.askService = askService;
     }
 
-    
     @PostMapping("/image")
     public ResponseEntity<AiResponse>askImage(
            @RequestParam("image") MultipartFile file, Authentication authentication) 
     {
         String answer = askService.answerImageQuestions(file, authentication.getName());
+        
         List<chatAnswer> answers = Arrays.stream(answer.split("\\r?\\n|\\r"))
             .filter(line -> !line.isBlank())
             .map(singleAnswer -> singleAnswer.split("\\.\\s*", 2))
@@ -44,7 +44,9 @@ public class AskController {
                 ? new chatAnswer(parts[0].trim(), parts[1].trim())
                 : new chatAnswer("-", parts[0].trim()))
             .collect(Collectors.toList());
-        AiResponse response = new AiResponse(answers, answers.size());
+        
+        AiResponse response = new AiResponse(answers, null, answers.size());
+        
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
@@ -55,9 +57,7 @@ public class AskController {
    {
         //  to includes citations we can simply return an array of string first is answer, second citation.
         // test backend first : if it returns the data we expect
-        String answer = askService.answerWithAiRag(request, authentication.getName());
-        chatAnswer chatAnswer = new chatAnswer("-", answer);
-        AiResponse response = new AiResponse(List.of(chatAnswer) ,1);
+        AiResponse response = askService.answerWithAiRag(request, authentication.getName());
         return ResponseEntity.status(HttpStatus.OK).body(response);
    }
 
@@ -70,7 +70,19 @@ public class AskController {
         // Same AiResponse envelope as /ask: the transcript is one answer keyed
         // "-", so the client parses every endpoint the same way.
         chatAnswer chatAnswer = new chatAnswer("-", answer);
-        AiResponse response = new AiResponse(List.of(chatAnswer), 1);
+        AiResponse response = new AiResponse(List.of(chatAnswer), null, 1);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
+
+    /*
+    @PostMapping("/feedback")
+    public ResponseEntity<?>feedback(
+        @RequestBody technicianFeedback dasFeedBack
+    )
+    {
+        // so we take data from this DTO AND update
+        // into our db entity that has the matching 
+        return null;
+    }
+    */
 }

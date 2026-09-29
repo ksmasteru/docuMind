@@ -75,6 +75,27 @@ List<DocumentChunks> findSimilarChunksinDocument(
         @Param("fileId") String fileId
     );
 
+    // One search across several files, so the top chunks are ranked against
+    // each other. Searching file by file and appending the results gave each
+    // file its own top N, and the combined list was no longer ordered by distance.
+    // fileIds must not be empty: "IN ()" is invalid SQL.
+    @Query(value = """
+    SELECT id AS "id",
+           file_id AS "fileId",
+           chunk_text AS "chunkText",
+           embedding <=> CAST(:embedding AS vector) AS "distance"
+    FROM document_chunks
+    WHERE user_email = :userEmail AND file_id IN (:fileIds)
+    ORDER BY embedding <=> CAST(:embedding AS vector)
+    LIMIT :limit
+    """, nativeQuery = true)
+    List<ChunkMatch> findSimilarChunksInDocumentsWithDistance(
+        @Param("userEmail") String userEmail,
+        @Param("embedding") String embedding,
+        @Param("limit") int limit,
+        @Param("fileIds") List<String> fileIds
+    );
+
     interface ChunkMatch {
         String getId();
         String getChunkText();

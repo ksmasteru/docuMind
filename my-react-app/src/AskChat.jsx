@@ -99,9 +99,12 @@ export default function AskChat({ compact = false, fileId, fileName }) {
         } catch {
           // non-JSON error body — fall back to the status code below
         }
-        throw new Error(detail ?? `Request failed with status ${response.status}`);
+        throw new Error(detail ?? `La requête a échoué (code ${response.status})`);
       }
 
+      // IMPORTANT
+      // update not implement the aireponse now is {answer : [{key, answer}], interactionId, answerCount};
+      // intercation id isnt used by this frontend yet.
       // AiResponse: { answer: [{ key, answer }], answerCount }.
       // /api/v1/ask always returns a single element keyed "-", but join
       // defensively so this widget can also render a multi-answer payload.
@@ -115,13 +118,13 @@ export default function AskChat({ compact = false, fileId, fileName }) {
         const next = [...prev];
         next[next.length - 1] = {
           ...next[next.length - 1],
-          text: text || "No answer was returned.",
+          text: text || "Aucune réponse n’a été renvoyée.",
         };
         return next;
       });
     } catch (err) {
       if (err.name === "AbortError") return;
-      setErrorMessage(err.message || "Something went wrong. Try again.");
+      setErrorMessage(err.message || "Une erreur est survenue. Réessayez.");
       // Drop the optimistic assistant bubble so it doesn't sit there empty.
       setMessages((prev) => {
         const last = prev[prev.length - 1];
@@ -153,11 +156,11 @@ export default function AskChat({ compact = false, fileId, fileName }) {
           <h1 className={compact
             ? "text-sm font-semibold text-slate-800 dark:text-slate-100"
             : "text-3xl font-semibold text-slate-800 dark:text-slate-100"}>
-            {compact ? (fileName ? `Ask about ${fileName}` : "Ask about your data") : "What do you want to know?"}
+            {compact ? (fileName ? `Question sur ${fileName}` : "Question sur vos données") : "Que voulez-vous savoir ?"}
           </h1>
           {!compact && (
             <p className="mt-2 text-sm text-slate-400 dark:text-slate-500">
-              Ask a question and get an answer grounded in your uploaded documents.
+              Posez une question sur une pompe ou sur son entretien.
             </p>
           )}
 
@@ -262,7 +265,7 @@ function Composer({ compact, fileName, question, setQuestion, isStreaming, onSub
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder={compact ? "Ask about your data…" : "Ask a question about your documents…"}
+          placeholder={compact ? "Posez votre question…" : "Ex. : fréquence de vidange d’huile de la pompe OTW…"}
           disabled={isStreaming}
           autoFocus={!compact}
           className={`flex-1 resize-none bg-transparent py-1.5 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60 dark:text-slate-100 ${compact ? "max-h-[120px]" : "max-h-[200px]"}`}
@@ -270,7 +273,7 @@ function Composer({ compact, fileName, question, setQuestion, isStreaming, onSub
         <button
           type="submit"
           disabled={isStreaming || !question.trim()}
-          aria-label="Send question"
+          aria-label="Envoyer la question"
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:bg-slate-700"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"

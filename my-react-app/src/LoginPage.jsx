@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import { ThemeToggle } from "./Layout";
+import PhovaLogo from "./PhovaLogo";
 
 export default function LoginPage() {
   const { login, isAdmin, isLoading } = useAuth();
@@ -45,7 +46,8 @@ export default function LoginPage() {
       </div>
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-semibold text-slate-900">DocuMind</h1>
+          <PhovaLogo className="mx-auto mb-4 h-14" />
+          <h1 className="text-2xl font-semibold text-slate-900">GreenSense 4.0</h1>
           <p className="mt-1 text-sm text-slate-500">Sign in to your workspace</p>
         </div>
 

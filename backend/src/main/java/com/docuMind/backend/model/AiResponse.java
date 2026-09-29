@@ -4,6 +4,7 @@ import java.util.List;
 
 public record AiResponse(
     List<chatAnswer> answer,
+    String askInteractionId,
     int answerCount
 )
 {

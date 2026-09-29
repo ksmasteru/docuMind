@@ -38,13 +38,19 @@ import com.docuMind.backend.model.DocumentChunks;
 import com.docuMind.backend.model.FileEntity;
 import com.docuMind.backend.repository.ChunkRepository;
 import com.docuMind.backend.repository.ChunkRepository.ChunkMatch;
-
+import com.docuMind.backend.model.AiResponse;
+import com.docuMind.backend.model.AskInteraction;
+import com.docuMind.backend.model.RetrievedSource;
+import com.docuMind.backend.model.enums.AskOutcome;
+import com.docuMind.backend.model.AiResponse.chatAnswer;
+import com.docuMind.backend.repository.AskInteractionRepository;
 import io.micrometer.core.instrument.Timer;
 
 @Service
 public class AskService{
 
     private final EmbeddingModel embeddingModel;
+    private final AskInteractionRepository  askInteractionRepository;
     private final ChatModel chatModel;
     private final ChunkRepository chunkRepository;
     private final RagMetrics ragMetrics;
@@ -61,7 +67,8 @@ public class AskService{
 
     public AskService(EmbeddingModel embeddingModel, ChatModel chatModel,
             ChunkRepository chunkRepository, RagMetrics ragMetrics, DocumentService documentService,
-            OpenAiAudioTranscriptionModel transcriptionModel)
+            OpenAiAudioTranscriptionModel transcriptionModel,
+            AskInteractionRepository askInteractionRepository)
     {
         this.embeddingModel = embeddingModel; 
         this.chatModel = chatModel;
@@ -69,6 +76,7 @@ public class AskService{
         this.ragMetrics = ragMetrics;
         this.documentService = documentService;
         this.transcriptionModel = transcriptionModel;
+        this.askInteractionRepository = askInteractionRepository;
     }
     
     @Cacheable(value = "ragResponses", key = "T(org.apache.commons.codec.digest.DigestUtils).sha256Hex(#userMessage) + T(org.apache.commons.codec.digest.DigestUtils).sha256Hex(#systemPrompt)")
@@ -108,73 +116,89 @@ public class AskService{
     }
 
     // new : we use competitors data  : if user types in OTW --> look for AHLSTAR
-    public String answerPhovaWithAiRag(AskRequest request, String userId)
+    public AiResponse answerPhovaWithAiRag(AskRequest request, String userId)
     {
      // ragMetrics.incrementAsk();
       System.out.println("ask service called");
       List<String> pumps =  List.of("OTW", "OTC", "OTS", "PHB2", "PHB3", "PHH");
       List<String> compPumps = List.of("AHLSTAR", "Durco Mark 3", "Weir Minerals Warman AH", "HDX", "DMX","HPX");
-      String question = request.question();
+      String questionNormalized = request.question();
       List<String> matchedPumps = new ArrayList<>();
-
+      List<String> matchedPhovaPumps = new ArrayList<>();
       for (int i = 0; i < pumps.size(); i++) {
         String pump = pumps.get(i);
         String replacement = compPumps.get(i);
         String regex = "(?i)\\b" + Pattern.quote(pump) + "\\b";
         Pattern pattern = Pattern.compile(regex);
-        Matcher matcher = pattern.matcher(question);
+        Matcher matcher = pattern.matcher(questionNormalized);
         // Check if the user's question contains this pump type
       if (matcher.find()) {
-        matchedPumps.add(replacement); // Saves "OTW", "PHB3", etc.
-        question = matcher.replaceAll(Matcher.quoteReplacement(replacement));
+        matchedPumps.add(replacement); // Save s "OTW", "PHB3", etc.
+        matchedPhovaPumps.add(pump);
+        questionNormalized = matcher.replaceAll(Matcher.quoteReplacement(replacement));
       }
     }
-    System.out.println("replaced question is " + question);
-
+    System.out.println("replaced question is " + questionNormalized);
+    
+    AskInteraction askInteraction = new AskInteraction();
+    askInteraction.setUserId(userId);
+    askInteraction.setQuestionRaw(request.question());
+    askInteraction.setPromptVersion("1.1");
+    askInteraction.setQuestionNormalised(questionNormalized);
+    // all matched pumps, comma-joined, so MULTI_PUMP rows show which ones were compared
+    askInteraction.setPump(matchedPhovaPumps.isEmpty() ? null : String.join(",", matchedPhovaPumps));
+    // 3rd fix. : we should support more than one pump
     if (matchedPumps.size() > 1)
     {
-      return("Please ask about 1 pump at each question"); 
+      String answer = "please choose one pump";
+      askInteraction.setAnswer(answer);
+      askInteraction.setAskOutcome(AskOutcome.MULTI_PUMP);
+      askInteractionRepository.save(askInteraction);
+      chatAnswer chatAnswer = new chatAnswer("-", answer);
+      return new AiResponse(List.of(chatAnswer) , askInteraction.getId(), 1);
     }
     int chunksnumber = 12;
-    String embeddingLiteral = self.questionEmbedding(question);
+    String embeddingLiteral = self.questionEmbedding(questionNormalized);
       // here we can specefiy wich file to look into ; based on the question
-      // make api call or manually ?  
+      // make api call or manually ?
       // api call
       //[[OCW1, OCW2, OCW3], [OTW1, OTW2, OTW3], [PHH1, PHH2, PHH3]]
       // user only allowed one pump type
+      // the commented code below was changed because it dilutes
+      // the chunks ranking.
+
       List<FileEntity> filesId = matchedPumps.size() == 0 ? null : documentService.searchFile(matchedPumps.get(0));
       List<ChunkMatch> allChunks = new ArrayList<>();
-      if (filesId != null)
+      // one query over all the pump's files, so Postgres ranks every chunk
+      // against the others; skipped when no file matched ("IN ()" is invalid SQL)
+      if (filesId != null && !filesId.isEmpty())
       {
-        for (int i = 0 ; i < filesId.size(); i++)
-          allChunks.addAll(chunkRepository.findSimilarChunksInDocumentWithDistance(userId, embeddingLiteral, chunksnumber, filesId.get(i).getId()));
+        if (filesId.size() > 1)
+          System.out.println("more than one file was chosen");
+        List<String> fileIds = filesId.stream().map(FileEntity::getId).collect(Collectors.toList());
+        allChunks = chunkRepository.findSimilarChunksInDocumentsWithDistance(userId, embeddingLiteral, chunksnumber, fileIds);
       }
       // A named pump only ever uses its own files: falling back to all documents
       // would let another pump's data answer the question.
+      
       List<ChunkMatch> relevantChunks = matchedPumps.isEmpty()
           ? chunkRepository.findSimilarChunksWithDistance(userId, embeddingLiteral, chunksnumber)
           : allChunks;
 
-      //List<String> docs = new ArrayList<>();
-      //for (ChunkMatch chunk : relevantChunks) {
-          /*String preview = chunk.getChunkText().replace("\n", " ");
-          System.out.printf("distance=%.4f  %s%n", chunk.getDistance(),
-              preview.substring(0, Math.min(140, preview.length())));
-          */
-     //     String doc = documentService.getFileMetaData(chunk.getFileId()).getName();
-     //   if (!docs.contains(doc))
-     //       docs.add(doc);
-     // }
-      /*
-      String citations = "citations :  ";
-      for (String doc : docs)
-        citations += doc + " ";
-      */
       if (relevantChunks.isEmpty())
-            throw new NoChunksException("no relevant document chunks for this question");
+      {
+        // saved before throwing: a pump with no documents is a gap worth seeing
+        askInteraction.setAnswer("no chunks");
+        askInteraction.setAskOutcome(AskOutcome.NO_CHUNKS);
+        askInteractionRepository.save(askInteraction);
+        throw new NoChunksException("no relevant document chunks for this question");
+      }
       Map<String, String> fileNames = documentService.getFileNames(relevantChunks.stream()
           .map(ChunkMatch::getFileId)
           .collect(Collectors.toSet()));
+      askInteraction.setSources(relevantChunks.stream()
+          .map(c -> new RetrievedSource(c.getId(), fileNames.getOrDefault(c.getFileId(), "unknown"), c.getDistance()))
+          .collect(Collectors.toList()));
       String userPrompt = """
           Context:
             %s
@@ -183,8 +207,8 @@ public class AskService{
             """.formatted(IntStream.range(0, relevantChunks.size())
                 // numbered so the model has an index to cite in its "chunks:" line
                 .mapToObj(i -> "--- Chunk " + i + " --- file : " + fileNames.getOrDefault(relevantChunks.get(i).getFileId(), "unknown") + " \n" + relevantChunks.get(i).getChunkText())
-                .collect(Collectors.joining("\n\n")), question);
-String systemPrompt = """
+                .collect(Collectors.joining("\n\n")), questionNormalized);
+      String systemPrompt_1_0 = """
     You are the maintenance assistant of a technician working on centrifugal
     pumps. You answer only from the excerpts below, which come from the
     technician's own manuals, standards and past intervention reports.
@@ -236,7 +260,66 @@ String systemPrompt = """
     assembled from several excerpts are never reasons to reply null.
     """;
 
-    String answer = self.getAnswer(userPrompt, systemPrompt);
+    String systemPrompt_1_1 =  """
+        You are the maintenance assistant of a technician working on centrifugal
+    pumps. You answer only from the excerpts below, which come from the
+    technician's own manuals, standards and past intervention reports.
+
+    READ THE QUESTION CHARITABLY
+    Questions are typed on a phone or dictated on a noisy site, so they are
+    often short, ungrammatical or mis-transcribed. Before deciding anything,
+    restate the question to yourself in its most plausible technical reading:
+    - a model or series designation usually follows the noun: "pump AHLSTAR",
+      "the pump OCW" and "pompe OTW" mean the AHLSTAR, OCW and OTW pump.
+    - speech recognition mangles designations ("OCW" as "occw", "O.C.W.",
+      "OCW1"): match them to the nearest designation appearing in the excerpts.
+    - a bare "what is X" means "what does the documentation say about X".
+    Answer that reading. Never refuse because of wording, word order, spelling
+    or grammar.
+
+    USE THE EXCERPTS
+    An answer is often spread across several excerpts rather than stated in one
+    place: assemble it. If the excerpts discuss the subject without defining it
+    in so many words, build the answer from what they do say. Tables arrive
+    with their rows flattened onto a single line: read a value by its position
+    against the column header rather than treating the table as unreadable.
+
+    Never add facts from your own knowledge, and never invent specifics
+    (numbers, names, part references, commands) the excerpts do not contain.
+    Quote figures exactly as written, with their units.
+
+    WHEN THE EXCERPTS SUPPORT AN ANSWER, EVEN IN PART
+    Answer briefly, in the technician's own terms. If only part of the question
+    is covered, answer that part and add one sentence naming what the documents
+    do not cover. Partial coverage is an answer, never a refusal.
+    End with exactly these two lines, and nothing after them:
+    sources : filename1, filename2
+    chunks : 0, 3, 5
+    The first line names the files you used. The second lists the numbers of
+    the excerpts you actually took facts from: the N in each "--- Chunk N ---"
+    header. Leave out excerpts you read but did not use; never list every
+    excerpt by default. Write plain numbers separated by commas, in any order.
+
+    WHEN NOTHING IN THE EXCERPTS BEARS ON THE QUESTION
+    Reply with exactly:
+    null
+    Four lowercase characters and nothing else: no apology, no explanation, no
+    quotation marks, no full stop, no sources line, no chunks line.
+
+    BEFORE REPLYING null, CHECK ALL THREE
+    1. You applied the charitable reading above, including designations that
+       follow the noun and mis-transcribed ones.
+    2. No excerpt mentions the subject at all, under any spelling.
+    3. Nothing in the excerpts answers even part of the question.
+    If any check fails, answer instead. null is for questions about a different
+    subject entirely, such as the capital of France asked against a pump manual.
+    Uncertainty, a figure sitting in a table, or an answer that had to be
+    assembled from several excerpts are never reasons to reply null.
+    """;
+
+    // marking which chunk were actually used.
+
+    String answer = self.getAnswer(userPrompt, systemPrompt_1_1);
     // replace competitors pumps with phova pumps.
     for (int i = 0; i < pumps.size(); i++) {
         String pump = compPumps.get(i);
@@ -249,16 +332,75 @@ String systemPrompt = """
         answer = matcher.replaceAll(Matcher.quoteReplacement(replacement));
       }
     }
-    return answer;
+    String final_answer = "";
+    if (answer.trim().equals("null"))
+    {
+      final_answer = "null";
+      askInteraction.setAnswer("null");
+      askInteraction.setAskOutcome(AskOutcome.NO_ANSWER);
     }
+    else{
+      // get the last line and remove it from the answer.
+      // make the answer string into a list then delete
+      List<String> answer_lines = List.of(answer.split("\n"));
+      String last_answer_line = answer_lines.get(answer_lines.size() - 1);
+      //chunks : 0, 3, 5
+      if (last_answer_line.trim().toLowerCase().startsWith("chunks"))
+      {
+        // a malformed citation only loses the citation, never the request:
+        // empty items (the space after ':' splits into "") and non-numbers are skipped
+        List<Integer> indices = new ArrayList<>();
+        for (String n : last_answer_line.substring(last_answer_line.indexOf(':') + 1).split("[,\\s]+"))
+        {
+          if (n.isBlank())
+            continue;
+          try {
+            indices.add(Integer.parseInt(n.trim()));
+          }
+          catch (NumberFormatException ex) {
+            System.out.println("ignoring chunk index that is not a number : " + n);
+          }
+        }
+        for (int i = 0; i < answer_lines.size() - 1; i++)
+          final_answer += answer_lines.get(i) + "\n";
+        List <RetrievedSource> sources = askInteraction.getSources();
+        for (int i = 0; i < sources.size(); i++)
+        {
+          if (indices.contains(i))
+            sources.get(i).setUsedChunk(true);
+          else
+            sources.get(i).setUsedChunk(false);
+        }
+      }
 
-
+      else
+      { //somehow the last line doesnt contain chunks used.
+        System.out.println("Last line of Ai response doesnt contain which chunks were used");
+        final_answer = answer;
+      }
+      // store what the technician saw, without the chunks line
+      askInteraction.setAnswer(final_answer);
+      askInteraction.setAskOutcome(AskOutcome.ANSWERED);
+      }
+      // setting the chunks that were used
+      askInteractionRepository.save(askInteraction);
+        
+      chatAnswer chatAnswer = new chatAnswer("-", final_answer);
+    
+      AiResponse response = new AiResponse(List.of(chatAnswer) , askInteraction.getId(), 1);
+    
+      return response;
+    }
     // NOW THE RAG IS SPECEFIC TO PHOVA PUMP QUESTIONS; REVERT THIS FOR NORMAL RAG RESPONSE
-    public String answerWithAiRag(AskRequest request,
+    // make this return the airesponse directly
+    public AiResponse answerWithAiRag(AskRequest request,
         String userId)
     {
-        System.out.println("answer with ai rag called");
-        return answerPhovaWithAiRag(request, userId);
+      System.out.println("answer with ai rag called");
+      
+      AiResponse response = answerPhovaWithAiRag(request, userId);
+      
+      return response;
         /*
         ragMetrics.incrementAsk();
         System.out.println("ask service called");
@@ -357,7 +499,7 @@ String systemPrompt = """
       System.out.println("transcription : " + text);
       return text;
     }
-    // converts image into text
+
     public String questionImagetoText(MultipartFile file, String userId)
     {
             System.out.println("answer Image service called");
@@ -437,6 +579,7 @@ String systemPrompt = """
         List<DocumentChunks> relevantChunks = new ArrayList<>(); 
         for (String embeddingLiteral : embeddingLiterals)
             relevantChunks.addAll(chunkRepository.findSimilarChunks(userId, embeddingLiteral, 5));
+        
         String userPrompt = """
             Context:
             %s
@@ -444,6 +587,7 @@ String systemPrompt = """
             """.formatted(relevantChunks.stream()
             .map(c -> "--- From document chunk ---\n" + c.getChunkText())
             .collect(Collectors.joining("\n\n")), question);
+        
         String systemPrompt = """
             You are answering exam-style questions using ONLY the document
             excerpts supplied in the user message.

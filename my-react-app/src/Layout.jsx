@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import { useTheme } from "./ThemeContext";
+import PhovaLogo from "./PhovaLogo";
 
 // Sun icon — shown when dark mode is on (click to go light)
 function SunIcon() {
@@ -41,7 +42,8 @@ export function ThemeToggle() {
 export function TopBar({ active }) {
   const { isAdmin, logout } = useAuth();
   const navigate = useNavigate();
-
+  // set this variable to true to uncover visualize and user tab
+  const showVisualize = false;
   const linkClass = (page) =>
     `text-sm transition ${
       active === page
@@ -51,15 +53,21 @@ export function TopBar({ active }) {
 
   return (
     <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-      <Link to="/documents" className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-        DocuMind
+      <Link to="/documents" className="flex items-center gap-3">
+        <PhovaLogo className="h-7" />
+        <span className="border-l border-slate-200 pl-3 text-sm font-semibold text-slate-900 dark:border-slate-600 dark:text-slate-100">
+          GreenSense 4.0
+        </span>
       </Link>
       <nav className="flex items-center gap-4">
         <Link to="/documents" className={linkClass("search")}>Documents</Link>
         <Link to="/upload" className={linkClass("upload")}>Upload</Link>
         <Link to="/ask" className={linkClass("ask")}>Ask</Link>
+        {showVisualize && <>
         <Link to="/data-visualisor" className={linkClass("visualize")}>Visualize</Link>
-        <Link to="/users"  className={linkClass("users")}>Members</Link>
+        
+        <Link to="/users"  className={linkClass("users")}>Members</Link></>
+        }
         {isAdmin && (
           <Link to="/admin" className={linkClass("admin")}>Admin</Link>
         )}

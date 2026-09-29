@@ -17,7 +17,15 @@ services:
     build:
       context: ./my-react-app
       dockerfile: Dockerfile
+      # the build stage has node and npm; the final stage only has `serve`
+      # for production (Railway), which is not used locally
+      target: build
     container_name: front_end
+    # Local development: the source is mounted below, so run the Vite dev
+    # server for live reload instead of serving a pre-built dist/.
+    # npm install keeps the node_modules volume in sync with package.json
+    # (it holds Linux binaries, separate from the Mac's own node_modules).
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
     depends_on:
       - backend
     env_file:

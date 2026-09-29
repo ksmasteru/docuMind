@@ -52,5 +52,205 @@
   { "id": "off-topic-refusal",
     "question": "What is the capital of France?",
     "mustContain": "null",
+    "source": null },
+
+  { "id": "otw-corrosion-allowance",
+    "question": "How much can the OTW pump casing wall wear before the pressure limits are no longer guaranteed?",
+    "mustContain": "3.0",
+    "source": "AHLSTAR.pdf" },
+
+  { "id": "otw-first-oil-change",
+    "question": "After how many operating hours should the oil be changed for the first time on an OTW pump?",
+    "mustContain": "100",
+    "source": "AHLSTAR.pdf" },
+
+  { "id": "otw-oil-min-viscosity",
+    "question": "What is the minimum oil viscosity at operating temperature for the OTW pump bearings?",
+    "mustContain": "16 cSt",
+    "source": "AHLSTAR.pdf" },
+
+  { "id": "otw-hot-bearing-grease",
+    "question": "Which grease should I use on an OTW pump when the bearing surface temperature is above 80 °C?",
+    "mustContain": "Limona",
+    "source": "AHLSTAR.pdf" },
+
+  { "id": "otw-seal-water-pressure",
+    "question": "How much higher than the product pressure should the seal water pressure be on the OTW pump seal?",
+    "mustContain": "2 bar",
+    "source": "AHLSTAR.pdf" },
+
+  { "id": "otw-seal-pot-height",
+    "question": "How high above the shaft seal centre line must the seal pot reservoir be installed on an OTW pump?",
+    "mustContain": "500 mm",
+    "source": "AHLSTAR.pdf" },
+
+  { "id": "otw-hot-alignment-threshold",
+    "question": "Above what pumped liquid temperature must a hot alignment be done on the OTW pump?",
+    "mustContain": "100",
+    "source": "AHLSTAR.pdf" },
+
+  { "id": "otw-long-term-storage",
+    "question": "From how long does storing an OTW pump count as long-term storage?",
+    "mustContain": "3 months",
+    "source": "AHLSTAR.pdf" },
+
+  { "id": "otw-hydrostatic-test-duration",
+    "question": "How long must the hydrostatic test pressure be held on an OTW pump?",
+    "mustContain": "10 min",
+    "source": "AHLSTAR.pdf" },
+
+  { "id": "otw-baseplate-foundation-gap",
+    "question": "What is the minimum distance between the foundation and the lower edge of the OTW pump baseplate?",
+    "mustContain": "50 mm",
+    "source": "AHLSTAR.pdf" },
+
+  { "id": "otw-sideplate-clearance",
+    "question": "What clearance should I set between the sideplate and a non-vortex impeller on the OTW pump?",
+    "mustContain": "0.5 mm",
+    "source": "AHLSTAR.pdf" },
+
+  { "id": "otw-shaft-radial-difference",
+    "question": "What maximum radial difference is allowed when checking the OTW pump shaft before reassembly?",
+    "mustContain": "0.05",
+    "source": "AHLSTAR.pdf" },
+
+  { "id": "otw-seal-max-temperature",
+    "question": "What is the maximum temperature for the SE2 seal used on the OTW pump?",
+    "mustContain": "210",
+    "source": "AHLSTAR.pdf" },
+
+  { "id": "phb2-oil-change-interval",
+    "question": "How often should the oil be changed on the oil-lubricated bearings of a PHB2 pump?",
+    "mustContain": "4000",
+    "source": "HDX.pdf" },
+
+  { "id": "phb2-storage-duration",
+    "question": "For how long can a PHB2 pump be stored following the storage instructions?",
+    "mustContain": "6 months",
+    "source": "HDX.pdf" },
+
+  { "id": "phb2-oil-alarm-setpoint",
+    "question": "At what temperature should the oil temperature alarm be set on a PHB2 pump?",
+    "mustContain": "82",
+    "source": "HDX.pdf" },
+
+  { "id": "phb2-bearing-trip-setpoint",
+    "question": "At what temperature should the bearing temperature trip be set on a PHB2 pump?",
+    "mustContain": "105",
+    "source": "HDX.pdf" },
+
+  { "id": "phb2-suction-velocity",
+    "question": "What is the maximum recommended suction pipe velocity for a PHB2 pump?",
+    "mustContain": "2 m/s",
+    "source": "HDX.pdf" },
+
+  { "id": "phb2-preheat-rate",
+    "question": "How fast can a PHB2 pump be preheated before starting it on hot liquid?",
+    "mustContain": "55",
+    "source": "HDX.pdf" },
+
+  { "id": "phb2-hot-alignment-threshold",
+    "question": "When is a hot coupling alignment check required on a PHB2 pump?",
+    "mustContain": "55",
+    "source": "HDX.pdf" },
+
+  { "id": "phb2-major-inspection",
+    "question": "After how long should the internal condition of a PHB2 pump and its pipework be inspected?",
+    "mustContain": "3 years",
+    "source": "HDX.pdf" },
+
+  { "id": "phb2-wear-ring-heating",
+    "question": "To what temperature should a new impeller wear ring be heated before installing it on a PHB2 impeller?",
+    "mustContain": "107",
+    "source": "HDX.pdf" },
+
+  { "id": "phb2-repaired-shaft-runout",
+    "question": "What is the maximum runout for a repaired PHB2 pump shaft?",
+    "mustContain": "0.050",
+    "source": "HDX.pdf" },
+
+  { "id": "phb2-thrust-end-play",
+    "question": "What total thrust end play should be set on a PHB2 pump rotor?",
+    "mustContain": "0.28",
+    "source": "HDX.pdf" },
+
+  { "id": "phb2-barrier-liquid-pressure",
+    "question": "With back-to-back double seals on a PHB2 pump, what pressure should the barrier liquid be at?",
+    "mustContain": "2 bar",
+    "source": "HDX.pdf" },
+
+  { "id": "phova-ceo",
+    "question": "Who is the CEO of Phova Technology?",
+    "mustContain": "Laghzioui",
+    "source": "rapport_pfa_phova.pdf" },
+
+  { "id": "phova-acronym",
+    "question": "What does the name Phova stand for?",
+    "mustContain": "Phosphate Valley",
+    "source": "rapport_pfa_phova.pdf" },
+
+  { "id": "phova-original-name",
+    "question": "Under what name was Phova Technology first founded?",
+    "mustContain": "OCP",
+    "source": "rapport_pfa_phova.pdf" },
+
+  { "id": "phova-employee-count",
+    "question": "How many employees does Phova Technology have?",
+    "mustContain": "51-200",
+    "source": "rapport_pfa_phova.pdf" },
+
+  { "id": "phova-slogan",
+    "question": "What is the slogan of Phova Technology?",
+    "mustContain": "Serenity",
+    "source": "rapport_pfa_phova.pdf" },
+
+  { "id": "phova-maintenance-head",
+    "question": "Who is in charge of the maintenance and after-sales service at Phova?",
+    "mustContain": "Yassir",
+    "source": "rapport_pfa_phova.pdf" },
+
+  { "id": "gap-otw-max-flow",
+    "question": "What is the maximum flow rate of the OTW pump?",
+    "mustContain": "1250",
+    "source": "rapport_pfa_phova.pdf" },
+
+  { "id": "gap-phb2-max-pressure",
+    "question": "What is the maximum pressure of the PHB2 pump?",
+    "mustContain": "100 bar",
+    "source": "rapport_pfa_phova.pdf" },
+
+  { "id": "messy-otw-oil-change",
+    "question": "otw oil change hours",
+    "mustContain": "100",
+    "source": "AHLSTAR.pdf" },
+
+  { "id": "french-phb2-oil-change",
+    "question": "pompe phb2 vidange huile tous les combien ?",
+    "mustContain": "4000",
+    "source": "HDX.pdf" },
+
+  { "id": "french-otw-seal-water-pressure",
+    "question": "pression eau de barrage garniture OTW ?",
+    "mustContain": "2 bar",
+    "source": "AHLSTAR.pdf" },
+
+  { "id": "mistranscribed-otw-corrosion",
+    "question": "what is the corrosion allowance of the O.T.W pump casing",
+    "mustContain": "3.0",
+    "source": "AHLSTAR.pdf" },
+
+  { "id": "off-topic-football",
+    "question": "Who won the 2018 football World Cup?",
+    "mustContain": "null",
+    "source": null },
+
+  { "id": "phb2-delivery-time-not-documented",
+    "question": "What is the delivery time for a spare PHB2 impeller?",
+    "mustContain": "null",
+    "source": null },
+
+  { "id": "two-pumps-seawater",
+    "question": "Is the OTW or the PHB2 pump better for seawater?",
+    "mustContain": "one pump",
     "source": null }
 ]

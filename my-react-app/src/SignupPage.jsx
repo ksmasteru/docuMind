@@ -4,6 +4,7 @@ import { apiClient } from "./apiClient";
 import {useAuth} from "./AuthContext";
 import Layout from "./Layout";
 import { ThemeToggle } from "./Layout";
+import PhovaLogo from "./PhovaLogo";
 
 export default function SignupPage() {
   
@@ -47,7 +48,8 @@ export default function SignupPage() {
         </div>
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-semibold text-slate-900">DocuMind</h1>
+          <PhovaLogo className="mx-auto mb-4 h-14" />
+          <h1 className="text-2xl font-semibold text-slate-900">GreenSense 4.0</h1>
           <p className="mt-1 text-sm text-slate-500">Create your workspace account</p>
         </div>
 
