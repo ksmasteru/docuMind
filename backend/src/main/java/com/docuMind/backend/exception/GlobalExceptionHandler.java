@@ -107,6 +107,90 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorFormat, HttpStatus.BAD_GATEWAY);
     }
 
+    // a checklist form with this title is already active, or the same title + version was saved concurrently
+    @ExceptionHandler(FormAlreadyExistException.class)
+    public ResponseEntity<ErrorFormat> handleFormAlreadyExistException(FormAlreadyExistException ex,
+        WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.CONFLICT);
+    }
+
+    // no checklist form with the requested id
+    @ExceptionHandler(FormNotFoundException.class)
+    public ResponseEntity<ErrorFormat> handleFormNotFoundException(FormNotFoundException ex,
+        WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.NOT_FOUND);
+    }
+
+    // the submitted form is an old (inactive) version
+    @ExceptionHandler(FormNotActiveException.class)
+    public ResponseEntity<ErrorFormat> handleFormNotActiveException(FormNotActiveException ex,
+        WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.BAD_REQUEST);
+    }
+
+    // a critical question answered MAUVAIS has no comment
+    @ExceptionHandler(CommentRequiredException.class)
+    public ResponseEntity<ErrorFormat> handleCommentRequiredException(CommentRequiredException ex,
+        WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.BAD_REQUEST);
+    }
+
+    // the answers don't match the form's questions
+    @ExceptionHandler(IncompleteAnswersException.class)
+    public ResponseEntity<ErrorFormat> handleIncompleteAnswersException(IncompleteAnswersException ex,
+        WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.BAD_REQUEST);
+    }
+
+    // the number of answers differs from the number of questions
+    @ExceptionHandler(InvalidAnswerSizeException.class)
+    public ResponseEntity<ErrorFormat> handleInvalidAnswerSizeException(InvalidAnswerSizeException ex,
+        WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.BAD_REQUEST);
+    }
+
+    // an answer's value doesn't fit its question's answer type (e.g. "peut-être" for BON_MAUVAIS)
+    @ExceptionHandler(InvalidResponseException.class)
+    public ResponseEntity<ErrorFormat> handleInvalidResponseException(InvalidResponseException ex,
+        WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorFormat> handleException(
         Exception ex, WebRequest request)
@@ -118,4 +202,5 @@ public class GlobalExceptionHandler {
         );
         return new ResponseEntity<>(errorFormat, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+
 }

@@ -68,6 +68,7 @@ export function TopBar({ active }) {
         
         <Link to="/users"  className={linkClass("users")}>Members</Link></>
         }
+        <Link to="/forms" className={linkClass("forms")}>Forms</Link>
         {isAdmin && (
           <Link to="/admin" className={linkClass("admin")}>Admin</Link>
         )}
@@ -84,11 +85,12 @@ export function TopBar({ active }) {
 }
 
 // Full-page wrapper used by authenticated pages: TopBar + scrollable content area.
-export default function Layout({ active, children }) {
+// wide: opt-in wider content area (e.g. the A4 forms page); other pages keep max-w-2xl
+export default function Layout({ active, wide = false, children }) {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <TopBar active={active} />
-      <main className="mx-auto max-w-2xl px-4 py-10">
+      <main className={`mx-auto ${wide ? "max-w-6xl" : "max-w-2xl"} px-4 py-10`}>
         {children}
       </main>
     </div>

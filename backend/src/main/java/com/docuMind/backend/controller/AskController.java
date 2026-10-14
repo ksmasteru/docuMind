@@ -62,11 +62,19 @@ public class AskController {
    }
 
     // using ai transcribe an audio to text
+    // `language` (ISO-639-1, e.g. "fr") and `context` are both optional. The forms
+    // screen sends them: a short dictated comment is too little audio for Whisper
+    // to guess the language, and `context` names the checklist item being
+    // described so its vocabulary (linguet, moufle…) comes out spelled right.
+    // The ask tab sends neither and keeps auto-detection + the pump vocabulary.
     @PostMapping("/transcribe")
     public ResponseEntity<AiResponse>transcribe(
-        @RequestParam("audio") MultipartFile file, Authentication authentication)
+        @RequestParam("audio") MultipartFile file,
+        @RequestParam(value = "language", required = false) String language,
+        @RequestParam(value = "context", required = false) String context,
+        Authentication authentication)
     {
-        String answer = askService.transcribe(file, authentication.getName());
+        String answer = askService.transcribe(file, language, context, authentication.getName());
         // Same AiResponse envelope as /ask: the transcript is one answer keyed
         // "-", so the client parses every endpoint the same way.
         chatAnswer chatAnswer = new chatAnswer("-", answer);

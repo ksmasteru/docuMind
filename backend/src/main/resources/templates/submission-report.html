@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<!--
+  PDF template for one CheckListSubmission, rendered by Thymeleaf then OpenHTMLtoPDF.
+  Header and footer copy PHOVA's paper checklists ("Checklist pont roulant S02").
+
+  Rules for OpenHTMLtoPDF: the HTML must be well-formed XHTML
+  (every tag closed, <br/> not <br>, &#160; not &nbsp;).
+
+  Expects a variable "report" with:
+    title, version, type, instructions,
+    submissionId, equipment, inspectionDate, inspector, submittedAt (preformatted strings),
+    status ("CONFORME" | "NON_CONFORME"), remarks,
+    answers: [ { position, labelFr, labelAr, critical, value, comment } ]   sorted by position
+  Answer values are stored lowercase: "bon" / "mauvais", anything else is a text answer.
+
+  Fonts must be registered on the PdfRendererBuilder:
+    fonts/NotoSans-Regular.ttf  as "Noto Sans", weight 400
+    fonts/NotoSans-Bold.ttf     as "Noto Sans", weight 700
+    fonts/NotoNaskhArabic.ttf   as "Noto Naskh Arabic"
+  plus the ICU bidi splitter/reorderer (openhtmltopdf-rtl-support) for the Arabic labels.
+  Images resolve against the base URI given to the builder (classpath:/static/).
+-->
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <title th:text="${report.title}">Checklist</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 12mm 12mm 16mm 12mm;
+      @bottom-center {
+        content: "Page " counter(page) " / " counter(pages);
+        font-family: "Noto Sans";
+        font-size: 7.5pt;
+        color: #6b6b6b;
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: "Noto Sans";
+      font-size: 8.5pt;
+      line-height: 1.25;
+      color: #1a1a1a;
+      margin: 0;
+    }
+
+    .ar {
+      font-family: "Noto Naskh Arabic";
+      direction: rtl;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+    td, th { border: 0.8pt solid #3a3a3a; vertical-align: middle; }
+
+    /* ─── Header: logo │ title │ instruction (like the paper form) ─── */
+    .header td { height: 17mm; padding: 1.5mm 3mm; }
+    .header .logo { width: 24%; text-align: center; }
+    .header .logo img { height: 10mm; }
+    .header .title {
+      width: 46%;
+      text-align: center;
+      font-size: 13pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.3pt;
+    }
+    .header .title .meta {
+      display: block;
+      margin-top: 1mm;
+      font-size: 7.5pt;
+      font-weight: normal;
+      text-transform: none;
+      letter-spacing: 0;
+      color: #555555;
+    }
+    .header .instructions {
+      width: 30%;
+      text-align: center;
+      font-size: 7.5pt;
+      font-weight: bold;
+      line-height: 1.35;
+    }
+
+    /* ─── Identification box (Checklist N° / Emplacement) ─── */
+    .ident { margin-top: 2.5mm; }
+    .ident td { padding: 1.2mm 3mm; border-width: 0.8pt; }
+    .ident .label { font-size: 7.5pt; color: #333333; white-space: nowrap; }
+    .ident .value { font-weight: bold; }
+
+    .status {
+      display: inline-block;
+      padding: 0.6mm 2.5mm;
+      border-radius: 2mm;
+      font-size: 7.5pt;
+      font-weight: bold;
+    }
+    .status-ok  { background: #d9f2e4; color: #11663b; }
+    .status-nok { background: #fbe0e0; color: #9b1c1c; }
+
+    /* ─── Questions table ─── */
+    /* -fs-table-paginate: OpenHTMLtoPDF's switch to repeat the table header on every page */
+    .checks { margin-top: 3mm; -fs-table-paginate: paginate; }
+    .checks thead { display: table-header-group; }      /* repeat headings on every page */
+    .checks tr { page-break-inside: avoid; }             /* never split a question */
+    .checks th {
+      background: #e9e9e9;
+      font-weight: bold;
+      font-size: 8pt;
+      padding: 1.1mm 1.5mm;
+      text-align: center;
+    }
+    .checks td { padding: 0.9mm 1.8mm; }
+    .checks .num   { width: 6%;  text-align: center; font-size: 7.5pt; }
+    .checks .desc  { width: 50%; }
+    .checks .state { width: 9%;  text-align: center; }
+    .checks .comm  { width: 26%; font-size: 7.5pt; }
+
+    .desc .fr { display: block; }
+    .desc .ar { display: block; font-size: 7.5pt; line-height: 1.2; color: #333333; text-align: right; }
+    .critical {
+      font-size: 6.5pt;
+      font-weight: bold;
+      color: #8a5a00;
+      background: #fff1cc;
+      padding: 0.2mm 1.2mm;
+      border-radius: 1mm;
+      margin-left: 1.5mm;
+    }
+
+    .mark      { font-size: 11pt; font-weight: bold; }
+    .mark-bon  { color: #11663b; }
+    .mark-bad  { color: #b42318; }
+    .row-bad td { background: #fdf1f1; }
+    .text-answer { font-weight: bold; }
+
+    /* ─── Footer: dark bands (Nom / Date / Visa) and Remarques, like the paper form ─── */
+    .signature { margin-top: 4mm; page-break-inside: avoid; }
+    .signature td { padding: 1.5mm 3mm; height: 8mm; }
+    .signature .band {
+      width: 40%;
+      background: #5b5b5b;
+      color: #ffffff;
+      text-align: center;
+      font-weight: bold;
+      letter-spacing: 0.2pt;
+    }
+    .signature .value { font-weight: bold; font-size: 9pt; }
+    .signature .visa  { height: 12mm; }
+
+    .remarks { margin-top: 4mm; page-break-inside: avoid; }
+    .remarks td { padding: 2mm 3mm; height: 18mm; vertical-align: top; }
+    .remarks .label { font-weight: bold; text-decoration: underline; }
+    .remarks .text  { display: block; margin-top: 1.5mm; white-space: pre-wrap; }
+
+    .reference {
+      margin-top: 2.5mm;
+      font-size: 6.5pt;
+      color: #6b6b6b;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ HEADER ═══ -->
+  <table class="header">
+    <tr>
+      <td class="logo"><img src="phova_logo.png" alt="PHOVA Technology"/></td>
+      <td class="title">
+        <span th:text="${report.title}">Checklist du pont roulant</span>
+        <span class="meta" th:text="${report.type + ' · version ' + report.version}">INSPECTION · version 1</span>
+      </td>
+      <td class="instructions" th:text="${report.instructions}">
+        L'opérateur doit inspecter l'équipement avant de commencer les travaux…
+      </td>
+    </tr>
+  </table>
+
+  <!-- ═══ IDENTIFICATION ═══ -->
+  <table class="ident">
+    <tr>
+      <td class="label">Checklist N° :</td>
+      <td class="value" th:text="${report.submissionId}">8e8c5c3e-…</td>
+      <td class="label">Date du contrôle :</td>
+      <td class="value" th:text="${report.inspectionDate}">06/10/2026</td>
+    </tr>
+    <tr>
+      <td class="label">Emplacement :</td>
+      <td class="value" th:text="${report.equipment}">MP1</td>
+      <td class="label">Statut :</td>
+      <td>
+        <span th:if="${report.status == 'NON_CONFORME'}" class="status status-nok">NON CONFORME</span>
+        <span th:unless="${report.status == 'NON_CONFORME'}" class="status status-ok">CONFORME</span>
+      </td>
+    </tr>
+  </table>
+
+  <!-- ═══ QUESTIONS ═══ -->
+  <table class="checks">
+    <thead>
+      <tr>
+        <th class="num" rowspan="2">N°</th>
+        <th class="desc" rowspan="2">Description</th>
+        <th colspan="2">Etat</th>
+        <th class="comm" rowspan="2">Commentaire</th>
+      </tr>
+      <tr>
+        <th class="state">Bon</th>
+        <th class="state">Mauvais</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr th:each="row : ${report.answers}"
+          th:with="v=${#strings.toLowerCase(#strings.trim(row.value))}"
+          th:classappend="${v == 'mauvais'} ? 'row-bad'">
+
+        <td class="num" th:text="${row.position}">1</td>
+
+        <td class="desc">
+          <span class="fr">
+            <span th:text="${row.labelFr}">Affichage de la charge MAX</span>
+            <span th:if="${row.critical}" class="critical">CRITIQUE</span>
+          </span>
+          <span th:if="${row.labelAr != null and !#strings.isEmpty(row.labelAr)}"
+                class="ar" dir="rtl" lang="ar" th:text="${row.labelAr}">عرض الحمولة القصوى</span>
+        </td>
+
+        <!-- Bon / Mauvais answer: an X in the right column -->
+        <th:block th:if="${v == 'bon' or v == 'mauvais'}">
+          <td class="state">
+            <span th:if="${v == 'bon'}" class="mark mark-bon">X</span>
+          </td>
+          <td class="state">
+            <span th:if="${v == 'mauvais'}" class="mark mark-bad">X</span>
+          </td>
+        </th:block>
+
+        <!-- text answer: spans both state columns -->
+        <td th:unless="${v == 'bon' or v == 'mauvais'}" colspan="2" class="text-answer"
+            th:text="${row.value}">0 % LIE</td>
+
+        <td class="comm" th:text="${row.comment}"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ═══ FOOTER: signature bands ═══ -->
+  <table class="signature">
+    <tr>
+      <td class="band">Nom et prénom du vérificateur</td>
+      <td class="value" th:text="${report.inspector}">DEBLANI</td>
+    </tr>
+    <tr>
+      <td class="band">Date</td>
+      <td class="value" th:text="${report.inspectionDate}">06/10/2026</td>
+    </tr>
+    <tr>
+      <td class="band visa">Visa</td>
+      <td class="visa"></td>
+    </tr>
+  </table>
+
+  <!-- ═══ FOOTER: remarks ═══ -->
+  <table class="remarks">
+    <tr>
+      <td>
+        <span class="label">Remarques :</span>
+        <span class="text" th:text="${report.remarks}"></span>
+      </td>
+    </tr>
+  </table>
+
+  <p class="reference">
+    Formulaire envoyé via GreenSense 4.0 le
+    <span th:text="${report.submittedAt}">06/10/2026 14:32</span>
+    · réf. <span th:text="${report.submissionId}">8e8c5c3e-…</span>
+  </p>
+
+</body>
+</html>

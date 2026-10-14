@@ -51,6 +51,7 @@ Requires auth. The caller's identity comes from the token, never from the body.
 | --- | --- | --- | --- |
 | POST | `/api/v1/ask` | `AskRequest` (JSON) | `ResponseEntity<AiResponse>` |
 | POST | `/api/v1/ask/image` | `image` (multipart file) | `ResponseEntity<AiResponse>` |
+| POST | `/api/v1/ask/transcribe` | `audio` (multipart file) | `ResponseEntity<AiResponse>` |
 
 **`AskRequest`**
 
@@ -61,14 +62,19 @@ Requires auth. The caller's identity comes from the token, never from the body.
 `fileId` is optional. When present, retrieval is scoped to that one document;
 when absent or blank, it searches across everything the user has uploaded.
 
-**`AiResponse`** — the same envelope for both routes:
+**`AiResponse`** — the same envelope for all three routes:
 
 ```json
 {
   "answer": [ { "key": "1.", "answer": "A) docker ps — …" } ],
+  "askInteractionId": "3f9c…",
   "answerCount": 1
 }
 ```
+
+`askInteractionId` is the id of the stored question/answer row, used to attach
+technician feedback. Only `POST /api/v1/ask` sets it; `/image` and `/transcribe`
+return `null`.
 
 - **`POST /api/v1/ask`** — one question, one answer. `answer` always holds a
   single element with `key` set to `"-"`, and `answerCount` is always `1`.
@@ -76,6 +82,10 @@ when absent or blank, it searches across everything the user has uploaded.
   `answer` holds one element per question. `key` is the question number as it
   appeared in the image, or `"-"` when the model's line carried no number.
   `answerCount` is the number of questions found.
+- **`POST /api/v1/ask/transcribe`** — speech to text. The uploaded audio is
+  transcribed, and the transcript comes back as a single element with `key`
+  `"-"` and `answerCount` `1`. Nothing is answered; the client sends the
+  transcript to `/api/v1/ask` as a normal question.
 
 A question the documents can't answer still returns `200`, with the string
 `"Not answerable from the provided documents."` as its `answer`. That's a
@@ -97,6 +107,7 @@ Requires auth.
 | Method | Path | Request | Java return type |
 | --- | --- | --- | --- |
 | POST | `/api/v1/files/upload` | `file` (multipart), `title` (optional) | `ResponseEntity<FileResponse>` |
+| POST | `/api/v1/files/scan` | `{ text }` (JSON) | `ResponseEntity<FileResponse>` |
 | GET | `/api/v1/files/{name}` | path variable | `ResponseEntity<FileResponse>` |
 | GET | `/api/v1/files/filter/{keyword}` | path variable | `ResponseEntity<FileResponse>` |
 | GET | `/api/v1/files/user/{id}` | path variable | `ResponseEntity<FileResponse>` |
@@ -104,7 +115,8 @@ Requires auth.
 | GET | `/api/v1/files/preview/id/{id}` | path variable | `ResponseEntity<ByteArrayResource>` |
 | GET | `/api/v1/files/{fileId}/analysis` | path variable | `ResponseEntity<DataAnalysis>` |
 | POST | `/api/v1/files/ask` | `Map<String, String>` | `ResponseEntity<Map<String, String>>` |
-| DELETE | `/api/v1/files/id/{id}` | path variable | `ResponseEntity<Void>` |
+| DELETE | `/api/v1/files/delete/id/{id}` | path variable | `ResponseEntity<Void>` |
+| DELETE | `/api/v1/files/delete/{name}` | path variable | `ResponseEntity<Void>` |
 
 **`FileResponse`** — used by all four listing/search routes, even the ones that
 logically return a single file:
@@ -132,6 +144,13 @@ logically return a single file:
 
 `analysisJson` is a JSON **string**, not a nested object — the client has to
 parse it a second time.
+
+**`POST /api/v1/files/scan`** stores text extracted from a scanned page as a
+new document owned by the caller, and returns it as a one-element `FileResponse`
+with status `200`.
+
+**Deleting.** `/delete/id/{id}` deletes by file id and is marked outdated in the
+code; `/delete/{name}` deletes by file name. Both return `204`.
 
 **`POST /api/v1/files/ask`** returns `{ "response": "…" }`. This is an older RAG
 entry point that predates `/api/v1/ask`; prefer the latter for new work.
@@ -171,6 +190,82 @@ Requires auth. `DELETE` additionally requires `ADMIN` via `@PreAuthorize`.
 
 ---
 
+## `/api/v1/forms` — CheckListController
+
+Requires auth. Checklist templates (forms) that technicians fill in, such as the
+overhead crane inspection.
+
+> Creating forms is meant for admins only, but no role check is enforced yet:
+> any authenticated user can call `POST`. See `TODO_LATER.md`.
+
+| Method | Path | Request | Java return type |
+| --- | --- | --- | --- |
+| POST | `/api/v1/forms/` | `FormCreationDto` (JSON) | `ResponseEntity<Map<String, String>>` |
+| GET | `/api/v1/forms/options` | — | `ResponseEntity<FormOptionsResponse>` |
+| GET | `/api/v1/forms/inspectionForm/{id}` | path variable (template id) | `ResponseEntity<InspectionFormResponse>` |
+
+**`FormCreationDto`** — validated with `@Valid`:
+
+```json
+{
+  "title": "Checklist du pont roulant",
+  "type": "INSPECTION",
+  "instructions": "L'opérateur doit inspecter l'équipement avant de commencer les travaux…",
+  "items": [
+    { "labelFr": "Câble de levage", "labelAr": "كابل الرفع", "critical": true, "answerType": "BON_MAUVAIS" }
+  ]
+}
+```
+
+- `title`, `type` and `instructions` are required; `items` must hold at least one item.
+- Each item needs `labelFr` and `answerType`; `labelAr` is optional.
+- `type` is `INSPECTION` or `PERMIT`. `answerType` is `BON_MAUVAIS`, `TEXT` or `IMAGE`.
+- The server sets the rest: `version` (1 for a new title, otherwise latest + 1),
+  `active` (`true`), and each item's `position` (1, 2, 3… in the order sent).
+
+Returns `201` with the new template's id:
+
+```json
+{ "id": "e40a250a-…" }
+```
+
+**`FormOptionsResponse`** — every active form, for a picker. The list key is
+capitalised because the record component is named `FormItem`:
+
+```json
+{
+  "FormItem": [ { "type": "INSPECTION", "title": "Checklist du pont roulant", "id": "e40a250a-…" } ],
+  "formsCount": 1
+}
+```
+
+**`InspectionFormResponse`** — one form with its questions, sorted by `position`:
+
+```json
+{
+  "id": "e40a250a-…",
+  "title": "Checklist du pont roulant",
+  "type": "INSPECTION",
+  "version": 1,
+  "instructions": "L'opérateur doit inspecter l'équipement…",
+  "questions": [
+    { "id": "…", "position": 1, "labelAr": "…", "labelFr": "Affichage de la charge MAX", "critical": false, "answerType": "BON_MAUVAIS" }
+  ]
+}
+```
+
+**Status codes**
+
+- `201` — form created
+- `200` — `options` and `inspectionForm/{id}`
+- `400` — validation failed, with `errors` listing each bad field
+  (e.g. `"items[2].labelFr"`)
+- `404` — `FormNotFoundException`: no form with that id
+- `409` — `FormAlreadyExistException`: an active form with this title already
+  exists, or the same title and version was saved concurrently
+
+---
+
 ## Error responses
 
 Every exception routed through `GlobalExceptionHandler` returns `ErrorFormat`:
@@ -191,6 +286,8 @@ Every exception routed through `GlobalExceptionHandler` returns `ErrorFormat`:
 | `UserNotFoundException` | 404 |
 | `NoChunksException` | 404 |
 | `NoAiResultException` | 502 |
+| `FormNotFoundException` | 404 |
+| `FormAlreadyExistException` | 409 |
 | `IllegalArgumentException` | 400 |
 | `MethodArgumentNotValidException` | 400 (with `errors` populated) |
 | `FileNotSupportedException` | 400 |
@@ -216,5 +313,10 @@ Documented as they are, not as they should be:
   comment acknowledging this.
 - **List envelopes for single items** — `FileResponse` and `UserResponseWrapper`
   wrap one-element lists on routes that can only ever return one thing.
+- **Trailing slash on form creation** — the route is `@PostMapping("/")`, so the
+  URL is `/api/v1/forms/` with the slash. Spring Boot 3 doesn't match
+  `/api/v1/forms` without it, which returns `404`.
+- **`FormItem`** — `FormOptionsResponse` names its list component `FormItem`,
+  capitalised, so the JSON key is `"FormItem"`.
 - **`ResponseEntity<?>` across `/api/auth`** gives no compile-time guarantee
   about the body, and success and error shapes differ per route.

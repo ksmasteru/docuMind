@@ -474,7 +474,7 @@ public class AskService{
     // spoken text. It reads m4a, mp3, wav, webm and a few others, and caps the
     // upload at 25MB — spring.servlet.multipart.max-file-size stops us at 20MB
     // first.
-    public String transcribe(MultipartFile file, String userId)
+    public String transcribe(MultipartFile file, String language, String context, String userId)
     {
       System.out.println("transcribe service called");
       byte[] bytes;
@@ -484,13 +484,16 @@ public class AskService{
       catch (IOException ex) {
         throw new UncheckedIOException("could not read the uploaded audio", ex);
       }
-      // No language set on purpose: Whisper detects it per request, which is
-      // what a mix of French and English recordings needs.
-      OpenAiAudioTranscriptionOptions options = OpenAiAudioTranscriptionOptions.builder()
+      // Without a language Whisper detects it per request, which is what a mix
+      // of French and English questions needs. A caller that knows the language
+      // (checklist comments are always French) pins it instead.
+      OpenAiAudioTranscriptionOptions.Builder builder = OpenAiAudioTranscriptionOptions.builder()
           .model("whisper-1")
-          .prompt(TRANSCRIPTION_VOCABULARY)
-          .temperature(0f)
-          .build();
+          .prompt(transcriptionPrompt(context))
+          .temperature(0f);
+      if (language != null && !language.isBlank())
+        builder.language(language.trim());
+      OpenAiAudioTranscriptionOptions options = builder.build();
       AudioTranscriptionResponse response = transcriptionModel
           .call(new AudioTranscriptionPrompt(new ByteArrayResource(bytes), options));
       if (response == null || response.getResult() == null)
@@ -498,6 +501,24 @@ public class AskService{
       String text = response.getResult().getOutput();
       System.out.println("transcription : " + text);
       return text;
+    }
+
+    // Whisper reads the prompt as the text spoken just before the audio: it
+    // steers spelling and vocabulary, and only its last 224 tokens count. A
+    // caller's context (e.g. "Checklist du pont roulant. Point 3 : Linguet de
+    // sécurité du crochet. Anomalie constatée :") replaces the pump vocabulary,
+    // which would only pull a crane comment towards pump words. Cut from the
+    // front so the end, the part closest to the audio, survives.
+    private static final int MAX_PROMPT_CHARS = 1000;
+
+    private static String transcriptionPrompt(String context)
+    {
+      if (context == null || context.isBlank())
+        return TRANSCRIPTION_VOCABULARY;
+      String prompt = context.strip();
+      return prompt.length() > MAX_PROMPT_CHARS
+          ? prompt.substring(prompt.length() - MAX_PROMPT_CHARS)
+          : prompt;
     }
 
     public String questionImagetoText(MultipartFile file, String userId)
