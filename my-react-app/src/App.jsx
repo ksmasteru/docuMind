@@ -12,6 +12,7 @@ import UploadedFiles from "./UploadedFiles";
 import SearchContent from "./SearchContent";
 import Ask from "./Ask";
 import Forms from "./Forms";
+import Tasks from "./Tasks";
 import DataVisualisor from "./DataVisualisor";
 import { pdfjs} from "react-pdf";
 
@@ -38,9 +39,10 @@ export default function App() {
           <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
           <Route path="/uploadedFiles" element={<UploadedFiles />}/>
           <Route path="/searchContent" element={<SearchContent/>} />
-          <Route path="/ask" element={<ProtectedRoute><Ask /></ProtectedRoute>} />
+          <Route path="/ask" element={<ProtectedRoute><Ask /></ProtectedRoute>}/>
           <Route path="/forms" element={<ProtectedRoute><Forms/></ProtectedRoute>}/>
           <Route path="/data-visualisor" element={<ProtectedRoute><DataVisualisor /></ProtectedRoute>} />
+          <Route path="/tasks" element={<ProtectedRoute><Tasks/></ProtectedRoute>}/>
           <Route path="*" element={<Navigate to="/documents" replace />} />
         </Routes>
       </BrowserRouter>

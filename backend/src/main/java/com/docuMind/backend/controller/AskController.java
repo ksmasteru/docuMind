@@ -82,6 +82,21 @@ public class AskController {
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
+    // this is for report.
+    @PostMapping("/transcribeReport")
+    public ResponseEntity<AiResponse>transcribeReport(
+        @RequestParam("audio") MultipartFile file,
+        @RequestParam(value = "language", required = false) String language,
+        @RequestParam(value = "context", required = false) String context,
+        Authentication authentication)
+    {
+        String answer = askService.transcribeReport(file, language, context, authentication.getName());
+        // Same AiResponse envelope as /ask: the transcript is one answer keyed
+        // "-", so the client parses every endpoint the same way.
+        chatAnswer chatAnswer = new chatAnswer("-", answer);
+        AiResponse response = new AiResponse(List.of(chatAnswer), null, 1);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }    
     /*
     @PostMapping("/feedback")
     public ResponseEntity<?>feedback(

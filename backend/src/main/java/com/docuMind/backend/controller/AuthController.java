@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.docuMind.backend.exception.SessionExpiredException;
 import com.docuMind.backend.model.AuthResponse;
+import com.docuMind.backend.model.ManagerRegisterForm;
 import com.docuMind.backend.model.User;
 import com.docuMind.backend.model.UserResponseWrapper;
 import com.docuMind.backend.model.UserResponseWrapper.UserInfo;
@@ -28,6 +30,8 @@ import com.docuMind.backend.security.RefreshTokenRepository;
 import com.docuMind.backend.security.RefreshTokenService;
 import com.docuMind.backend.services.CustomUserDetailsService;
 import com.docuMind.backend.services.UserService;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/auth") /*the public api used for login in / register */
@@ -69,7 +73,7 @@ public class AuthController {
         try {
             User toRegister = new User(request.get("name"), request.get("email"),
             request.get("password"), UserRole.ADMIN);
-            User registered = userService.registerUser(toRegister);
+            User registered = userService.registerAdmin(toRegister);
             List<UserInfo> userInfo = List.of(new UserInfo(registered.getName(), registered.getEmail(), registered.getRole()));
             UserResponseWrapper response = new UserResponseWrapper(userInfo, userInfo.size());
             return ResponseEntity.status(HttpStatus.OK)
@@ -80,10 +84,26 @@ public class AuthController {
         }
     }
  
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/register_manager")
+    public ResponseEntity<?> register_manager(@Valid @RequestBody ManagerRegisterForm request)
+    {
+        System.out.println("received a new manager register request with body :" + request);
+
+        User registered = userService.register_manager(request);
+
+        List<UserInfo> userInfo = List.of(new UserInfo(registered.getName(), registered.getEmail(), registered.getRole()));
+
+        UserResponseWrapper response = new UserResponseWrapper(userInfo, userInfo.size());
+
+        return ResponseEntity.ok(response);
+    }
+
+    // cananyone be registered as a technician ? or you should be given ann count by an admin ?
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody  Map<String, String> request) {
         
-        System.out.println("received a new register request with body :" + request);
+        System.out.println("received a new register request for " + request.get("email"));
         
         try {
             User toRegister = new User(request.get("name"), request.get("email"),
@@ -102,7 +122,7 @@ public class AuthController {
         @PostMapping("/login")
         public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
        
-            System.out.println("new login request with " + request.get("email") + " password " + request.get("password"));
+            System.out.println("new login request with " + request.get("email"));
             try {
             // Step A: Bouncer validation step
             authenticationManager.authenticate(

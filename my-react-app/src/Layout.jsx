@@ -63,6 +63,7 @@ export function TopBar({ active }) {
         <Link to="/documents" className={linkClass("search")}>Documents</Link>
         <Link to="/upload" className={linkClass("upload")}>Upload</Link>
         <Link to="/ask" className={linkClass("ask")}>Ask</Link>
+        <Link to="/tasks" className={linkClass("tasks")}>Tasks</Link>
         {showVisualize && <>
         <Link to="/data-visualisor" className={linkClass("visualize")}>Visualize</Link>
         

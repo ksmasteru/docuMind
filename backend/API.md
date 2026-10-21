@@ -18,6 +18,7 @@ accepted silently and missing keys arrive as `null`.
 | --- | --- | --- | --- |
 | POST | `/api/auth/register` | `{ name, email, password }` | `ResponseEntity<?>` |
 | POST | `/api/auth/register-admin` | `{ name, email, password, admin_key }` | `ResponseEntity<?>` |
+| POST | `/api/auth/register_manager` | `ManagerRegisterForm` (JSON), **admin token required** | `ResponseEntity<?>` |
 | POST | `/api/auth/login` | `{ email, password }` | `ResponseEntity<?>` |
 | POST | `/api/auth/refresh` | `{ refreshToken }` | `ResponseEntity<?>` |
 | POST | `/api/auth/logout` | `{ refreshToken }` | `ResponseEntity<?>` |
@@ -40,6 +41,20 @@ accepted silently and missing keys arrive as `null`.
 
 > `ResponseEntity<?>` means the success and error bodies are different shapes on
 > the same route. Clients must branch on the status code before parsing.
+
+**`register_manager`** — the exception to "public": the path is under `/api/auth`
+but the method carries `@PreAuthorize("hasRole('ADMIN')")`, so it needs an admin's
+bearer token. Body, validated with `@Valid` (`id` is accepted but unused):
+
+```json
+{ "name": "Manager Test", "email": "manager@test.com", "password": "Manager123!" }
+```
+
+- `200` — manager created, same body shape as `register`, with `"role": "MANAGER"`
+- `400` — validation failed (blank name / password, invalid email), or
+  `"Email is already registered!"` (these go through `GlobalExceptionHandler`,
+  unlike the other auth routes)
+- `403` — the caller is not an admin, or sent no token
 
 ---
 
@@ -266,6 +281,130 @@ capitalised because the record component is named `FormItem`:
 
 ---
 
+## `/api/v1/task` — TaskController
+
+Requires auth. Maintenance tasks (work orders): a manager assigns a task on a
+pump to a technician, who then moves it through its statuses. Every status
+change also writes a row in `task_event` (the task's history).
+
+Users are identified by **email** in this API: `technicianEmail`, `managerEmail`
+and the event's `actorEmail` all hold emails, and the caller's email is taken
+from the bearer token.
+
+> Creating tasks is meant for managers and admins only, but no role check is
+> enforced on `/new` yet: any authenticated user can call it.
+
+| Method | Path | Who | Request | Java return type |
+| --- | --- | --- | --- | --- |
+| GET | `/api/v1/task/mine` | technician | — | `ResponseEntity<ActiveTasks>` |
+| POST | `/api/v1/task/new` | manager / admin | `TaskCreationDto` (JSON) | `ResponseEntity<?>` |
+| POST | `/api/v1/task/{id}/start` | assigned technician | — | `ResponseEntity<?>` |
+| POST | `/api/v1/task/{id}/block` | assigned technician | `TaskDeclineDto` (JSON) | `ResponseEntity<?>` |
+| POST | `/api/v1/task/{id}/decline` | assigned technician | `TaskDeclineDto` (JSON) | `ResponseEntity<?>` |
+
+Not available yet (commented out in the controller): `submit`, `cancel`,
+`approve`, `return`, `reject`.
+
+**Task statuses and allowed moves on the available routes**
+
+| Route | From | To |
+| --- | --- | --- |
+| `new` | — | `ASSIGNED` |
+| `start` | `ASSIGNED` (first start), `BLOCKED` (resume), `RETURNED` (rework) | `STARTED` |
+| `block` | `STARTED` | `BLOCKED` |
+| `decline` | `ASSIGNED` | `DECLINED` |
+
+Any other move returns `409`. The full status list is `ASSIGNED, STARTED, BLOCKED,
+SUBMITTED, DECLINED, CANCELED, REJECTED, RETURNED, APPROVED`.
+
+**`TaskCreationDto`** — validated with `@Valid`:
+
+```json
+{
+  "title": "Fuite garniture mécanique – pompe 23AP08",
+  "taskType": "CORRECTIVE",
+  "technicianEmail": "hicham2@gmail.com",
+  "equipmentId": "2503523",
+  "instructions": "Démonter, contrôler les faces et la chemise, remplacer si nécessaire.",
+  "dueDate": "2026-10-25"
+}
+```
+
+- `title`, `taskType`, `technicianEmail` and `equipmentId` are required;
+  `instructions` and `dueDate` (`YYYY-MM-DD`) are optional.
+- `taskType` is `MAINTENANCE`, `PREVENTIVE` or `CORRECTIVE`.
+- `technicianEmail` must belong to an existing user with the `USER` (technician) role.
+- The manager is the caller (from the token), never a body field.
+- The server sets `status` (`ASSIGNED`), `priority` (`NORMAL`) and `createdAt`.
+- `equipmentId` is free text for now: there is no equipment table to check it against.
+
+Returns `201` with the new task's id:
+
+```json
+{ "id": "7c1f…" }
+```
+
+**`TaskDeclineDto`** — body of `block` and `decline`, validated with `@Valid`:
+
+```json
+{ "reason": "MISSING_PART", "comment": "pièce 6313 en rupture" }
+```
+
+- `reason` is required, one of `StatusReason`: `ON_LEAVE`, `WRONG_TASK`,
+  `NO_ISSUE_FOUND` (meant for decline); `MISSING_PART`, `NO_ACCESS`,
+  `SAFETY_ISSUE` (meant for block); `MISSING_INFO`, `WRONG_MEASUREMENT`,
+  `INCOMPLETE_WORK`, `WRONG_ASSIGNMENT`, `DUPLICATE`, `OTHER`.
+- The server does **not** yet check that the reason fits the route: any value is
+  accepted on both.
+- `comment` is optional.
+
+**`start`, `block`, `decline`** return the id of the **event** written for the
+change (not the task id):
+
+```json
+{ "id": "a91d…" }
+```
+
+`decline` uses the key `"deleted"` instead of `"id"` — see Known quirks.
+
+**`ActiveTasks`** — `GET /mine`: the caller's tasks in `ASSIGNED`, `STARTED`,
+`BLOCKED` or `RETURNED`, newest first:
+
+```json
+{
+  "tasks": [
+    {
+      "id": "7c1f…",
+      "title": "Fuite garniture mécanique – pompe 23AP08",
+      "location": null,
+      "equipmentId": "2503523",
+      "dueDate": "2026-10-25",
+      "priority": "NORMAL",
+      "status": "STARTED",
+      "instructions": "Démonter, contrôler les faces et la chemise, remplacer si nécessaire."
+    }
+  ],
+  "tasksCount": 1
+}
+```
+
+`location` is always `null` until equipment records exist. `instructions` can be `null`.
+
+**Status codes**
+
+- `201` — task created
+- `200` — `mine`, `start`, `block`, `decline`
+- `400` — validation failed (`errors` lists each bad field), an unknown enum value
+  or a malformed date (the message lists the accepted values), or
+  `technicianEmail` is not a technician (`InvalidRoleException`)
+- `403` — the task is not assigned to the caller (`AccessDeniedException`)
+- `404` — no task with that id (`TaskNotFoundException`), or `technicianEmail`
+  matches no user (`UserNotFoundException`)
+- `409` — the task's current status doesn't allow this move (`InvalidTaskException`),
+  e.g. `"a task in status APPROVED can't be started"`
+
+---
+
 ## Error responses
 
 Every exception routed through `GlobalExceptionHandler` returns `ErrorFormat`:
@@ -292,6 +431,11 @@ Every exception routed through `GlobalExceptionHandler` returns `ErrorFormat`:
 | `MethodArgumentNotValidException` | 400 (with `errors` populated) |
 | `FileNotSupportedException` | 400 |
 | `SessionExpiredException` | 400 |
+| `InvalidRoleException` | 400 |
+| `HttpMessageNotReadableException` (malformed JSON, unknown enum value, bad date) | 400 |
+| `AccessDeniedException` (`@PreAuthorize` refused, or not the caller's task) | 403 |
+| `TaskNotFoundException` | 404 |
+| `InvalidTaskException` | 409 |
 | any other `Exception` | 500 |
 
 Note that the `/api/auth/**` routes do **not** produce this shape — they build
@@ -320,3 +464,11 @@ Documented as they are, not as they should be:
   capitalised, so the JSON key is `"FormItem"`.
 - **`ResponseEntity<?>` across `/api/auth`** gives no compile-time guarantee
   about the body, and success and error shapes differ per route.
+- **`register_manager`** uses an underscore while `register-admin` uses a hyphen.
+- **Task actions return the event id** — `start`, `block` and `decline` return the
+  id of the `task_event` row, not the task's id or its new status. A client that
+  wants the updated task has to fetch it again.
+- **`"deleted"` on `decline`** — the response key is `"deleted"` although nothing
+  is deleted; the task moves to `DECLINED`.
+- **`block` reuses `TaskDeclineDto`** — same body shape as `decline`; there is no
+  separate block DTO.

@@ -3,10 +3,12 @@ package com.docuMind.backend.services;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.docuMind.backend.exception.UserNotFoundException;
+import com.docuMind.backend.model.ManagerRegisterForm;
 import com.docuMind.backend.model.UpdateUserRequest;
 import com.docuMind.backend.model.User;
 import com.docuMind.backend.model.enums.UserRole;
@@ -41,6 +43,33 @@ public class UserService {
         String encryptedPassword = passwordEncoder.encode(user.getPassword());
         user.setPassword(encryptedPassword);
         user.setRole(UserRole.USER);
+        return userRepository.save(user);
+    }
+
+    // used by POST /api/auth/register-admin, which is protected by the admin key
+    @Transactional
+    public User registerAdmin(User user) {
+        boolean emailExists = userRepository.findByEmail(user.getEmail()).isPresent();
+        if (emailExists) {
+            throw new IllegalArgumentException("Email is already registered!");
+        }
+        String encryptedPassword = passwordEncoder.encode(user.getPassword());
+        user.setPassword(encryptedPassword);
+        user.setRole(UserRole.ADMIN);
+        return userRepository.save(user);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
+    public User register_manager(ManagerRegisterForm request)
+    {
+        boolean emailExists = userRepository.findByEmail(request.email()).isPresent();
+        if (emailExists) {
+            throw new IllegalArgumentException("Email is already registered!");
+        }
+        User user = new User(request.name(), request.email(), request.password(), UserRole.MANAGER);
+        String encryptedPassword = passwordEncoder.encode(user.getPassword());
+        user.setPassword(encryptedPassword);
         return userRepository.save(user);
     }
 

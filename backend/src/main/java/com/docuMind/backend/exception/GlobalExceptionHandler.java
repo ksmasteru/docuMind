@@ -1,16 +1,21 @@
 package com.docuMind.backend.exception;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.security.access.AccessDeniedException;
+
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -22,7 +27,7 @@ public class GlobalExceptionHandler {
 
     ErrorFormat errorFormat = new ErrorFormat(
             LocalDateTime.now(),
-            "lol",
+            ex.getMessage(),
             request.getDescription(false)
     );
     return new ResponseEntity<>(errorFormat, HttpStatus.NOT_FOUND);
@@ -131,6 +136,18 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorFormat, HttpStatus.NOT_FOUND);
     }
 
+    // no submission with the requested id, or not one of the caller's
+    @ExceptionHandler(SubmissionNotFoundException.class)
+    public ResponseEntity<ErrorFormat> handleSubmissionNotFoundException(SubmissionNotFoundException ex,
+        WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.NOT_FOUND);
+    }
+
     // the submitted form is an old (inactive) version
     @ExceptionHandler(FormNotActiveException.class)
     public ResponseEntity<ErrorFormat> handleFormNotActiveException(FormNotActiveException ex,
@@ -187,6 +204,88 @@ public class GlobalExceptionHandler {
         ErrorFormat errorFormat = new ErrorFormat(
             LocalDateTime.now(),
             ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.BAD_REQUEST);
+    }
+
+    // a registration endpoint received a role it doesn't handle
+    @ExceptionHandler(InvalidRoleException.class)
+    public ResponseEntity<ErrorFormat> handleInvalidRoleException(InvalidRoleException ex,
+        WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.BAD_REQUEST);
+    }
+
+        // @PreAuthorize refused the call (e.g. a technician calling an admin endpoint)
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorFormat> handleAccessDeniedException(AccessDeniedException ex,
+        WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            "Access denied",
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.FORBIDDEN);
+    }
+
+    // no task with the requested id
+    @ExceptionHandler(TaskNotFoundException.class)
+    public ResponseEntity<ErrorFormat> handleTaskNotFoundException(TaskNotFoundException ex,
+        WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.NOT_FOUND);
+    }
+
+    // no image with the requested id
+    @ExceptionHandler(ImageNotFoundException.class)
+    public ResponseEntity<ErrorFormat> handleImageNotFoundException(ImageNotFoundException ex,
+        WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.NOT_FOUND);
+    }
+
+    // the task can't move to the requested status (e.g. starting an approved task)
+    @ExceptionHandler(InvalidTaskException.class)
+    public ResponseEntity<ErrorFormat> handleInvalidTaskException(InvalidTaskException ex,
+        WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.CONFLICT);
+    }
+
+    // the JSON body can't be read : broken JSON, unknown enum value ("taskType": "CORRECTI"),
+    // wrong date format ("dueDate": "24-10-2026")...
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorFormat> handleHttpMessageNotReadableException(HttpMessageNotReadableException ex,
+        WebRequest request)
+    {
+        String message = "malformed request body";
+        if (ex.getCause() instanceof InvalidFormatException invalid && !invalid.getPath().isEmpty())
+        {
+            String field = invalid.getPath().get(invalid.getPath().size() - 1).getFieldName();
+            message = field + ": '" + invalid.getValue() + "' is not valid";
+            Class<?> target = invalid.getTargetType();
+            if (target != null && target.isEnum())
+                message += ". Accepted values: " + Arrays.toString(target.getEnumConstants());
+        }
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            message,
             request.getDescription(false));
         return new ResponseEntity<>(errorFormat, HttpStatus.BAD_REQUEST);
     }

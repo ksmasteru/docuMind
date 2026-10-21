@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+
 import java.util.regex.Matcher;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -469,6 +471,66 @@ public class AskService{
         pompe à eau, pompe slurry, garniture mécanique, hauteur manométrique,
         débit, NPSH.
         """;
+    
+    // Report recordings are French comments from technicians on the reporting
+    // platform. Technicians speak in short fragments ("roulement HS, fuite
+    // garniture"), not full sentences, so the prompt mimics that and packs in
+    // as many technical terms as fit. Kept around ~700 characters, about the
+    // 224 tokens Whisper actually reads.
+    private static final String TRANSCRIPTION_REPORT_VOCABULARY = """
+        Fuite garniture mécanique, suintement presse-étoupe, resserrage tresse.
+        Roulement HS côté accouplement, échauffement palier, niveau d'huile bas.
+        Vibrations, balourd, désalignement, jeu axial, comparateur. Cavitation,
+        désamorçage, purge, crépine colmatée, clapet anti-retour bloqué. Vanne
+        d'aspiration, refoulement, manomètre, débit faible. Roue usée, volute
+        érodée, plaque d'usure, chemise d'arbre rayée. Joint torique, joint
+        spiralé, bride, boulonnerie, couple de serrage, clé dynamométrique,
+        extracteur. Moteur, bornier, câble, intensité, isolement mégohmmètre,
+        variateur, disjoncteur. Consignation, cadenas, pièce de rechange,
+        graissage. RAS, OK, HS.
+        """;
+
+    public String transcribeReport(MultipartFile file, String language, String context, String userId)
+    {
+      System.out.println("transcribeReport service called");
+      System.out.println("transcribtion context is : " + context);
+      byte[] bytes;
+      try {
+        bytes = file.getBytes();
+      }
+      catch (IOException ex) {
+        throw new UncheckedIOException("could not read the uploaded audio", ex);
+      }
+      // Without a language Whisper detects it per request, which is what a mix
+      // of French and English questions needs. A caller that knows the language
+      // (checklist comments are always French) pins it instead.
+      OpenAiAudioTranscriptionOptions.Builder builder = OpenAiAudioTranscriptionOptions.builder()
+          .model("whisper-1")
+          .prompt(transcriptionReportPrompt(context))
+          .temperature(0f);
+      if (language != null && !language.isBlank())
+        builder.language(language.trim());
+      OpenAiAudioTranscriptionOptions options = builder.build();
+      AudioTranscriptionResponse response = transcriptionModel
+          .call(new AudioTranscriptionPrompt(new ByteArrayResource(bytes), options));
+      if (response == null || response.getResult() == null)
+        throw new NoAiResultException("transcription model returned no result");
+      String text = response.getResult().getOutput();
+      System.out.println("transcription : " + text);
+      return text;
+    }
+    // transcritption prompt for report tramscribtion. 
+    private static String transcriptionReportPrompt(String context)
+    {
+      if (context == null || context.isBlank())
+        return TRANSCRIPTION_REPORT_VOCABULARY; //MAKE GENERAL PROMPT ABOUT REPORT FIX (FOR CHECKLISTTEMPLATE)
+      // SOMETHING LIKE CABLES, TOOLS IDK NOW CONTEXT IS FIXING, REPORTING PUMPS MAINTENANACE ALL IN FRENCH
+      String prompt = context.strip();
+      return prompt.length() > MAX_PROMPT_CHARS
+          ? prompt.substring(prompt.length() - MAX_PROMPT_CHARS)
+          : prompt;
+    }
+
 
     // Whisper takes the raw audio bytes as a multipart upload and hands back the
     // spoken text. It reads m4a, mp3, wav, webm and a few others, and caps the
@@ -477,6 +539,7 @@ public class AskService{
     public String transcribe(MultipartFile file, String language, String context, String userId)
     {
       System.out.println("transcribe service called");
+      System.out.println("transcribtion context is : " + context);
       byte[] bytes;
       try {
         bytes = file.getBytes();

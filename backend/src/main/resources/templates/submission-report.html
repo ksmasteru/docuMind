@@ -18,7 +18,8 @@
     fonts/NotoSans-Bold.ttf     as "Noto Sans", weight 700
     fonts/NotoNaskhArabic.ttf   as "Noto Naskh Arabic"
   plus the ICU bidi splitter/reorderer (openhtmltopdf-rtl-support) for the Arabic labels.
-  Images resolve against the base URI given to the builder (classpath:/static/).
+  The logo comes in as the variable "logo", a data URI (see SubmissionPdfService); the
+  plain src is only there so the file still shows a logo when opened on its own.
 -->
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org" lang="fr">
 <head>
@@ -166,7 +167,7 @@
   <!-- ═══ HEADER ═══ -->
   <table class="header">
     <tr>
-      <td class="logo"><img src="phova_logo.png" alt="PHOVA Technology"/></td>
+      <td class="logo"><img src="../static/phova_logo.png" th:src="${logo}" alt="PHOVA Technology"/></td>
       <td class="title">
         <span th:text="${report.title}">Checklist du pont roulant</span>
         <span class="meta" th:text="${report.type + ' · version ' + report.version}">INSPECTION · version 1</span>

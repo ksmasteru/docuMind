@@ -1,11 +1,12 @@
 package com.docuMind.backend.services;
 
-import java.io.ByteArrayInputStream;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
 
 
@@ -15,18 +16,21 @@ import com.docuMind.backend.exception.FormNotFoundException;
 import com.docuMind.backend.exception.IncompleteAnswersException;
 import com.docuMind.backend.exception.InvalidAnswerSizeException;
 import com.docuMind.backend.exception.InvalidResponseException;
+import com.docuMind.backend.exception.SubmissionNotFoundException;
 import com.docuMind.backend.model.CheckListAnswer;
 import com.docuMind.backend.model.CheckListItem;
 import com.docuMind.backend.model.CheckListSubmission;
 import com.docuMind.backend.model.CheckListTemplate;
+import com.docuMind.backend.model.SubmissionReport;
 import com.docuMind.backend.model.SubmissionRequest;
 import com.docuMind.backend.model.SubmissionRequest.AnswerItem;
 import com.docuMind.backend.model.SubmissionResponse;
+import com.docuMind.backend.model.User;
 import com.docuMind.backend.model.enums.AnswerType;
 import com.docuMind.backend.model.enums.SubmissionStatus;
-import com.docuMind.backend.model.SubMissionReport;
 import com.docuMind.backend.repository.CheckListTemplateRepository;
 import com.docuMind.backend.repository.SubmissionRepository;
+import com.docuMind.backend.repository.UserRepository;
 
 import jakarta.transaction.Transactional;
 
@@ -42,114 +46,68 @@ public class SubmissionService {
     // needed to load the template being answered and its questions (checks ① to ④)
     private final CheckListTemplateRepository checkListTemplateRepository;
 
+    // the inspector's name on the PDF (a submission only keeps their email)
+    private final UserRepository userRepository;
+
+    // PDF dates are written like on the paper sheets, in the sites' time: the server may
+    // run in UTC (Docker), which would put "submitted at" an hour off in Morocco.
+    private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final DateTimeFormatter DAY_TIME = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+    private static final ZoneId SITE_ZONE = ZoneId.of("Africa/Casablanca");
+
     public SubmissionService(SubmissionRepository submissionRepository,
-                             CheckListTemplateRepository checkListTemplateRepository)
+                             CheckListTemplateRepository checkListTemplateRepository,
+                             UserRepository userRepository)
     {
         this.submissionRepository = submissionRepository;
         this.checkListTemplateRepository = checkListTemplateRepository;
+        this.userRepository = userRepository;
     }
 
-    /* 
-    public ByteArrayResource previewSubmission(SubmissionRequest request,
-                                                     authentication)
+    // The PDF's content for a saved submission. Rebuilt on every call: nothing about the PDF
+    // is stored. Only its author can read it for now; supervisors will need access once
+    // report validation (step 7) exists.
+    public SubmissionReport getReport(String submissionId, String userId)
     {
-        // check the data validity.
+        CheckListSubmission submission = submissionRepository.findById(submissionId)
+                .filter(s -> s.getUserId().equals(userId))
+                .orElseThrow(() -> new SubmissionNotFoundException("no submission with id " + submissionId));
+        CheckListTemplate template = submission.getTemplate();
 
-        // if valid make a pdf out of that data
+        // the template expects the rows in sheet order
+        List<SubmissionReport.ReportRow> rows = submission.getAnswers().stream()
+                .sorted(Comparator.comparingInt((CheckListAnswer a) -> a.getItem().getPosition()))
+                .map(a -> new SubmissionReport.ReportRow(
+                        a.getItem().getPosition(),
+                        a.getItem().getLabelFr(),
+                        a.getItem().getLabelAr(),
+                        a.getItem().isCritical(),
+                        a.getValue(),
+                        a.getComment()))
+                .toList();
 
-        // store that pdf inside a new table with a reconizble name
+        String inspector = userRepository.findByEmail(submission.getUserId())
+                .map(User::getName)
+                .filter(name -> name != null && !name.isBlank())
+                .orElse(submission.getUserId());
 
-        // return that pdf to preview .
-
-        // later return the id of pdf file to frontend to allow downloading.
-        String templateId = request.templateId();
-        
-        CheckListTemplate template = checkListTemplateRepository.findById(templateId).orElseThrow(
-            () -> new FormNotFoundException("no form with id " + templateId)
-        );
-        if (!template.isActive())
-            throw new FormNotActiveException("form " + templateId + " is not active anymore");
-        SubmissionStatus status = this.checkSumbSubmissionStatus(request, template);
-        
-        CheckListSubmission checkListSubmission = new CheckListSubmission();
-
-        checkListSubmission.setTemplate(template);
-        
-        checkListSubmission.setEquipment(request.equipment());
-
-        checkListSubmission.setInspectionDate(request.inspectionDate());
-        
-        checkListSubmission.setUserId(userId);
-        
-        checkListSubmission.setStatus(status);
-        
-        checkListSubmission.setRemarks(request.remarks());
-        
-        List<CheckListAnswer> _answers = new ArrayList<>();
-        
-        // logic of preview can be implemented jut here.
-        List<SubMissionReport.ReportRow> __answers = new ArrayList<>();
-        for (AnswerItem answer : answers)
-        {
-            // create a new answer item based on the request answers.
-            CheckListAnswer checkAnswer = new CheckListAnswer();
-            //SubMissionReport.ReportRow reportRow = new SubMissionReport.ReportRow();
-            checkAnswer.setSubmission(checkListSubmission);
-            // the question this answer belongs to, taken from the template's own questions
-            CheckListItem item = questions.stream()
-                    .filter(q -> q.getId().equals(answer.itemId()))
-                    .findFirst()
-                    .orElseThrow(() -> new IncompleteAnswersException(
-                            "answer for unknown question " + answer.itemId()));
-            checkAnswer.setItem(item);
-            // filling report row questions section
-            SubMissionReport.ReportRow reportRow = new SubMissionReport.ReportRow(item.getPosition(),
-                    item.getLabelFr(), item.getLabelAr(), item.isCritical(), answer.value(), answer.comment());
-
-            // done
-            if (item.getAnswerType().equals(AnswerType.BON_MAUVAIS))
-                checkAnswer.setValue(answer.value().trim().toLowerCase());
-            else
-                checkAnswer.setValue(answer.value());
-            checkAnswer.setComment(answer.comment());
-            _answers.add(checkAnswer);
-            __answers.add(reportRow);
-        }
-        checkListSubmission.setAnswers(_answers);
-        SubmissionReport report = new SubmissionReport(templateId, checkListSubmission.getId(), __answers);
-        // make a pdf file out of the checkListsubmission
-        BytesArrayRessource pdfFile = this.buildReport(report);
-        
-        // here we can optionnaly store it with a unique name "user@type@data.pdf"
-        // {id, bytesArrayRessource} to allow futur download ?
-        return pdfFile;
+        return new SubmissionReport(
+                template.getTitle(),
+                switch (template.getCheckListType()) {
+                    case INSPECTION -> "Inspection";
+                    case PERMIT -> "Permis de travail";
+                },
+                template.getVersion(),
+                template.getInstructions(),
+                submission.getId(),
+                submission.getEquipment(),
+                submission.getInspectionDate() == null ? "" : submission.getInspectionDate().format(DAY),
+                inspector,
+                submission.getSubmittedAt() == null ? "" : submission.getSubmittedAt().atZone(SITE_ZONE).format(DAY_TIME),
+                submission.getStatus().name(),
+                submission.getRemarks(),
+                rows);
     }
-    /*
-    5. Flatten it into a record, for example SubmissionReport,
-    with a nested ReportRow(position, labelFr, labelAr, critical,
-    value, comment). Sort the rows by question position. 
-    This keeps the template simple: it only reads plain values, never entities. 
-    It's also the same "build the inner records first, 
-    then the parent" pattern from your response records. */
-    
-    // PREVIEW (disabled) @Transactional(readOnly = true)
-    // PREVIEW (disabled) public SubmissionReport buildReport(SubmissionReport report)
-    // PREVIEW (disabled) {
-    // PREVIEW (disabled) // every row represnt question + answer.
-         
-    // PREVIEW (disabled) }
-    // PREVIEW (disabled) // we will use HTML template because PDFBOX wont accept arabic.
-    // PREVIEW (disabled) public ByteArrayResource makeSubmissionPdfFile(CheckListSubmission checkListSubmission)
-    // PREVIEW (disabled) {
-    // PREVIEW (disabled) /*
-    // PREVIEW (disabled) Header: PHOVA logo, form title, type and version, instructions.
-    // PREVIEW (disabled) Metadata: equipment, inspection date, inspector, submission time and status (Conforme or Non conforme).
-    // PREVIEW (disabled) A table of answers, one row per question: number, French and Arabic labels, a critical marker, the answer, and the comment.
-    // PREVIEW (disabled) Remarks, and a visa line.
-    // PREVIEW (disabled) */
-    // PREVIEW (disabled) // the tempalte is already verified by previous methods.
-
-    // PREVIEW (disabled) }
 
     private SubmissionStatus checkSumbSubmissionStatus(SubmissionRequest request, CheckListTemplate template)
     {
