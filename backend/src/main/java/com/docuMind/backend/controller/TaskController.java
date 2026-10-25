@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.docuMind.backend.model.ActiveTasks;
+import com.docuMind.backend.model.ReviewTask;
+import com.docuMind.backend.model.ReviewTasks;
 import com.docuMind.backend.model.TaskCreationDto;
 import com.docuMind.backend.model.TaskDeclineDto;
 import com.docuMind.backend.model.TaskModel;
@@ -42,6 +44,34 @@ public class TaskController {
         
         ActiveTasks response = ActiveTasks.from(tasks);
         
+        return ResponseEntity.status(HttpStatus.OK).body(
+            response
+        );
+    }
+
+    // the active tasks the logged-in manager assigned (ASSIGNED / STARTED / BLOCKED / RETURNED)
+    // 403 for a technician
+    @GetMapping("/assigned")
+    public ResponseEntity<ActiveTasks> getManagerActiveTasks(Authentication manager)
+    {
+        List<TaskModel> tasks = taskService.getManagerActiveTasks(manager);
+
+        ActiveTasks response = ActiveTasks.from(tasks);
+
+        return ResponseEntity.status(HttpStatus.OK).body(
+            response
+        );
+    }
+
+    // the logged-in manager's tasks whose report waits for his review (SUBMITTED),
+    // oldest submission first. 403 for a technician
+    @GetMapping("/review")
+    public ResponseEntity<ReviewTasks> getManagerTasksToReview(Authentication manager)
+    {
+        List<ReviewTask> tasks = taskService.getManagerTasksToReview(manager);
+
+        ReviewTasks response = ReviewTasks.from(tasks);
+
         return ResponseEntity.status(HttpStatus.OK).body(
             response
         );

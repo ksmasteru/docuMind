@@ -51,8 +51,18 @@ public class SubmissionController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    // GET /api/v1/submissions/{id} — a sent sheet as data, for the app to draw it itself
+    // (the review screen). The same SubmissionReport the PDF is built from, so both always
+    // agree; same access as /pdf: its author or the manager of its task, else 404.
+    @GetMapping("/{id}")
+    public ResponseEntity<SubmissionReport> report(@PathVariable String id, Authentication authentication)
+    {
+        return ResponseEntity.ok(submissionService.getReport(id, authentication.getName()));
+    }
+
     // GET /api/v1/submissions/{id}/pdf — the filled sheet as a PDF download, rebuilt from the
-    // saved submission (nothing is stored). 404 for an unknown id or someone else's submission.
+    // saved submission (nothing is stored). 404 for an unknown id, or for anyone but its
+    // author and the manager of its task.
     @GetMapping("/{id}/pdf")
     public ResponseEntity<byte[]> pdf(@PathVariable String id, Authentication authentication)
     {

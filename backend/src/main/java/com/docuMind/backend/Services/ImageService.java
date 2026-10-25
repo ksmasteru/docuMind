@@ -1,7 +1,16 @@
 package com.docuMind.backend.services;
 
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Base64;
 import java.util.List;
+
+import javax.imageio.ImageIO;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -69,6 +78,40 @@ public class ImageService {
     {
         return imageDataRepository.findById(id)
             .orElseThrow(() -> new ImageNotFoundException("no image with id " + id));
+    }
+
+    // A phone photo is ~1800×4000 px; the PDF shows it a few centimetres wide, so it is
+    // shrunk to this many pixels on its long side before going in.
+    private static final int PDF_PHOTO_MAX_SIDE = 1000;
+
+    // The photo as a JPEG data URI for the PDF report, or null when the id is unknown or
+    // the bytes can't be decoded (ImageIO reads JPEG and PNG, not WebP).
+    public String getPhotoDataUri(String id)
+    {
+        if (id == null || !imageDataRepository.existsById(id))
+            return null;
+        try {
+            BufferedImage source = ImageIO.read(new ByteArrayInputStream(getImageData(id).getData()));
+            if (source == null)
+                return null;
+            double scale = Math.min(1.0,
+                (double) PDF_PHOTO_MAX_SIDE / Math.max(source.getWidth(), source.getHeight()));
+            int width = Math.max(1, (int) Math.round(source.getWidth() * scale));
+            int height = Math.max(1, (int) Math.round(source.getHeight() * scale));
+
+            // RGB on white: JPEG has no transparency, so a PNG's alpha would turn black
+            BufferedImage scaled = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+            Graphics2D g = scaled.createGraphics();
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+            g.drawImage(source, 0, 0, width, height, Color.WHITE, null);
+            g.dispose();
+
+            ByteArrayOutputStream jpeg = new ByteArrayOutputStream();
+            ImageIO.write(scaled, "jpg", jpeg);
+            return "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(jpeg.toByteArray());
+        } catch (IOException e) {
+            return null;
+        }
     }
 
     public List<ImageEntity> getReportImages(String reportId)

@@ -6,7 +6,7 @@ import java.util.List;
 import com.docuMind.backend.model.enums.TaskPriority;
 import com.docuMind.backend.model.enums.TaskStatus;
 
-// response for a technician's task list (one tab)
+// response for a task list: the technician's (/mine) or the manager's (/assigned)
 public record ActiveTasks(
     List<Task> tasks,
     int tasksCount)
@@ -20,11 +20,14 @@ public record ActiveTasks(
         LocalDate dueDate,
         TaskPriority priority,
         TaskStatus status,
-        String instructions
+        String instructions,
+        String templateId,    // the form to open for this task, null if none
+        String technicianEmail // who the task is assigned to, for the manager's list
     ){
         public static Task from(TaskModel task) {
             return new Task(task.getId(), task.getTitle(), null, task.getEquipmentId(),
-                    task.getDueDate(), task.getPriority(), task.getStatus(), task.getInstructions());
+                    task.getDueDate(), task.getPriority(), task.getStatus(), task.getInstructions(),
+                    task.getTemplateId(), task.getTechnicianEmail());
         }
     }
 

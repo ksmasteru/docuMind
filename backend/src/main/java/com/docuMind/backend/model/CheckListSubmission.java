@@ -65,6 +65,11 @@ public class CheckListSubmission{
     @Column(columnDefinition = "TEXT")
     private String remarks;
 
+    // the task this report answers, null for a standalone checklist.
+    // A task can have several submissions: one per round after the manager returns it.
+    @Column
+    private String taskId;
+
     // answers: one submission → many answers.
     // No column here: each answer row stores submission_id (see CheckListAnswer.submission).
     // mappedBy = "submission" says "read the link from that field".
@@ -101,6 +106,9 @@ public class CheckListSubmission{
 
     public String getRemarks()                          { return remarks; }
     public void setRemarks(String remarks)              { this.remarks = remarks; }
+
+    public String getTaskId()                           { return taskId; }
+    public void setTaskId(String taskId)                { this.taskId = taskId; }
 
     public List<CheckListAnswer> getAnswers()           { return Collections.unmodifiableList(answers); }
     // replaces all answers, going through addAnswer so each answer gets its submission

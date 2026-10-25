@@ -13,7 +13,8 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
+import com.docuMind.backend.model.TechnicianResponseWrapper;
+import com.docuMind.backend.model.TechnicianResponseWrapper.TechnicianInfo;
 import com.docuMind.backend.model.UpdateUserRequest;
 import com.docuMind.backend.model.User;
 import com.docuMind.backend.model.UserResponseWrapper;
@@ -43,6 +44,18 @@ public class UserController {
         return new UserResponseWrapper(userInfo, userInfo.size());
     }
     
+    // we want better data ; on techincians sites, tasks assigned ?
+    // so 
+    @GetMapping("/technicians") // gets all users with role = user aka technician.
+    public TechnicianResponseWrapper getTechnicians()
+    {
+        System.out.println("received a new request for get users");
+        List<User> users = userService.getAllTechnicians();
+        List<TechnicianInfo> technicianInfo = users.stream()
+            .map(user -> new TechnicianInfo(user.getName(), user.getEmail(), user.getWorksite()))
+            .toList();
+        return new TechnicianResponseWrapper(technicianInfo, technicianInfo.size());
+    }
     // 2. GET ONE USER: GET /api/v1/users/{id}
     @GetMapping("/{id}")
     public ResponseEntity<UserResponseWrapper> getUser(@PathVariable String id) {

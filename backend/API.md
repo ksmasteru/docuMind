@@ -297,6 +297,8 @@ from the bearer token.
 | Method | Path | Who | Request | Java return type |
 | --- | --- | --- | --- | --- |
 | GET | `/api/v1/task/mine` | technician | — | `ResponseEntity<ActiveTasks>` |
+| GET | `/api/v1/task/assigned` | manager / admin | — | `ResponseEntity<ActiveTasks>` |
+| GET | `/api/v1/task/review` | manager / admin | — | `ResponseEntity<ReviewTasks>` |
 | POST | `/api/v1/task/new` | manager / admin | `TaskCreationDto` (JSON) | `ResponseEntity<?>` |
 | POST | `/api/v1/task/{id}/start` | assigned technician | — | `ResponseEntity<?>` |
 | POST | `/api/v1/task/{id}/block` | assigned technician | `TaskDeclineDto` (JSON) | `ResponseEntity<?>` |
@@ -304,6 +306,17 @@ from the bearer token.
 
 Not available yet (commented out in the controller): `submit`, `cancel`,
 `approve`, `return`, `reject`.
+
+A task is submitted through its report instead: `POST /api/v1/submissions` with an optional
+`taskId` in `SubmissionRequest`. The submission is saved with that `taskId`, and the task
+moves `STARTED` → `SUBMITTED` in the same transaction, so either both happen or neither:
+
+- `404` unknown task, `403` task assigned to someone else
+- `409` task not `STARTED`, or the task was created with another `templateId`
+- the current work period is added to `workedSeconds`; `submittedAt` is set
+- the task keeps the new submission's id (`latestSubmissionId`), replaced on each round after a
+  `RETURNED`; this is what `GET /review` uses to show the report
+- a `SUBMITTED` task no longer appears in `GET /mine`
 
 **Task statuses and allowed moves on the available routes**
 
@@ -313,6 +326,7 @@ Not available yet (commented out in the controller): `submit`, `cancel`,
 | `start` | `ASSIGNED` (first start), `BLOCKED` (resume), `RETURNED` (rework) | `STARTED` |
 | `block` | `STARTED` | `BLOCKED` |
 | `decline` | `ASSIGNED` | `DECLINED` |
+| `POST /api/v1/submissions` with `taskId` | `STARTED` | `SUBMITTED` |
 
 Any other move returns `409`. The full status list is `ASSIGNED, STARTED, BLOCKED,
 SUBMITTED, DECLINED, CANCELED, REJECTED, RETURNED, APPROVED`.
@@ -326,16 +340,21 @@ SUBMITTED, DECLINED, CANCELED, REJECTED, RETURNED, APPROVED`.
   "technicianEmail": "hicham2@gmail.com",
   "equipmentId": "2503523",
   "instructions": "Démonter, contrôler les faces et la chemise, remplacer si nécessaire.",
-  "dueDate": "2026-10-25"
+  "dueDate": "2026-10-25",
+  "priority": "HIGH",
+  "templateId": "8e8c5c3e-…"
 }
 ```
 
 - `title`, `taskType`, `technicianEmail` and `equipmentId` are required;
-  `instructions` and `dueDate` (`YYYY-MM-DD`) are optional.
+  `instructions`, `dueDate` (`YYYY-MM-DD`), `priority` and `templateId` are optional.
+- `templateId` is the checklist the technician fills for this task. It must be an existing,
+  active form: `404` for an unknown id, `400` for an inactive one.
 - `taskType` is `MAINTENANCE`, `PREVENTIVE` or `CORRECTIVE`.
+- `priority` is `LOW`, `NORMAL`, `HIGH` or `URGENT`; `NORMAL` when left out.
 - `technicianEmail` must belong to an existing user with the `USER` (technician) role.
 - The manager is the caller (from the token), never a body field.
-- The server sets `status` (`ASSIGNED`), `priority` (`NORMAL`) and `createdAt`.
+- The server sets `status` (`ASSIGNED`) and `createdAt`.
 - `equipmentId` is free text for now: there is no equipment table to check it against.
 
 Returns `201` with the new task's id:
@@ -368,7 +387,8 @@ change (not the task id):
 `decline` uses the key `"deleted"` instead of `"id"` — see Known quirks.
 
 **`ActiveTasks`** — `GET /mine`: the caller's tasks in `ASSIGNED`, `STARTED`,
-`BLOCKED` or `RETURNED`, newest first:
+`BLOCKED` or `RETURNED`, newest first. `GET /assigned` returns the same shape for the tasks
+the calling manager created, in the same statuses (`403` for a technician):
 
 ```json
 {
@@ -381,14 +401,115 @@ change (not the task id):
       "dueDate": "2026-10-25",
       "priority": "NORMAL",
       "status": "STARTED",
-      "instructions": "Démonter, contrôler les faces et la chemise, remplacer si nécessaire."
+      "instructions": "Démonter, contrôler les faces et la chemise, remplacer si nécessaire.",
+      "templateId": "8e8c5c3e-…",
+      "technicianEmail": "hicham2@gmail.com"
     }
   ],
   "tasksCount": 1
 }
 ```
 
-`location` is always `null` until equipment records exist. `instructions` can be `null`.
+`location` is always `null` until equipment records exist. `instructions` and `templateId`
+can be `null`.
+
+**`ReviewTasks`** — `GET /review`: the calling manager's `SUBMITTED` tasks, the ones whose
+report waits for review, oldest submission first (`403` for a technician). Each line joins
+the task to its latest report and that report's form, in one query:
+
+```json
+{
+  "tasks": [
+    {
+      "taskId": "7c1f…",
+      "title": "Fuite garniture mécanique – pompe 23AP08",
+      "taskType": "CORRECTIVE",
+      "priority": "HIGH",
+      "equipmentId": "2503523",
+      "technicianEmail": "hicham2@gmail.com",
+      "instructions": "Démonter, contrôler les faces et la chemise, remplacer si nécessaire.",
+      "dueDate": "2026-10-25",
+      "assignedAt": "2026-10-20T08:12:00Z",
+      "submittedAt": "2026-10-24T15:40:00Z",
+      "workedSeconds": 9000,
+      "submissionId": "a41b…",
+      "submissionStatus": "NON_CONFORME",
+      "inspectionDate": "2026-10-24",
+      "templateId": "8e8c5c3e-…",
+      "templateTitle": "Rapport d'expertise"
+    }
+  ],
+  "tasksCount": 1
+}
+```
+
+**`ReviewTask` fields**
+
+| Field | Type | From | Meaning |
+| --- | --- | --- | --- |
+| `taskId` | string | task | for the review actions (`approve`, `return`, `reject`) once they exist |
+| `title` | string | task | short label set by the manager |
+| `taskType` | `MAINTENANCE` / `PREVENTIVE` / `CORRECTIVE` | task | |
+| `priority` | `LOW` / `NORMAL` / `HIGH` / `URGENT` | task | |
+| `equipmentId` | string | task | free text until equipment records exist |
+| `technicianEmail` | string | task | who did the work |
+| `instructions` | string or `null` | task | what the manager asked for |
+| `dueDate` | `YYYY-MM-DD` or `null` | task | deadline; compare with `submittedAt` to spot a late report |
+| `assignedAt` | ISO instant | task | when the task was created |
+| `submittedAt` | ISO instant | task | when the report was sent |
+| `workedSeconds` | number | task | time spent `STARTED`, blocked time not counted |
+| `submissionId` | string or `null` | submission | opens the report: `GET /api/v1/submissions/{submissionId}/pdf` or `/preview` (see below) |
+| `submissionStatus` | `CONFORME` / `NON_CONFORME` or `null` | submission | `NON_CONFORME` when a critical point is `MAUVAIS` |
+| `inspectionDate` | `YYYY-MM-DD` or `null` | submission | the day the technician says the work was done |
+| `templateId` | string or `null` | task | the form; `GET /api/v1/forms/inspectionForm/{templateId}` for the blank sheet |
+| `templateTitle` | string or `null` | form | e.g. "Rapport d'expertise" |
+
+The submission fields and `templateTitle` are `null` for a task submitted before the task
+kept its latest submission's id. `templateId` is `null` for a task created without a form.
+
+**Reading a report**
+
+| Method | Path | Returns |
+| --- | --- | --- |
+| GET | `/api/v1/submissions/{id}` | `SubmissionReport` (JSON): the sheet as data, for the app to draw |
+| GET | `/api/v1/submissions/{id}/pdf` | the PDF file |
+| GET | `/api/v1/submissions/{id}/preview` | `{ "pages": [base64 PNG, …] }`, the PDF as images |
+
+All three are built from the same `SubmissionReport`, so they always agree:
+
+```json
+{
+  "title": "Rapport d'expertise",
+  "type": "Inspection",
+  "version": 1,
+  "instructions": "…",
+  "submissionId": "a41b…",
+  "equipment": "MP1",
+  "inspectionDate": "24/10/2026",
+  "inspector": "DEBLANI",
+  "submittedAt": "24/10/2026 16:40",
+  "status": "NON_CONFORME",
+  "remarks": "RAS",
+  "answers": [
+    { "position": 1, "labelFr": "Câble", "labelAr": "…", "critical": true,
+      "value": "mauvais", "comment": "fils cassés près du tambour", "photo": null },
+    { "position": 2, "labelFr": "Photo du moteur", "labelAr": null, "critical": false,
+      "value": null, "comment": null, "photo": "data:image/jpeg;base64,…" }
+  ]
+}
+```
+
+- Values come already formatted for display: dates as `dd/MM/yyyy`, `submittedAt` in site
+  time (Africa/Casablanca), `type` as "Inspection" or "Permis de travail".
+- `inspector` is the technician's name, or their email when they have none.
+- `answers` are sorted by `position`. `value` is `bon` / `mauvais` (lowercase), the typed
+  text, or `null` for a photo answer; `photo` is that photo as a data URI, else `null`.
+  When a photo answer's image can't be loaded, `photo` is `null` and `value` is
+  "Photo non disponible".
+
+**Who can read a report** (all three routes): its author, and the manager who created the
+task it was sent for (the submission's `taskId`). Anyone else gets `404`, the same as an
+unknown id. A standalone submission (no `taskId`) is only readable by its author.
 
 **Status codes**
 

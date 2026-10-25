@@ -10,8 +10,9 @@
     title, version, type, instructions,
     submissionId, equipment, inspectionDate, inspector, submittedAt (preformatted strings),
     status ("CONFORME" | "NON_CONFORME"), remarks,
-    answers: [ { position, labelFr, labelAr, critical, value, comment } ]   sorted by position
+    answers: [ { position, labelFr, labelAr, critical, value, comment, photo } ]   sorted by position
   Answer values are stored lowercase: "bon" / "mauvais", anything else is a text answer.
+  A photo answer has a data URI in photo and no value.
 
   Fonts must be registered on the PdfRendererBuilder:
     fonts/NotoSans-Regular.ttf  as "Noto Sans", weight 400
@@ -136,6 +137,11 @@
     .row-bad td { background: #fdf1f1; }
     .text-answer { font-weight: bold; }
 
+    /* photo answers: fits the cell, never taller than about a quarter of the page */
+    .photo-cell { padding: 1.5mm; text-align: center; }
+    .photo-cell img { max-width: 100%; max-height: 60mm; }
+    .photo-comment { display: block; margin-top: 1mm; font-size: 7.5pt; text-align: left; }
+
     /* ─── Footer: dark bands (Nom / Date / Visa) and Remarques, like the paper form ─── */
     .signature { margin-top: 4mm; page-break-inside: avoid; }
     .signature td { padding: 1.5mm 3mm; height: 8mm; }
@@ -237,11 +243,18 @@
           </td>
         </th:block>
 
+        <!-- photo answer: spans the state and comment columns, its comment underneath -->
+        <td th:if="${row.photo != null}" colspan="3" class="photo-cell">
+          <img th:src="${row.photo}" alt="Photo"/>
+          <span th:if="${row.comment != null and !#strings.isEmpty(row.comment)}"
+                class="photo-comment" th:text="${row.comment}"></span>
+        </td>
+
         <!-- text answer: spans both state columns -->
-        <td th:unless="${v == 'bon' or v == 'mauvais'}" colspan="2" class="text-answer"
+        <td th:if="${row.photo == null and v != 'bon' and v != 'mauvais'}" colspan="2" class="text-answer"
             th:text="${row.value}">0 % LIE</td>
 
-        <td class="comm" th:text="${row.comment}"></td>
+        <td th:if="${row.photo == null}" class="comm" th:text="${row.comment}"></td>
       </tr>
     </tbody>
   </table>

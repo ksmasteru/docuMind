@@ -66,6 +66,9 @@ public class TaskModel {
     @Column(columnDefinition = "TEXT")
     private String instructions;
 
+    @Column // the checklist (CheckListTemplate id) to fill for this task, null if none
+    private String templateId;
+
     // ---------- current state ----------
 
     @Enumerated(EnumType.STRING)
@@ -98,6 +101,11 @@ public class TaskModel {
 
     @Column // latest report submission
     private Instant submittedAt;
+
+    // the CheckListSubmission sent with that report. Replaced on each round
+    // (RETURNED -> STARTED -> SUBMITTED again); older rounds keep this task's id in their taskId
+    @Column
+    private String latestSubmissionId;
 
     @Column // when the task reached APPROVED, REJECTED or CANCELED
     private Instant closedAt;
@@ -137,6 +145,8 @@ public class TaskModel {
     public void setEquipmentId(String equipmentId)      { this.equipmentId = equipmentId; }
     public String getInstructions()                     { return instructions; }
     public void setInstructions(String instructions)    { this.instructions = instructions; }
+    public String getTemplateId()                       { return templateId; }
+    public void setTemplateId(String templateId)        { this.templateId = templateId; }
     public TaskStatus getStatus()                       { return status; }
     public void setStatus(TaskStatus status)            { this.status = status; }
     public StatusReason getStatusReason()               { return statusReason; }
@@ -153,6 +163,8 @@ public class TaskModel {
     public void setWorkedSeconds(long workedSeconds)    { this.workedSeconds = workedSeconds; }
     public Instant getSubmittedAt()                     { return submittedAt; }
     public void setSubmittedAt(Instant submittedAt)     { this.submittedAt = submittedAt; }
+    public String getLatestSubmissionId()               { return latestSubmissionId; }
+    public void setLatestSubmissionId(String latestSubmissionId) { this.latestSubmissionId = latestSubmissionId; }
     public Instant getClosedAt()                        { return closedAt; }
     public void setClosedAt(Instant closedAt)           { this.closedAt = closedAt; }
     public Instant getUpdatedAt()                       { return updatedAt; }

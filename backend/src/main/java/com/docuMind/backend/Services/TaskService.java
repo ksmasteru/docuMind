@@ -10,9 +10,13 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.security.access.AccessDeniedException;
+import com.docuMind.backend.exception.FormNotActiveException;
+import com.docuMind.backend.exception.FormNotFoundException;
 import com.docuMind.backend.exception.InvalidRoleException;
 import com.docuMind.backend.exception.InvalidTaskException;
 import com.docuMind.backend.exception.TaskNotFoundException;
+import com.docuMind.backend.model.CheckListTemplate;
+import com.docuMind.backend.model.ReviewTask;
 import com.docuMind.backend.model.TaskCreationDto;
 import com.docuMind.backend.model.TaskEvent;
 import com.docuMind.backend.model.TaskModel;
@@ -21,6 +25,7 @@ import java.util.List;
 import com.docuMind.backend.model.enums.StatusReason;
 import com.docuMind.backend.model.enums.TaskStatus;
 import com.docuMind.backend.model.enums.UserRole;
+import com.docuMind.backend.repository.CheckListTemplateRepository;
 import com.docuMind.backend.repository.TaskEventRepository;
 import com.docuMind.backend.repository.TaskRepository;
 
@@ -31,6 +36,8 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final TaskEventRepository taskEventRepository;
     private final UserService userService;
+    // to check the task's checklist exists and is still in use
+    private final CheckListTemplateRepository checkListTemplateRepository;
 
     // statuses a task may be started from (see maintenace_loop_servicetohandle.md)
     private static final Set<TaskStatus> CAN_START_FROM =
@@ -40,12 +47,13 @@ public class TaskService {
         EnumSet.of(TaskStatus.ASSIGNED, TaskStatus.STARTED, TaskStatus.BLOCKED, TaskStatus.RETURNED);
 
     public TaskService(TaskRepository taskRepository, TaskEventRepository taskEventRepository,
-        UserService userService
+        UserService userService, CheckListTemplateRepository checkListTemplateRepository
     )
     {
         this.taskRepository = taskRepository;
         this.taskEventRepository = taskEventRepository;
         this.userService = userService;
+        this.checkListTemplateRepository = checkListTemplateRepository;
     }
 
     //One method changes the status. It checks who is acting 
@@ -60,6 +68,30 @@ public class TaskService {
     public List<TaskModel> getTechnicianActiveTasks(Authentication technician)
     {
         return taskRepository.findByTechnicianEmailAndStatusInOrderByCreatedAtDesc(technician.getName(), ACTIVE_STATUSES);
+    }
+
+    // the manager's side of /mine : the active tasks he sent, newest first
+    // the token holds the email, and tasks store the manager's email
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+    public List<TaskModel> getManagerActiveTasks(Authentication manager)
+    {
+        return taskRepository.findByManagerEmailAndStatusInOrderByCreatedAtDesc(manager.getName(), ACTIVE_STATUSES);
+    }
+
+    // true when this user created the task, false for an unknown task.
+    // Lets the manager read the reports sent for his tasks (SubmissionService.getReport)
+    public boolean isTaskManager(String taskId, String email)
+    {
+        return taskRepository.findById(taskId)
+            .map(task -> task.getManagerEmail().equals(email))
+            .orElse(false);
+    }
+
+    // the tasks he sent whose report is waiting for his review (SUBMITTED), oldest submission first
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+    public List<ReviewTask> getManagerTasksToReview(Authentication manager)
+    {
+        return taskRepository.findTasksToReview(manager.getName(), TaskStatus.SUBMITTED);
     }
 
     @Transactional
@@ -79,6 +111,21 @@ public class TaskService {
         );
         
         taskOrder.setStatus(TaskStatus.ASSIGNED);
+
+        // the column is NOT NULL: keep the entity's NORMAL default when the manager sent none
+        if (task.priority() != null)
+            taskOrder.setPriority(task.priority());
+
+        // same checks as a submission: the form must exist and still be active
+        if (task.templateId() != null && !task.templateId().isBlank())
+        {
+            String templateId = task.templateId().trim();
+            CheckListTemplate template = checkListTemplateRepository.findById(templateId).orElseThrow(
+                () -> new FormNotFoundException("no form with id " + templateId));
+            if (!template.isActive())
+                throw new FormNotActiveException("form " + templateId + " is not active anymore");
+            taskOrder.setTemplateId(templateId);
+        }
 
         TaskModel order = taskRepository.save(taskOrder);
 
@@ -200,6 +247,48 @@ public class TaskService {
         TaskEvent saved = taskEventRepository.save(taskEvent);
         
         return saved.getId();
+    }
+
+    // technician sending the task's report: STARTED -> SUBMITTED.
+    // Called by SubmissionService inside its own transaction, so a refused submission
+    // leaves the task untouched and a refused task leaves no submission behind.
+    // submissionId : the report just saved, kept on the task for the manager's review queue
+    @Transactional
+    public void submitTask(String taskId, String technicianEmail, String templateId, String submissionId)
+    {
+        TaskModel task = taskRepository.findById(taskId).
+            orElseThrow( () -> new TaskNotFoundException("no task found with id :" + taskId));
+
+        if (!task.getTechnicianEmail().equals(technicianEmail))
+              throw new AccessDeniedException("task not assigned to this technician");
+
+        // the report is sent while working: a BLOCKED or RETURNED task is started again first
+        if (!task.getStatus().equals(TaskStatus.STARTED))
+            throw new InvalidTaskException("a task in status " + task.getStatus() + " can't be submitted");
+
+        // a task created with a checklist only accepts that checklist
+        if (task.getTemplateId() != null && !task.getTemplateId().equals(templateId))
+            throw new InvalidTaskException("task " + taskId + " expects form " + task.getTemplateId());
+
+        Instant now = Instant.now();
+
+        // close the current work period, like blockTask
+        if (task.getActiveSince() != null)
+        {
+            long periodSeconds = Duration.between(task.getActiveSince(), now).getSeconds();
+            task.setWorkedSeconds(task.getWorkedSeconds() + periodSeconds);
+            task.setActiveSince(null);
+        }
+
+        TaskEvent taskEvent = TaskEvent.statusChanged(taskId, task.getEquipmentId(), technicianEmail,
+                TaskStatus.STARTED, TaskStatus.SUBMITTED, null, null, now);
+
+        task.setStatus(TaskStatus.SUBMITTED);
+        task.setSubmittedAt(now);
+        task.setLatestSubmissionId(submissionId);
+
+        taskRepository.save(task);
+        taskEventRepository.save(taskEvent);
     }
 
     /*

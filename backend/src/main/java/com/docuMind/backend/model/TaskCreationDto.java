@@ -2,6 +2,7 @@ package com.docuMind.backend.model;
 
 import java.time.LocalDate;
 
+import com.docuMind.backend.model.enums.TaskPriority;
 import com.docuMind.backend.model.enums.TaskType;
 
 import jakarta.validation.constraints.Email;
@@ -28,6 +29,12 @@ public record TaskCreationDto(
     String instructions,
 
     // optional : not every task has a deadline
-    LocalDate dueDate
+    LocalDate dueDate,
+
+    // optional : the service uses NORMAL when it's missing
+    TaskPriority priority,
+
+    // optional : the checklist the technician fills for this task; must be an active form
+    String templateId
 )
 {}

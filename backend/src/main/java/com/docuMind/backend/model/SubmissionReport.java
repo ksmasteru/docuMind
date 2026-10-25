@@ -31,8 +31,9 @@ public record SubmissionReport(
         String labelFr,
         String labelAr,
         boolean critical,
-        String value,        // "bon" / "mauvais" (stored lowercase), or a text answer
-        String comment
+        String value,        // "bon" / "mauvais" (stored lowercase), a text answer, or null for a photo
+        String comment,
+        String photo         // IMAGE answers: the photo as a data URI; null otherwise or when unreadable
     )
     {}
 }

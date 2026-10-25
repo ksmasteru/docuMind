@@ -30,13 +30,17 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private UserRole role;
 
+    // the site the user works on
+    @Column
+    private String worksite;
+
     public User() {}
 
     public User(String name, String email, String password, UserRole role) {
         this.name = name;
         this.email = email;
         this.password = password;
-        this.role = (role == null) ? UserRole.USER : role;
+        this.role = role;
     }
 
     @Override
@@ -63,4 +67,6 @@ public class User implements UserDetails {
     public void setRole(UserRole role) {
         this.role = (role == null) ? UserRole.USER : role;
     }
+    public String getWorksite() { return worksite; }
+    public void setWorksite(String worksite) { this.worksite = worksite; }
 }

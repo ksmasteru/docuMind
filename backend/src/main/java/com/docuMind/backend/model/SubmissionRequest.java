@@ -19,7 +19,8 @@ What the client sends when a technician submits a filled form:
   "answers": [
     { "itemId": "I1", "value": "BON" },
     { "itemId": "I4", "value": "MAUVAIS", "comment": "fils cassés près du tambour" }
-  ]
+  ],
+  "taskId": "7c1f…"
 }
 Not sent on purpose: the user (from the token), the date and the status (set by the server).
 */
@@ -41,7 +42,10 @@ public record SubmissionRequest(
 
     // @Valid makes the validator also check every AnswerItem inside the list
     @NotEmpty(message = "a submission must have at least one answer")
-    List<@Valid AnswerItem> answers
+    List<@Valid AnswerItem> answers,
+
+    // optional: the task this report answers. When set, the task moves STARTED -> SUBMITTED
+    String taskId
 )
 {
     public record AnswerItem(

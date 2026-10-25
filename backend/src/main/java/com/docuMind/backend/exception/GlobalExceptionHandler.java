@@ -256,6 +256,18 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorFormat, HttpStatus.NOT_FOUND);
     }
 
+    // the image is already used by another report
+    @ExceptionHandler(ImageAlreadyAttachedException.class)
+    public ResponseEntity<ErrorFormat> handleImageAlreadyAttachedException(ImageAlreadyAttachedException ex,
+        WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.CONFLICT);
+    }
+
     // the task can't move to the requested status (e.g. starting an approved task)
     @ExceptionHandler(InvalidTaskException.class)
     public ResponseEntity<ErrorFormat> handleInvalidTaskException(InvalidTaskException ex,

@@ -55,7 +55,7 @@ public class UserService {
         }
         String encryptedPassword = passwordEncoder.encode(user.getPassword());
         user.setPassword(encryptedPassword);
-        user.setRole(UserRole.ADMIN);
+        //user.setRole(UserRole.ADMIN);
         return userRepository.save(user);
     }
 
@@ -113,6 +113,11 @@ public class UserService {
     // Business Action: Get everyone in the database
     public List<User> getAllUsers() {
         return userRepository.findAll();
+    }
+
+    public List<User> getAllTechnicians()
+    {
+        return userRepository.findAllTechnicians();
     }
 
     // to fix : should throw an exceptionn i user doesnt exist
