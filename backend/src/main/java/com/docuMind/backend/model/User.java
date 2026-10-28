@@ -34,6 +34,10 @@ public class User implements UserDetails {
     @Column
     private String worksite;
 
+    @ManyToOne(fetch= FetchType.LAZY)
+    @JoinColumn(name = "manager_id")
+    private User manager;
+
     public User() {}
 
     public User(String name, String email, String password, UserRole role) {

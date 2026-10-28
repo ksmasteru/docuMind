@@ -1,46 +1,17 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
-import { useTheme } from "./ThemeContext";
 import PhovaLogo from "./PhovaLogo";
+import AppShell from "./AppShell";
+import { ThemeToggle } from "./ThemeToggle";
+import { NAV_LINKS, SIDEBAR_ROLES, homeFor, tabsFor } from "./roleTabs";
 
-// Sun icon — shown when dark mode is on (click to go light)
-function SunIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-      fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="4"/>
-      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
-    </svg>
-  );
-}
-
-// Moon icon — shown when light mode is on (click to go dark)
-function MoonIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-      fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-    </svg>
-  );
-}
-
-export function ThemeToggle() {
-  const { isDark, toggle } = useTheme();
-  return (
-    <button
-      onClick={toggle}
-      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      className="flex items-center justify-center rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100"
-    >
-      {isDark ? <SunIcon /> : <MoonIcon />}
-    </button>
-  );
-}
+// kept here too: the login and signup pages import it from this file
+export { ThemeToggle };
 
 // Shared top navigation bar used by all authenticated pages.
 // active prop highlights the current page link.
 export function TopBar({ active }) {
-  const { isAdmin, logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   // set this variable to true to uncover visualize and user tab
   const showVisualize = false;
@@ -53,45 +24,49 @@ export function TopBar({ active }) {
 
   return (
     <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-      <Link to="/documents" className="flex items-center gap-3">
+      <Link to={homeFor(user?.role)} className="flex items-center gap-3">
         <PhovaLogo className="h-7" />
         <span className="border-l border-slate-200 pl-3 text-sm font-semibold text-slate-900 dark:border-slate-600 dark:text-slate-100">
           GreenSense 4.0
         </span>
       </Link>
       <nav className="flex items-center gap-4">
-        <Link to="/documents" className={linkClass("search")}>Documents</Link>
-        <Link to="/upload" className={linkClass("upload")}>Upload</Link>
-        <Link to="/ask" className={linkClass("ask")}>Ask</Link>
-        <Link to="/tasks" className={linkClass("tasks")}>Tasks</Link>
+        {/* each role sees its own links (roleTabs.js), like the mobile app's tabs; coming pages have no link yet */}
+        {tabsFor(user?.role).filter((page) => NAV_LINKS[page].to).map((page) => (
+          <Link key={page} to={NAV_LINKS[page].to} className={linkClass(page)}>{NAV_LINKS[page].label}</Link>
+        ))}
         {showVisualize && <>
         <Link to="/data-visualisor" className={linkClass("visualize")}>Visualize</Link>
-        
+
         <Link to="/users"  className={linkClass("users")}>Members</Link></>
         }
-        <Link to="/forms" className={linkClass("forms")}>Forms</Link>
-        {isAdmin && (
-          <Link to="/admin" className={linkClass("admin")}>Admin</Link>
-        )}
         <ThemeToggle />
         <button
           onClick={() => logout().then(() => navigate("/login"))}
           className="text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
         >
-          Sign out
+          Se déconnecter
         </button>
       </nav>
     </header>
   );
 }
 
-// Full-page wrapper used by authenticated pages: TopBar + scrollable content area.
+// Full-page wrapper used by authenticated pages. The roles in SIDEBAR_ROLES get the intranet
+// frame (AppShell.jsx); the others the TopBar over a scrollable content area.
 // wide: opt-in wider content area (e.g. the A4 forms page); other pages keep max-w-2xl
-export default function Layout({ active, wide = false, children }) {
+// full: the whole width of the frame, for dashboards
+export default function Layout({ active, wide = false, full = false, children }) {
+  const { user } = useAuth();
+  const width = full ? "max-w-[1440px]" : wide ? "max-w-6xl" : "max-w-2xl";
+
+  if (SIDEBAR_ROLES.includes(user?.role))
+    return <AppShell active={active} contentClass={`mx-auto ${width}`}>{children}</AppShell>;
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <TopBar active={active} />
-      <main className={`mx-auto ${wide ? "max-w-6xl" : "max-w-2xl"} px-4 py-10`}>
+      <main className={`mx-auto ${width} px-4 py-10`}>
         {children}
       </main>
     </div>

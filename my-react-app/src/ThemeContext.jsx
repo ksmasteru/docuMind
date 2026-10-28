@@ -4,12 +4,10 @@ const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
   const [isDark, setIsDark] = useState(() => {
-    // Respect whatever the user chose last session. Fall back to the OS
-    // preference on first visit so the page doesn't start in the wrong
-    // mode before they've touched the toggle.
+    // Respect whatever the user chose last session with the toggle; on a first
+    // visit the site opens in light mode, whatever the OS is set to.
     const stored = localStorage.getItem("theme");
-    if (stored) return stored === "dark";
-    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+    return stored === "dark";
   });
 
   useEffect(() => {

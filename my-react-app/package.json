@@ -7,17 +7,20 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "demo": "vite build && vite preview --port 4173 --strictPort"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.2",
     "axios": "^1.18.1",
+    "lucide-react": "^1.61.0",
     "pdfjs-dist": "^6.1.200",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-pdf": "^10.4.1",
     "react-router-dom": "^7.18.0",
     "react-select": "^5.10.2",
+    "recharts": "^3.10.1",
     "tailwind": "^4.0.0",
     "tailwindcss": "^4.3.2"
   },

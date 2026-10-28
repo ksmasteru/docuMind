@@ -14,6 +14,15 @@ import Ask from "./Ask";
 import Forms from "./Forms";
 import Tasks from "./Tasks";
 import DataVisualisor from "./DataVisualisor";
+import Technicians from "./Technicians";
+import AssignTask from "./AssignTask";
+import Orders from "./Orders";
+import Review from "./Review";
+import ReviewReport from "./ReviewReport";
+import Dashboard from "./Dashboard";
+import Pumps from "./Pumps";
+import AlertDetail, { AlertsIndex } from "./AlertDetail";
+import { homeFor } from "./roleTabs";
 import { pdfjs} from "react-pdf";
 
 pdfjs.GlobalWorkerOptions.workerSrc =
@@ -23,6 +32,13 @@ function ProtectedRoute({ children }) {
   const { isAuthenticated, isLoading } = useAuth();
   if (isLoading) return null; // or a spinner
   return isAuthenticated ? children : <Navigate to="/login" replace />;
+}
+
+// an unknown URL (or "/") goes to the signed-in role's first page
+function HomeRedirect() {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return null;
+  return <Navigate to={user ? homeFor(user.role) : "/login"} replace />;
 }
 
 export default function App() {
@@ -43,7 +59,18 @@ export default function App() {
           <Route path="/forms" element={<ProtectedRoute><Forms/></ProtectedRoute>}/>
           <Route path="/data-visualisor" element={<ProtectedRoute><DataVisualisor /></ProtectedRoute>} />
           <Route path="/tasks" element={<ProtectedRoute><Tasks/></ProtectedRoute>}/>
-          <Route path="*" element={<Navigate to="/documents" replace />} />
+          {/* manager pages: the dashboard (their home page), then the mobile app's Tâche / Ordres / Revue tabs;
+              the backend refuses other roles */}
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard/></ProtectedRoute>}/>
+          <Route path="/pumps" element={<ProtectedRoute><Pumps/></ProtectedRoute>}/>
+          <Route path="/alerts" element={<ProtectedRoute><AlertsIndex/></ProtectedRoute>}/>
+          <Route path="/alerts/:number" element={<ProtectedRoute><AlertDetail/></ProtectedRoute>}/>
+          <Route path="/technicians" element={<ProtectedRoute><Technicians/></ProtectedRoute>}/>
+          <Route path="/assign/:email" element={<ProtectedRoute><AssignTask/></ProtectedRoute>}/>
+          <Route path="/orders" element={<ProtectedRoute><Orders/></ProtectedRoute>}/>
+          <Route path="/review" element={<ProtectedRoute><Review/></ProtectedRoute>}/>
+          <Route path="/review/:id" element={<ProtectedRoute><ReviewReport/></ProtectedRoute>}/>
+          <Route path="*" element={<HomeRedirect />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import { ThemeToggle } from "./Layout";
 import PhovaLogo from "./PhovaLogo";
+import { homeFor } from "./roleTabs";
 
 export default function LoginPage() {
   const { login, isAdmin, isLoading } = useAuth();
@@ -14,7 +15,6 @@ export default function LoginPage() {
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const redirectTo = location.state?.from?.pathname || "/documents";
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -23,10 +23,8 @@ export default function LoginPage() {
 
     try {
       const data = await login(email, password);
-      if (data.Role == "ADMIN")
-        navigate("/admin", {replace: true})
-      else
-        navigate(redirectTo, { replace: true });
+      // each role opens on its first link (roleTabs.js)
+      navigate(location.state?.from?.pathname || homeFor(data.Role), { replace: true });
     } catch (err) {
       const status = err.response?.status;
       if (status === 401 || status === 403) {

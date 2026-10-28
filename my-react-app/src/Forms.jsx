@@ -2,15 +2,20 @@ import Layout from "./Layout";
 import React, { useEffect, useState } from "react";
 import Select from "react-select";
 import InspectionForm from "./InspectionForm";
+import { EXPERTISE_FORM_TITLE, sameText } from "./expertiseForm";
 import { apiClient } from "./apiClient";
+import { useAuth } from "./AuthContext";
 
 // how each checklist type is shown in the picker
 const TYPE_INFO = {
   INSPECTION: { group: "Inspections", badge: "Inspection", style: "bg-[#1A75BC]/10 text-[#1A75BC] dark:bg-[#5BC6E8]/15 dark:text-[#5BC6E8]" },
-  PERMIT: { group: "Work permits", badge: "Permit", style: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300" },
+  PERMIT: { group: "Permis de travail", badge: "Permis", style: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300" },
 };
 
 const Forms = () => {
+  const { user } = useAuth();
+  // technicians only fill in the expertise report for now: it opens on its own, no picker
+  const expertiseOnly = user?.role === "USER";
   const [selected, setSelected] = useState(null);
   const [options, setOptions] = useState(null);   // null = still loading
   const [loadError, setLoadError] = useState(false);
@@ -39,13 +44,44 @@ const Forms = () => {
     }))
     .filter((g) => g.options.length > 0);
 
+  if (expertiseOnly) {
+    const expertise = formOptions.find((o) => sameText(o.label, EXPERTISE_FORM_TITLE));
+    return (
+      <Layout active="forms" wide>
+        <div className="mx-auto max-w-[1000px]">
+          <header>
+            <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{EXPERTISE_FORM_TITLE}</h1>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Remplissez le rapport d’expertise et envoyez-le.
+            </p>
+          </header>
+
+          {options === null ? (
+            <p className="mt-6 text-sm text-slate-500 dark:text-slate-400">Chargement du formulaire…</p>
+          ) : loadError ? (
+            <p className="mt-6 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+              Le formulaire n'a pas pu être chargé. Vérifiez votre connexion et rechargez la page.
+            </p>
+          ) : expertise ? (
+            <InspectionForm key={expertise.value} id={expertise.value} />
+          ) : (
+            <EmptyState
+              title="Rapport d’expertise indisponible"
+              hint="Il n’est pas actif pour le moment. Prévenez votre responsable."
+            />
+          )}
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout active="forms" wide>
       <div className="mx-auto max-w-[1000px]">
         <header>
-          <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Forms</h1>
+          <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Formulaires</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Choose an inspection checklist or a work permit, fill it in, and send it.
+            Choisissez une checklist d’inspection ou un permis de travail, remplissez-le et envoyez-le.
           </p>
         </header>
 
@@ -75,7 +111,7 @@ const FormPicker = ({ selected, setSelected, options, count, loading, loadError 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
         <div className="flex-1">
           <label htmlFor="form-picker" className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
-            Form to fill in
+            Formulaire à remplir
           </label>
           <Select
             inputId="form-picker"
@@ -85,8 +121,8 @@ const FormPicker = ({ selected, setSelected, options, count, loading, loadError 
             isLoading={loading}
             isSearchable
             isClearable
-            placeholder={loading ? "Loading forms…" : "Search by title…"}
-            noOptionsMessage={() => (loadError ? "Forms could not be loaded" : "No active form")}
+            placeholder={loading ? "Chargement des formulaires…" : "Rechercher par titre…"}
+            noOptionsMessage={() => (loadError ? "Les formulaires n'ont pas pu être chargés" : "Aucun formulaire actif")}
             formatOptionLabel={(option) => <OptionLabel option={option} />}
             unstyled
             classNames={selectClassNames}
@@ -94,13 +130,13 @@ const FormPicker = ({ selected, setSelected, options, count, loading, loadError 
         </div>
         {!loading && !loadError && (
           <p className="text-sm text-slate-500 sm:pb-2 dark:text-slate-400">
-            {count} active {count === 1 ? "form" : "forms"}
+            {count} {count === 1 ? "formulaire actif" : "formulaires actifs"}
           </p>
         )}
       </div>
       {loadError && (
         <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
-          The list of forms could not be loaded. Check your connection and reload the page.
+          La liste des formulaires n'a pas pu être chargée. Vérifiez votre connexion et rechargez la page.
         </p>
       )}
     </section>
@@ -155,15 +191,16 @@ const selectClassNames = {
   loadingMessage: () => "px-3 py-3 text-sm text-slate-500 dark:text-slate-400",
 };
 
-const EmptyState = () => (
+const EmptyState = ({
+  title = "Aucun formulaire choisi",
+  hint = "Choisissez une checklist ou un permis ci-dessus. Il s’ouvre ici, prêt à remplir et à envoyer.",
+}) => (
   <div className="mt-6 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 px-6 py-16 text-center dark:border-slate-700">
     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1A75BC]/10 text-2xl dark:bg-[#5BC6E8]/15">
       📋
     </div>
-    <p className="mt-4 text-sm font-medium text-slate-900 dark:text-slate-100">No form selected</p>
-    <p className="mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">
-      Pick a checklist or a permit above. It opens here as a sheet you can fill in and send.
-    </p>
+    <p className="mt-4 text-sm font-medium text-slate-900 dark:text-slate-100">{title}</p>
+    <p className="mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">{hint}</p>
   </div>
 );
 
