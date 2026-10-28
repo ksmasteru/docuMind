@@ -183,8 +183,7 @@ const ChoiceDisplay = ({ label, good, selected }) => {
 };
 
 // The PDF the server builds from the same report, shown as page images, plus a download.
-// Also shown by InspectionForm under a sheet the technician just sent.
-export const ReportPdf = ({ submissionId }) => {
+const ReportPdf = ({ submissionId }) => {
     const [pages, setPages] = useState(null); // base64 PNGs; null while loading
     const [attempt, setAttempt] = useState(0);
     const [previewError, setPreviewError] = useState(false);

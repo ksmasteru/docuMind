@@ -5,7 +5,7 @@
 //   answers    ← local state, keyed by question id: { [questionId]: { value, comment } }
 //   photos     → POST /api/v1/images                      (each photo as soon as it's picked → { imageId })
 //   submit     → POST /api/v1/submissions                 (SubmissionRequest → { id, status })
-//   pdf        ← ReportPdf (ReviewReport.jsx), once the sheet is sent
+//   pdf        ← GET  /api/v1/submissions/{id}/preview + /pdf   (SentReport, once the sheet is sent)
 //
 // The server re-checks everything (all questions answered, critical MAUVAIS has a comment,
 // valid values) and decides the status. The checks here only help the technician.
@@ -19,9 +19,8 @@ import PhovaLogo from "./PhovaLogo";
 import { apiClient } from "./apiClient";
 import { useAuth } from "./AuthContext";
 import { useEffect, useRef, useState } from "react";
-import { Camera, ImagePlus, Loader2, Mic, RefreshCw, Square } from "lucide-react";
+import { Camera, CheckCheck, Download, ImagePlus, Loader2, Mic, RefreshCw, Share2, Square } from "lucide-react";
 import { useVoiceInput } from "./useVoiceInput";
-import { ReportPdf } from "./ReviewReport";
 import { EXPERTISE_FORM_TITLE, sameText } from "./expertiseForm";
 
 // Put in front of every dictation context so the transcriber expects the faults a technician reports
@@ -351,11 +350,7 @@ export default function InspectionForm({ id }) {
         />
       </div>
 
-      {submitted && (
-        <div className="mx-auto mt-6 w-full max-w-[1000px]">
-          <ReportPdf submissionId={result.id} />
-        </div>
-      )}
+      {submitted && <SentReport submissionId={result.id} status={result.status} />}
     </div>
   );
 }
@@ -774,6 +769,189 @@ const STATUS_LABELS = {
   NON_CONFORME: "Non conforme",
   VALIDATED: "Validé",
 };
+
+// ─── After sending: outcome and PDF ────────────────────────────────────────
+
+// the PDF as a File, named the way the server names it ("checklist-MP1-12-10-2026.pdf")
+const fetchPdf = async (submissionId) => {
+  const response = await apiClient.get(`/api/v1/submissions/${submissionId}/pdf`, { responseType: "blob" });
+  const disposition = response.headers["content-disposition"] ?? "";
+  const name = disposition.match(/filename="([^"]+)"/)?.[1] ?? `rapport-${submissionId}.pdf`;
+  return new File([response.data], name, { type: "application/pdf" });
+};
+
+// fetched once and kept in `ref` for both buttons; a failed fetch is forgotten so the next click retries
+const pdfOnce = (ref, submissionId) => {
+  if (!ref.current) {
+    ref.current = fetchPdf(submissionId);
+    ref.current.catch(() => {
+      ref.current = null;
+    });
+  }
+  return ref.current;
+};
+
+// phones and tablets can hand a file to another app (WhatsApp, mail…); most desktops can't
+const canShareFiles = () => {
+  try {
+    return !!navigator.canShare?.({ files: [new File([""], "rapport.pdf", { type: "application/pdf" })] });
+  } catch {
+    return false;
+  }
+};
+
+// The sent sheet's PDF, laid out like the mobile app: outcome, the pages shown in place as
+// images the server renders, then the buttons for the real file. It's rebuilt from the saved
+// submission on each request; nothing about the PDF is stored.
+function SentReport({ submissionId, status }) {
+  const [pages, setPages] = useState(null); // base64 PNGs; null while loading
+  const [attempt, setAttempt] = useState(0);
+  const [previewError, setPreviewError] = useState(false);
+  const [busy, setBusy] = useState(null); // 'download' | 'share' | null
+  const [message, setMessage] = useState(null); // { ok, text } under the buttons
+  const [shareable] = useState(canShareFiles);
+  const pdf = useRef(null);
+  const box = useRef(null);
+
+  // the sheet was sent from its footer: bring the outcome into view
+  useEffect(() => {
+    box.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  // Sharing must start right after the tap, and Safari refuses it once a download has been
+  // awaited in between, so the file is fetched ahead where it can be shared.
+  useEffect(() => {
+    if (shareable) pdfOnce(pdf, submissionId).catch(() => {});
+  }, [shareable, submissionId]);
+
+  // attempt: bumped by Réessayer to run this again
+  useEffect(() => {
+    const loadPreview = async () => {
+      try {
+        const { data } = await apiClient.get(`/api/v1/submissions/${submissionId}/preview`);
+        if (data.pages?.length) setPages(data.pages);
+        else setPreviewError(true);
+      } catch (err) {
+        console.log("error while fetching the report preview", err);
+        setPreviewError(true);
+      }
+    };
+    loadPreview();
+  }, [submissionId, attempt]);
+
+  const retryPreview = () => {
+    setPreviewError(false);
+    setPages(null);
+    setAttempt((n) => n + 1);
+  };
+
+  const onDownload = async () => {
+    setBusy("download");
+    setMessage(null);
+    try {
+      const file = await pdfOnce(pdf, submissionId);
+      const url = URL.createObjectURL(file);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.name;
+      a.click();
+      // revoked a moment later: Safari may still be reading it right after the click
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setMessage({ ok: true, text: `Téléchargé : ${file.name}` });
+    } catch (err) {
+      console.log("error while downloading the report", err);
+      setMessage({ ok: false, text: "Téléchargement impossible. Vérifier la connexion et réessayer." });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const onShare = async () => {
+    setBusy("share");
+    setMessage(null);
+    try {
+      const file = await pdfOnce(pdf, submissionId);
+      await navigator.share({ files: [file], title: file.name });
+    } catch (err) {
+      // AbortError: the share sheet was closed without picking an app
+      if (err?.name !== "AbortError") {
+        console.log("error while sharing the report", err);
+        setMessage({ ok: false, text: "Partage impossible. Télécharger le PDF à la place." });
+      }
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const shown = status ?? "DRAFT";
+  const actionClass =
+    "inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700";
+
+  return (
+    <div ref={box} className="mx-auto mt-6 w-full max-w-[1000px] scroll-mt-6 space-y-3">
+      <div className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold ${STATUS_STYLES[shown]}`}>
+        <CheckCheck className="h-5 w-5" />
+        Envoyé · {STATUS_LABELS[shown] ?? shown}
+      </div>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Rapport PDF</p>
+
+        {pages === null && !previewError && (
+          <div className="flex flex-col items-center gap-2 py-10 text-sm text-slate-500 dark:text-slate-400">
+            <Loader2 className="h-5 w-5 animate-spin text-[#1A75BC]" />
+            Génération du rapport…
+          </div>
+        )}
+
+        {previewError && (
+          <div className="flex flex-col items-center gap-3 py-8 text-sm text-red-700 dark:text-red-300">
+            L'aperçu n'a pas pu être chargé.
+            <button
+              type="button"
+              onClick={retryPreview}
+              className="inline-flex items-center gap-1 rounded-full border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+            >
+              <RefreshCw className="h-3.5 w-3.5" /> Réessayer
+            </button>
+          </div>
+        )}
+
+        {/* a sheet of paper: white whatever the theme, like the PDF */}
+        {pages?.map((page, i) => (
+          <img
+            key={i}
+            src={`data:image/png;base64,${page}`}
+            alt={`Page ${i + 1} du rapport`}
+            className="mt-3 w-full rounded-lg border border-slate-200 bg-white dark:border-slate-700"
+          />
+        ))}
+        {pages?.length > 1 && (
+          <p className="mt-2 text-center text-xs text-slate-500 dark:text-slate-400">{pages.length} pages</p>
+        )}
+
+        <div className="mt-4 flex gap-2">
+          <button type="button" onClick={onDownload} disabled={busy !== null} className={actionClass}>
+            {busy === "download" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            Télécharger
+          </button>
+          {shareable && (
+            <button type="button" onClick={onShare} disabled={busy !== null} className={actionClass}>
+              {busy === "share" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+              Partager
+            </button>
+          )}
+        </div>
+
+        {message && (
+          <p className={`mt-3 text-sm ${message.ok ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-300"}`}>
+            {message.text}
+          </p>
+        )}
+      </section>
+    </div>
+  );
+}
 
 // dictating: a transcript still on its way would miss the submission, so sending waits for it
 function FormFooter({ status, inspector, sending, submitted, dictating, onSubmit }) {

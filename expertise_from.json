@@ -1,0 +1,19 @@
+{
+  "title": "Rapport d'expertise",
+  "type": "INSPECTION",
+  "instructions": "Version courte du rapport d'expertise pompe, à remplir au démontage. Prenez les photos demandées et dictez les observations avec le micro. Un point critique noté « Mauvais » demande un commentaire.",
+  "items": [
+    { "labelFr": "Client", "labelAr": "العميل", "critical": false, "answerType": "TEXT" },
+    { "labelFr": "Fluide pompé", "labelAr": "السائل المضخوخ", "critical": false, "answerType": "TEXT" },
+    { "labelFr": "Photo de la pompe à la réception", "labelAr": "صورة المضخة عند الاستلام", "critical": false, "answerType": "IMAGE" },
+    { "labelFr": "Corps de la pompe", "labelAr": "جسم المضخة", "critical": true, "answerType": "BON_MAUVAIS" },
+    { "labelFr": "Roue", "labelAr": "الدفاعة (المروحة)", "critical": true, "answerType": "BON_MAUVAIS" },
+    { "labelFr": "Photo de la roue", "labelAr": "صورة الدفاعة", "critical": false, "answerType": "IMAGE" },
+    { "labelFr": "Arbre", "labelAr": "العمود", "critical": true, "answerType": "BON_MAUVAIS" },
+    { "labelFr": "Roulements", "labelAr": "المحامل", "critical": false, "answerType": "BON_MAUVAIS" },
+    { "labelFr": "Garniture mécanique", "labelAr": "مانع التسرب الميكانيكي", "critical": true, "answerType": "BON_MAUVAIS" },
+    { "labelFr": "Photo de la garniture mécanique démontée", "labelAr": "صورة مانع التسرب الميكانيكي بعد التفكيك", "critical": false, "answerType": "IMAGE" },
+    { "labelFr": "Constat d'expertise au démontage (dictée vocale)", "labelAr": "ملاحظات الخبرة عند التفكيك (إملاء صوتي)", "critical": false, "answerType": "TEXT" },
+    { "labelFr": "Pièces à changer ou à réparer (dictée vocale)", "labelAr": "القطع الواجب استبدالها أو إصلاحها (إملاء صوتي)", "critical": false, "answerType": "TEXT" }
+  ]
+}
