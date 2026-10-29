@@ -208,6 +208,18 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorFormat, HttpStatus.BAD_REQUEST);
     }
 
+    // a login link that can't sign anyone in (unknown, expired, revoked)
+    @ExceptionHandler(InvalidLoginLinkException.class)
+    public ResponseEntity<ErrorFormat> handleInvalidLoginLinkException(InvalidLoginLinkException ex,
+        WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.UNAUTHORIZED);
+    }
+
     // a registration endpoint received a role it doesn't handle
     @ExceptionHandler(InvalidRoleException.class)
     public ResponseEntity<ErrorFormat> handleInvalidRoleException(InvalidRoleException ex,

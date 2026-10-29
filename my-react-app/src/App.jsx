@@ -12,6 +12,7 @@ import UploadedFiles from "./UploadedFiles";
 import SearchContent from "./SearchContent";
 import Ask from "./Ask";
 import Forms from "./Forms";
+import LinkLogin from "./LinkLogin";
 import Tasks from "./Tasks";
 import DataVisualisor from "./DataVisualisor";
 import Technicians from "./Technicians";
@@ -51,6 +52,8 @@ export default function App() {
           <Route path="/users" element={<ProtectedRoute><SearchUsersPage /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
           <Route path="/login" element={<LoginPage />} />
+          {/* a manager's login link: signs a technician in without a password */}
+          <Route path="/t/:token" element={<LinkLogin />} />
           <Route path="/documents" element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
           <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
           <Route path="/uploadedFiles" element={<UploadedFiles />}/>

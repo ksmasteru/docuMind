@@ -58,6 +58,16 @@ export function AuthProvider({ children }) {
     return data;
   }, []);
 
+  // A manager's login link (LinkLogin.jsx, /t/:token): the server swaps its token for the
+  // same tokens /login returns, so the session that follows is an ordinary one.
+  const loginWithLink = useCallback(async (token) => {
+    const { data } = await apiClient.post("/api/auth/link", { token });
+    setAccessToken(data.accessToken);
+    localStorage.setItem("refreshToken", data.refreshToken);
+    setUser({ role: data.Role });
+    return data;
+  }, []);
+
   const logout = useCallback(async () => {
     const refreshToken = localStorage.getItem("refreshToken");
     try {
@@ -77,6 +87,7 @@ export function AuthProvider({ children }) {
     isAuthenticated: !!user,
     isAdmin: user?.role === "ADMIN",
     login,
+    loginWithLink,
     logout,
   };
 

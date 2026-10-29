@@ -25,6 +25,7 @@ import com.docuMind.backend.model.UserResponseWrapper;
 import com.docuMind.backend.model.UserResponseWrapper.UserInfo;
 import com.docuMind.backend.model.enums.UserRole;
 import com.docuMind.backend.security.JwtService;
+import com.docuMind.backend.security.LoginLinkService;
 import com.docuMind.backend.security.RefreshToken;
 import com.docuMind.backend.security.RefreshTokenRepository;
 import com.docuMind.backend.security.RefreshTokenService;
@@ -45,13 +46,15 @@ public class AuthController {
     private final CustomUserDetailsService userDetailsService;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
+    private final LoginLinkService loginLinkService;
     // Single constructor injection handles all dependencies smoothly
     public AuthController(
-            UserService userService, 
-            AuthenticationManager authenticationManager, 
-            CustomUserDetailsService userDetailsService, 
+            UserService userService,
+            AuthenticationManager authenticationManager,
+            CustomUserDetailsService userDetailsService,
             JwtService jwtService,
-            RefreshTokenService refreshTokenService, RefreshTokenRepository refreshTokenRepository
+            RefreshTokenService refreshTokenService, RefreshTokenRepository refreshTokenRepository,
+            LoginLinkService loginLinkService
     ) {
         this.userService = userService;
         this.authenticationManager = authenticationManager;
@@ -59,6 +62,7 @@ public class AuthController {
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
         this.refreshTokenRepository = refreshTokenRepository;
+        this.loginLinkService = loginLinkService;
     }
 
     @PostMapping("/register-admin")
@@ -144,6 +148,20 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                                  .body(Map.of("error", "Invalid email or password"));
         }
+    }
+
+    // Signs a technician in from a login link (LoginLinkController makes them): { token } is the
+    // last part of <web app>/t/<token>. Same tokens as /login, so the session afterwards is an
+    // ordinary one. 401 when the link is unknown, expired or revoked.
+    @PostMapping("/link")
+    public ResponseEntity<?> loginWithLink(@RequestBody Map<String, String> request) {
+        User technician = loginLinkService.signIn(request.get("token"));
+        System.out.println("new login link sign-in for " + technician.getEmail());
+
+        final UserDetails userDetails = userDetailsService.loadUserByUsername(technician.getEmail());
+        RefreshToken refreshTokenObj = refreshTokenService.generateRefreshToken(technician.getEmail());
+        final String accessToken = jwtService.generateToken(userDetails);
+        return ResponseEntity.ok(new AuthResponse(accessToken, refreshTokenObj.getToken(), "Bearer", technician.getRole()));
     }
 
     // sends refreshtoken.,
