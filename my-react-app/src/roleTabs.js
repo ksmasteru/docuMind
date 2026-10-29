@@ -2,8 +2,9 @@
 // (UserRole on the backend: USER = technician). The links show in this order, and the first
 // one is where the app opens after login.
 //
-// This only hides links: a hidden page can still be opened by its URL, so the backend
-// has to refuse what a role may not do.
+// For most roles this only hides links: a hidden page can still be opened by its URL, so the
+// backend has to refuse what a role may not do. Technicians (LOCKED_ROLES) are also kept to
+// their own pages: App.jsx's ProtectedRoute sends any other URL back to their home page.
 import { Bell, ClipboardCheck, ClipboardList, Cpu, FileSearch, FileUp, LayoutDashboard, ListChecks, MessageSquareText, ShieldCheck, Users } from "lucide-react";
 
 // keyed by the `active` value each page passes to <Layout>
@@ -42,5 +43,16 @@ export const NAV_SECTIONS = [
 
 // an unknown role gets the technician's links, the smallest set
 export const tabsFor = (role) => ROLE_TABS[role] ?? ROLE_TABS.USER;
+
+// roles that may only open their own pages (an old bookmark to /documents goes home instead)
+export const LOCKED_ROLES = ["USER"];
+
+// whether `role` may be on `path`: one of its links, or a page under one ("/forms/…")
+export const canOpen = (role, path) =>
+  !LOCKED_ROLES.includes(role) ||
+  tabsFor(role).some((page) => {
+    const to = NAV_LINKS[page].to;
+    return to && (path === to || path.startsWith(`${to}/`));
+  });
 
 export const homeFor = (role) => NAV_LINKS[tabsFor(role).find((page) => NAV_LINKS[page].to)].to;

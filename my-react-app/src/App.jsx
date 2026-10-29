@@ -1,5 +1,5 @@
 // App.jsx
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./AuthContext";
 import LoginPage from "./LoginPage";
 import SearchPage from "./SearchPage";
@@ -23,16 +23,20 @@ import ReviewReport from "./ReviewReport";
 import Dashboard from "./Dashboard";
 import Pumps from "./Pumps";
 import AlertDetail, { AlertsIndex } from "./AlertDetail";
-import { homeFor } from "./roleTabs";
+import { canOpen, homeFor } from "./roleTabs";
 import { pdfjs} from "react-pdf";
 
 pdfjs.GlobalWorkerOptions.workerSrc =
   new URL("pdfjs-dist/build/pdf.worker.min.js", import.meta.url).toString();
   
 function ProtectedRoute({ children }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const { pathname } = useLocation();
   if (isLoading) return null; // or a spinner
-  return isAuthenticated ? children : <Navigate to="/login" replace />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  // a technician on a page that isn't theirs (old bookmark, reopened tab) goes back home
+  if (!canOpen(user.role, pathname)) return <Navigate to={homeFor(user.role)} replace />;
+  return children;
 }
 
 // an unknown URL (or "/") goes to the signed-in role's first page

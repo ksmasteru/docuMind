@@ -5,6 +5,7 @@ import {useAuth} from "./AuthContext";
 import Layout from "./Layout";
 import { ThemeToggle } from "./Layout";
 import PhovaLogo from "./PhovaLogo";
+import { homeFor } from "./roleTabs";
 
 export default function SignupPage() {
   
@@ -28,7 +29,8 @@ export default function SignupPage() {
       {
         const data = await login(email,password);
         console.log(`result of login is : ${JSON.stringify(data)}`);
-        navigate("/documents", { replace: true });
+        // each role opens on its first link (roleTabs.js), as after a login
+        navigate(homeFor(data.Role), { replace: true });
       }
     }
      catch (err) {
