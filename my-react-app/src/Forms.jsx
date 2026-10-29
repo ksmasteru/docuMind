@@ -2,7 +2,8 @@ import Layout from "./Layout";
 import React, { useEffect, useState } from "react";
 import Select from "react-select";
 import InspectionForm from "./InspectionForm";
-import { EXPERTISE_FORM_TITLE, sameText } from "./expertiseForm";
+import { ChevronLeft, ChevronRight, ClipboardCheck } from "lucide-react";
+import { TECHNICIAN_FORMS, sameText } from "./expertiseForm";
 import { apiClient } from "./apiClient";
 import { useAuth } from "./AuthContext";
 
@@ -14,8 +15,8 @@ const TYPE_INFO = {
 
 const Forms = () => {
   const { user } = useAuth();
-  // technicians only fill in the expertise report for now: it opens on its own, no picker
-  const expertiseOnly = user?.role === "USER";
+  // technicians only fill in the expertise report for now, the quick or the full one (TECHNICIAN_FORMS)
+  const technician = user?.role === "USER";
   const [selected, setSelected] = useState(null);
   const [options, setOptions] = useState(null);   // null = still loading
   const [loadError, setLoadError] = useState(false);
@@ -44,31 +45,60 @@ const Forms = () => {
     }))
     .filter((g) => g.options.length > 0);
 
-  if (expertiseOnly) {
-    const expertise = formOptions.find((o) => sameText(o.label, EXPERTISE_FORM_TITLE));
+  if (technician) {
+    // the technician's forms that are active on the server, in TECHNICIAN_FORMS order
+    const choices = TECHNICIAN_FORMS
+      .map((form) => ({ ...form, option: formOptions.find((o) => sameText(o.label, form.title)) }))
+      .filter((choice) => choice.option);
+
+    // answers live in the open sheet, so leaving it drops whatever wasn't sent
+    const leaveSheet = () => {
+      if (window.confirm("Changer de formulaire ? Les réponses non envoyées seront perdues.")) setSelected(null);
+    };
+
     return (
       <Layout active="forms" wide>
         <div className="mx-auto max-w-[1000px]">
-          <header>
-            <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{EXPERTISE_FORM_TITLE}</h1>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Remplissez le rapport d’expertise et envoyez-le.
-            </p>
-          </header>
-
-          {options === null ? (
-            <p className="mt-6 text-sm text-slate-500 dark:text-slate-400">Chargement du formulaire…</p>
-          ) : loadError ? (
-            <p className="mt-6 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
-              Le formulaire n'a pas pu être chargé. Vérifiez votre connexion et rechargez la page.
-            </p>
-          ) : expertise ? (
-            <InspectionForm key={expertise.value} id={expertise.value} />
+          {selected ? (
+            <>
+              <button
+                type="button"
+                onClick={leaveSheet}
+                className="inline-flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100"
+              >
+                <ChevronLeft className="h-4 w-4" /> Changer de formulaire
+              </button>
+              {/* key: a new form gets a fresh, empty sheet */}
+              <InspectionForm key={selected.value} id={selected.value} />
+            </>
           ) : (
-            <EmptyState
-              title="Rapport d’expertise indisponible"
-              hint="Il n’est pas actif pour le moment. Prévenez votre responsable."
-            />
+            <>
+              <header>
+                <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Formulaires</h1>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  Choisissez le rapport à remplir, puis envoyez-le.
+                </p>
+              </header>
+
+              {options === null ? (
+                <p className="mt-6 text-sm text-slate-500 dark:text-slate-400">Chargement des formulaires…</p>
+              ) : loadError ? (
+                <p className="mt-6 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+                  Les formulaires n'ont pas pu être chargés. Vérifiez votre connexion et rechargez la page.
+                </p>
+              ) : choices.length ? (
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  {choices.map((choice) => (
+                    <FormChoice key={choice.option.value} choice={choice} onPick={() => setSelected(choice.option)} />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  title="Rapport d’expertise indisponible"
+                  hint="Il n’est pas actif pour le moment. Prévenez votre responsable."
+                />
+              )}
+            </>
           )}
         </div>
       </Layout>
@@ -142,6 +172,24 @@ const FormPicker = ({ selected, setSelected, options, count, loading, loadError 
     </section>
   );
 };
+
+// one of the technician's forms: the server's title, what it holds, a chevron to open it
+const FormChoice = ({ choice, onPick }) => (
+  <button
+    type="button"
+    onClick={onPick}
+    className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-[#1A75BC] hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-[#5BC6E8]"
+  >
+    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#1A75BC]/10 text-[#1A75BC] dark:bg-[#5BC6E8]/15 dark:text-[#5BC6E8]">
+      <ClipboardCheck className="h-5 w-5" />
+    </span>
+    <span className="min-w-0 flex-1">
+      <span className="block font-semibold text-slate-900 dark:text-slate-100">{choice.option.label}</span>
+      <span className="mt-0.5 block text-sm text-slate-500 dark:text-slate-400">{choice.hint}</span>
+    </span>
+    <ChevronRight className="h-5 w-5 shrink-0 text-slate-400" />
+  </button>
+);
 
 // one option in the list: title + type badge
 const OptionLabel = ({ option }) => {

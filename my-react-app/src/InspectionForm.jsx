@@ -21,7 +21,7 @@ import { useAuth } from "./AuthContext";
 import { useEffect, useRef, useState } from "react";
 import { Camera, CheckCheck, Download, ImagePlus, Loader2, Mic, RefreshCw, Share2, Square } from "lucide-react";
 import { useVoiceInput } from "./useVoiceInput";
-import { EXPERTISE_FORM_TITLE, sameText } from "./expertiseForm";
+import { isExpertiseTitle } from "./expertiseForm";
 
 // Put in front of every dictation context so the transcriber expects the faults a technician reports
 // on pumps, hoists and similar equipment. Same text as mobile: Whisper copies the prompt's style and
@@ -217,7 +217,7 @@ export default function InspectionForm({ id }) {
   // What each mic is about, sent with the audio so the transcriber expects the item's own
   // words (linguet, moufle, élingue…) instead of guessing. Written as the text that would
   // come just before the technician's sentence, which is how Whisper reads it.
-  const isExpertise = sameText(template.title, EXPERTISE_FORM_TITLE);
+  const isExpertise = isExpertiseTitle(template.title);
   const vocabulary = isExpertise ? EXPERTISE_VOCABULARY : MAINTENANCE_VOCABULARY;
   const subject = isExpertise ? "Rapport d'expertise pompe" : template.title;
   const itemContext = (q, lead) =>
