@@ -26,8 +26,8 @@ export const NAV_LINKS = {
 export const ROLE_TABS = {
   MANAGER: ["dashboard", "pumps", "alerts", "technicians", "orders", "review", "search", "ask"],
   ADMIN: ["upload", "search", "ask"],
-  // technicians only fill in forms, like the mobile app's expertise build
-  USER: ["forms"],
+  // technicians fill in forms, follow their tasks and look things up in the manuals
+  USER: ["forms", "tasks", "ask", "search"],
 };
 
 // the roles that get the intranet's sidebar; the others keep the top bar

@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<!--
+  PDF of a "Rapport d'expertise complet", laid out like PHOVA's paper expertise report
+  (Rapport_ass.pdf): the three logos on top of every page, the PHOVA signature at the bottom,
+  then Informations générales, the pump on arrival, each part's photos with its ticked
+  COMMENTAIRES / RECOMMANDATIONS, the measurements, the mechanical seal, the parts, and the
+  assembly checklist. Rendered by Thymeleaf then OpenHTMLtoPDF (SubmissionPdfService).
+
+  Rules for OpenHTMLtoPDF: well-formed XHTML (every tag closed, <br/>, &#160; not &nbsp;).
+
+  Expects "report", an ExpertiseReport (see that record for every field), the logos as
+  data URIs: "logo" (PHOVA), "um6pLogo", "ocpLogo", and "drawings", the paper report's
+  measurement drawings as data URIs by name (static/expertise: arbre-palier, coupe-pompe,
+  concentricite-arbre, deplacement-axial, deplacement-radial, perpendicularite, concentricite-boite).
+  Fonts registered on the builder: "Noto Sans" 400 / 700.
+  The tick boxes are drawn with CSS: Noto Sans has no ☒ / ☐ glyphs.
+-->
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Rapport d'expertise</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 32mm 13mm 26mm 13mm;
+      @top-center { content: element(header); }
+      @bottom-center { content: element(footer); }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: "Noto Sans";
+      font-size: 8pt;
+      line-height: 1.25;
+      color: #111111;
+      margin: 0;
+    }
+
+    /* ─── Running header / footer: on every page ─── */
+    #header { position: running(header); width: 100%; }
+    #header table { width: 100%; border-collapse: collapse; }
+    #header td { border: none; vertical-align: middle; }
+    #header .left { width: 33%; text-align: left; }
+    #header .center { width: 34%; text-align: center; }
+    #header .right { width: 33%; text-align: right; }
+    #header .phova { height: 11mm; }
+    #header .um6p { height: 17mm; }
+    #header .ocp { height: 15mm; }
+
+    #footer { position: running(footer); width: 100%; text-align: center; color: #5b9bd5; }
+    #footer .company { font-size: 9pt; font-weight: bold; letter-spacing: 0.3pt; }
+    #footer .motto { font-size: 12.5pt; font-weight: bold; word-spacing: 4pt; }
+    #footer .page { font-size: 6.5pt; color: #8a8a8a; font-weight: normal; }
+    #footer .page:after { content: "Page " counter(page) " / " counter(pages); }
+
+    table { border-collapse: collapse; }
+    td, th { border: 0.7pt solid #222222; vertical-align: middle; }
+
+    h1 {
+      margin: 0;
+      text-align: center;
+      font-size: 11.5pt;
+      font-weight: bold;
+    }
+    h2 {
+      margin: 1.5mm 0 1.5mm 0;
+      text-align: center;
+      font-size: 12.5pt;
+      font-weight: bold;
+      text-decoration: underline;
+    }
+    h3 {
+      margin: 0 0 3mm 0;
+      font-size: 9.5pt;
+      font-weight: bold;
+      text-decoration: underline;
+    }
+
+    .new-page { page-break-before: always; }
+    .keep { page-break-inside: avoid; }
+
+    /* ─── Informations générales ─── */
+    .info { width: 86%; margin: 0 auto; }
+    .info td { padding: 0.5mm 2mm; height: 5mm; }
+    .info .label { width: 37%; background: #d6dce5; font-weight: bold; text-align: center; font-size: 7.5pt; }
+    .info .value { text-align: center; font-weight: bold; font-size: 8.5pt; }
+
+    /* ─── A part: photos, then IMAGE / COMMENTAIRES / RECOMMANDATIONS ─── */
+    /* fixed layout: a wide photo must not push the table (or its neighbour) past the page */
+    .part { width: 100%; table-layout: fixed; }
+    .part td { padding: 0.6mm 1.5mm; font-size: 7.2pt; }
+    .part .photos { padding: 1mm; text-align: center; }
+    .part .lab { background: #d0cece; font-size: 6.6pt; }
+    .part .name { font-weight: bold; font-size: 8pt; }
+    .part .box-cell { text-align: center; }
+    .part .text { white-space: pre-wrap; font-style: italic; }
+    .part .group-start td { border-top-width: 1.6pt; }
+
+    .grid { width: 100%; table-layout: fixed; }
+    .grid td { border: 0.7pt solid #222222; padding: 0.5mm; text-align: center; width: 50%; }
+    .grid img { width: 100%; max-height: 40mm; }
+    .single { max-width: 100%; max-height: 72mm; }
+    .wide .single { max-height: 95mm; }
+    .no-photo { color: #8a8a8a; font-size: 7pt; padding: 6mm 0; }
+
+    .box {
+      display: inline-block;
+      width: 2.8mm;
+      height: 2.8mm;
+      border: 0.7pt solid #222222;
+      font-size: 6.5pt;
+      line-height: 2.6mm;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    /* two parts side by side */
+    .pair { width: 100%; margin-bottom: 4mm; page-break-inside: avoid; table-layout: fixed; }
+    .pair > tbody > tr > td.half,
+    .pair > tr > td.half { border: none; width: 49%; vertical-align: top; padding: 0; }
+    .pair td.gap { border: none; width: 2%; }
+
+    .reception { width: 62%; margin: 0 auto; }
+
+    /* ─── Measurements ─── */
+    .measure { width: 62%; margin-bottom: 5mm; }
+    .measure td { padding: 0.8mm 2mm; font-size: 8pt; }
+    .measure .value { width: 22%; text-align: center; }
+
+    .drawing { display: block; height: 32mm; margin: 2mm 0 1mm 0; }
+    .shaft { display: block; width: 100%; margin-top: 2mm; }
+    .section { display: block; height: 42mm; margin-top: 1mm; }
+    .bearing-labels { width: 100%; table-layout: fixed; }
+    .bearing-labels td { border: none; text-align: center; font-weight: bold; font-size: 8pt; padding: 0; }
+
+    .dims { width: 100%; margin-top: 2mm; }
+    .dims td, .dims th { padding: 0.8mm 1mm; text-align: center; font-size: 7.5pt; }
+    .dims th { font-weight: bold; }
+    .dims .row-label { font-weight: bold; text-align: left; white-space: nowrap; }
+    .dims .blank { border: none; }
+    /* a value the technician marked out of tolerance: red, as on the paper report */
+    .out { background: #ff0000; color: #000000; }
+
+    /* ─── Garniture mécanique ─── */
+    .seal { width: 42%; margin: 0 auto 6mm auto; }
+    .seal td { padding: 0.6mm 2mm; height: 5mm; font-size: 8pt; }
+    .seal .label { width: 45%; }
+
+    .figure { width: 80%; margin: 0 auto; }
+    .figure td { padding: 1mm; }
+    .figure .lab { width: 14%; background: #d0cece; font-size: 7.2pt; }
+    .figure .caption { text-align: center; font-weight: bold; font-size: 7.5pt; }
+
+    /* ─── Parts table ─── */
+    .parts { width: 100%; }
+    .parts th { background: #8c8c8c; font-size: 7.5pt; padding: 0.8mm 1mm; }
+    .parts td { padding: 1.2mm 1.5mm; text-align: center; font-size: 8pt; }
+    .parts .qty { width: 8%; font-weight: bold; }
+    .parts .desc { width: 26%; font-weight: bold; font-size: 9pt; }
+
+    .extra-title { font-weight: bold; font-size: 9pt; margin-bottom: 3mm; }
+    .extra-title .text { font-weight: bold; }
+
+    /* ─── Montage pompe ─── */
+    .mount-title { width: 100%; margin-top: 10mm; }
+    .mount-title td { text-align: center; font-size: 15pt; font-weight: bold; padding: 3mm; }
+    .mount-head { width: 100%; margin-top: 3mm; }
+    .mount-head td { padding: 0.8mm 2mm; font-size: 7.5pt; }
+    .mount-head .label { font-weight: bold; white-space: nowrap; }
+    .mount { width: 100%; margin-top: 5mm; }
+    .mount th { font-size: 10pt; padding: 4mm 2mm; }
+    .mount td { padding: 1mm 2mm; font-size: 7.5pt; font-weight: bold; }
+    .mount .status { width: 11%; text-align: center; }
+    .mount .remark { width: 20%; }
+    .mount td.remark { font-weight: normal; }
+    .nc { color: #b42318; font-weight: bold; font-size: 7pt; }
+
+    .others { width: 100%; margin-top: 3mm; }
+    .others td { padding: 0.8mm 2mm; font-size: 7.5pt; }
+    .others .label { width: 45%; background: #eeeeee; }
+
+    .remarks { margin-top: 5mm; font-size: 8pt; white-space: pre-wrap; }
+    .reference { margin-top: 4mm; font-size: 6.5pt; color: #6b6b6b; }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ Running header and footer (must come first) ═══ -->
+  <div id="header">
+    <table>
+      <tr>
+        <td class="left"><img class="phova" th:src="${logo}" alt="PHOVA Technology"/></td>
+        <td class="center"><img class="um6p" th:src="${um6pLogo}" alt="Mohammed VI Polytechnic University"/></td>
+        <td class="right"><img class="ocp" th:src="${ocpLogo}" alt="OCP"/></td>
+      </tr>
+    </table>
+  </div>
+  <div id="footer">
+    <div class="company">PHOSPHATE VALLEY TECHNOLOGY</div>
+    <div class="motto">Providing Serenity &amp; Boosting Competitiveness</div>
+    <div class="page"></div>
+  </div>
+
+  <!-- ═══ Reusable blocks (only used through th:replace) ═══ -->
+  <div th:remove="all">
+
+    <!-- photos: one alone, or a 2 × 2 grid -->
+    <th:block th:fragment="photos(list)">
+      <div th:if="${#lists.isEmpty(list)}" class="no-photo">Pas de photo</div>
+      <img th:if="${#lists.size(list) == 1}" class="single" th:src="${list[0]}" alt="Photo"/>
+      <table th:if="${#lists.size(list) > 1}" class="grid">
+        <tr th:each="r : ${#numbers.sequence(0, (#lists.size(list) - 1) / 2)}">
+          <td><img th:src="${list[r * 2]}" alt="Photo"/></td>
+          <td><img th:if="${r * 2 + 1 lt #lists.size(list)}" th:src="${list[r * 2 + 1]}" alt="Photo"/></td>
+        </tr>
+      </table>
+    </th:block>
+
+    <!-- one part: photos, then IMAGE / COMMENTAIRES / RECOMMANDATIONS like the paper report -->
+    <table th:fragment="part(p)" class="part">
+      <!-- fixed layout takes its widths from here: label, choice, box -->
+      <colgroup><col style="width: 30%;"/><col style="width: 61%;"/><col style="width: 9%;"/></colgroup>
+      <tr><td class="photos" colspan="3"><th:block th:replace="~{:: photos(${p.photos})}"/></td></tr>
+      <tr>
+        <td class="lab">IMAGE</td>
+        <td class="name" colspan="2" th:text="${p.name}">Corps de la pompe</td>
+      </tr>
+
+      <tr th:each="c, st : ${p.comments}" th:classappend="${st.first} ? 'group-start'">
+        <td th:if="${st.first}" class="lab" th:rowspan="${#lists.size(p.comments)}">COMMENTAIRES</td>
+        <td th:text="${c.label}">Bon état</td>
+        <td class="box-cell"><span class="box"><th:block th:if="${c.checked}">X</th:block></span></td>
+      </tr>
+      <tr th:if="${p.commentText != null}">
+        <td class="lab" th:text="${#lists.isEmpty(p.comments)} ? 'COMMENTAIRES' : 'OBSERVATIONS'">OBSERVATIONS</td>
+        <td class="text" colspan="2" th:text="${p.commentText}"></td>
+      </tr>
+
+      <tr th:each="c, st : ${p.recommendations}" th:classappend="${st.first} ? 'group-start'">
+        <td th:if="${st.first}" class="lab" th:rowspan="${#lists.size(p.recommendations)}">RECOMMANDATIONS</td>
+        <td th:text="${c.label}">Nettoyage et réutilisation</td>
+        <td class="box-cell"><span class="box"><th:block th:if="${c.checked}">X</th:block></span></td>
+      </tr>
+      <tr th:if="${p.recommendationText != null}">
+        <td class="lab" th:text="${#lists.isEmpty(p.recommendations)} ? 'RECOMMANDATIONS' : 'PRÉCISIONS'">PRÉCISIONS</td>
+        <td class="text" colspan="2" th:text="${p.recommendationText}"></td>
+      </tr>
+    </table>
+
+    <!-- parts two by two. th:replace runs before th:if, so the guard wraps it -->
+    <th:block th:fragment="pairs(list)">
+      <table th:each="pair : ${list}" class="pair">
+        <tr>
+          <td class="half"><table th:replace="~{:: part(${pair[0]})}"></table></td>
+          <td class="gap"></td>
+          <td class="half">
+            <th:block th:if="${#lists.size(pair) > 1}"><table th:replace="~{:: part(${pair[1]})}"></table></th:block>
+          </td>
+        </tr>
+      </table>
+    </th:block>
+  </div>
+
+  <!-- ═══ Page 1: Informations générales, pompe à la réception ═══ -->
+  <h1>RAPPORT D’EXPERTISE</h1>
+  <h2 style="margin-top: 0;">Informations Générales</h2>
+  <table class="info">
+    <tr th:each="f : ${report.infos}">
+      <td class="label" th:text="${f.label}">Client</td>
+      <td class="value" th:text="${f.value}">OCP .S.A</td>
+    </tr>
+  </table>
+
+  <h2>Pompe à la réception</h2>
+  <div class="reception keep">
+    <table th:replace="~{:: part(${report.reception})}"></table>
+  </div>
+
+  <!-- ═══ Inspection ═══ -->
+  <div class="new-page">
+    <h3>Inspection :</h3>
+    <th:block th:replace="~{:: pairs(${report.inspection})}"/>
+  </div>
+
+  <!-- ═══ Contrôles géométriques ═══ -->
+  <div class="new-page">
+    <h3>Contrôles géométriques :</h3>
+    <!-- each check under its drawing: geometricDrawings follows ExpertiseReport.GEOMETRIC_MEASURES -->
+    <div th:each="m, st : ${report.geometric}" class="keep"
+         th:with="drawing=${geometricDrawings[st.index]}">
+      <img class="drawing" th:src="${drawings.get(drawing)}" alt="Schéma de mesure"/>
+      <table class="measure">
+        <tr><td th:text="${m.label + ' au démontage'}">Concentricité au démontage</td><td class="value" th:classappend="${m.dismantled.out} ? 'out'" th:text="${m.dismantled.value}">0,08</td></tr>
+        <tr><td th:text="${m.label + ' au remontage'}">Concentricité au remontage</td><td class="value" th:classappend="${m.mounted.out} ? 'out'" th:text="${m.mounted.value}">0,07 mm</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══ Contrôles dimensionnels arbre / palier ═══ -->
+  <div class="new-page keep">
+    <h3>Contrôles dimensionnels Arbre/Palier :</h3>
+    <!-- the shaft with its measuring points, J5–J8 under the two bearings; the pump section
+         with J and X under it on the left, as on the paper report -->
+    <img class="shaft" th:src="${drawings['arbre-palier']}" alt="Arbre et paliers"/>
+    <table class="bearing-labels">
+      <tr>
+        <td style="width: 34%;"></td><td style="width: 5%;">J5</td><td style="width: 2%;"></td><td style="width: 5%;">J6</td>
+        <td style="width: 21%;"></td><td style="width: 5%;">J7</td><td style="width: 2%;"></td><td style="width: 5%;">J8</td>
+        <td style="width: 21%;"></td>
+      </tr>
+    </table>
+    <img class="section" th:src="${drawings['coupe-pompe']}" alt="Coupe de la pompe : jeux J et X"/>
+    <table class="dims">
+      <tr>
+        <th class="blank"></th>
+        <th class="blank"></th>
+        <th class="blank"></th>
+        <th colspan="4">Jeux palier/arbre</th>
+        <th colspan="5">Concentricités</th>
+      </tr>
+      <tr>
+        <th class="blank"></th>
+        <th th:each="k : ${report.dimensionKeys}" th:text="${k}">J5</th>
+      </tr>
+      <tr>
+        <td class="row-label">Valeurs de démontage</td>
+        <td th:each="v : ${report.dimensionDismantled}" th:classappend="${v.out} ? 'out'" th:text="${v.value}">0,00</td>
+      </tr>
+      <tr>
+        <td class="row-label">Valeurs de montage</td>
+        <td th:each="v : ${report.dimensionMounted}" th:classappend="${v.out} ? 'out'" th:text="${v.value}">0,00</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ═══ Garniture mécanique ═══ -->
+  <div class="new-page">
+    <h2>GARNITURE MECANIQUE :</h2>
+    <table class="seal">
+      <tr th:each="f : ${report.sealInfo}">
+        <td class="label" th:text="${f.label}">Fabricant</td>
+        <td th:text="${f.value}"></td>
+      </tr>
+    </table>
+    <table class="figure keep">
+      <tr><td colspan="2" class="photos wide" style="text-align: center;"><th:block th:replace="~{:: photos(${report.sealPhotos})}"/></td></tr>
+      <tr><td class="lab">IMAGE</td><td class="caption">Garniture mécanique démontée</td></tr>
+    </table>
+  </div>
+
+  <div class="new-page">
+    <th:block th:replace="~{:: pairs(${report.sealParts})}"/>
+  </div>
+
+  <!-- ═══ Pièces ═══ -->
+  <div class="new-page">
+    <table class="parts">
+      <tr>
+        <th>Quantité</th><th>Description</th><th>Code</th><th>Recommandation</th><th>Décision Client</th><th>Remarque</th>
+      </tr>
+      <tr th:each="l : ${report.parts}">
+        <td class="qty" th:text="${l.quantity}">2</td>
+        <td class="desc" th:text="${l.description}">6313</td>
+        <td th:text="${l.code}"></td>
+        <td th:text="${l.recommendation}">Changer</td>
+        <td th:text="${l.decision}">Changer par OCP</td>
+        <td th:text="${l.remark}"></td>
+      </tr>
+      <tr th:if="${#lists.isEmpty(report.parts)}">
+        <td colspan="6" style="height: 8mm;"></td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ═══ Pièces changées ═══ -->
+  <div class="new-page">
+    <h2>Pièces changées</h2>
+    <table class="figure keep">
+      <tr><td colspan="2" class="photos" style="text-align: center;"><th:block th:replace="~{:: photos(${report.changedParts.photos})}"/></td></tr>
+      <tr><td colspan="2" class="caption" th:text="${report.changedParts.commentText}">Roulements changés par OCP</td></tr>
+    </table>
+  </div>
+
+  <!-- ═══ Commentaires supplémentaires ═══ -->
+  <div class="new-page">
+    <div class="extra-title">
+      Commentaires supplémentaires :
+      <span class="text" th:text="${report.extra.commentText}">pied cassé et arrosage GM</span>
+    </div>
+    <div style="width: 60%;" th:if="${!#lists.isEmpty(report.extra.photos)}">
+      <th:block th:replace="~{:: photos(${report.extra.photos})}"/>
+    </div>
+  </div>
+
+  <!-- ═══ Pompe assemblée ═══ -->
+  <div class="new-page">
+    <h2 style="text-decoration: none; margin-top: 8mm;">POMPE ASSEMBLÉE</h2>
+    <table class="figure keep" style="width: 100%;">
+      <tr><td class="photos wide" style="text-align: center; padding: 4mm;"><th:block th:replace="~{:: photos(${report.assembledPhotos})}"/></td></tr>
+    </table>
+  </div>
+
+  <!-- ═══ Liste de contrôle « Montage pompe » ═══ -->
+  <div class="new-page">
+    <table class="mount-title">
+      <tr><td>Liste de contrôle « Montage pompe »</td></tr>
+    </table>
+    <table class="mount-head">
+      <tr>
+        <td class="label">SALES ORDER (OT) :</td>
+        <td th:text="${report.salesOrder}"></td>
+        <td class="label">Date de montage :</td>
+        <td th:text="${report.mountDate}"></td>
+      </tr>
+    </table>
+    <table class="mount">
+      <tr><th>Description</th><th class="status">Statut</th><th class="remark">Remarques</th></tr>
+      <tr th:each="c : ${report.mountChecks}">
+        <td th:text="${c.number + '.  ' + c.label}">1. Contrôle général…</td>
+        <td class="status">
+          <span class="box"><th:block th:if="${c.status == 'bon'}">X</th:block></span>
+          <span th:if="${c.status == 'mauvais'}" class="nc">&#160;NC</span>
+        </td>
+        <td class="remark" th:text="${c.remark}"></td>
+      </tr>
+    </table>
+
+    <th:block th:if="${!#lists.isEmpty(report.others)}">
+      <h3 style="margin-top: 6mm;">Autres informations :</h3>
+      <table class="others">
+        <tr th:each="f : ${report.others}">
+          <td class="label" th:text="${f.label}"></td>
+          <td th:text="${f.value}"></td>
+        </tr>
+      </table>
+    </th:block>
+
+    <div th:if="${report.remarks != null}" class="remarks"><b>Remarques : </b><span th:text="${report.remarks}"></span></div>
+
+    <p class="reference">
+      Rapport envoyé via GreenSense 4.0 le <span th:text="${report.submittedAt}">22/02/2024 14:32</span>
+      par <span th:text="${report.inspector}">GUETTAHI YOUSSEF</span>
+      · réf. <span th:text="${report.submissionId}">8e8c5c3e-…</span>
+    </p>
+  </div>
+
+</body>
+</html>

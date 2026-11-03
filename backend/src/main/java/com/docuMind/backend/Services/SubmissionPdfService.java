@@ -7,8 +7,10 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import javax.imageio.ImageIO;
 
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.thymeleaf.ITemplateEngine;
 import org.thymeleaf.context.Context;
 
+import com.docuMind.backend.model.ExpertiseReport;
 import com.docuMind.backend.model.SubmissionReport;
 import com.openhtmltopdf.bidi.support.ICUBidiReorderer;
 import com.openhtmltopdf.bidi.support.ICUBidiSplitter;
@@ -29,12 +32,15 @@ import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 
 // Turns a SubmissionReport into the PDF of the filled sheet:
 //   report → Thymeleaf (templates/submission-report.html) → XHTML → OpenHTMLtoPDF → PDF bytes
+// The full expertise report (ExpertiseReport.isFor) has its own template, laid out like
+// PHOVA's paper report: templates/expertise-report.html.
 // Nothing is stored: the PDF is rebuilt from the saved submission on every request.
 // We go through HTML because PDFBox alone can't shape or order Arabic text.
 @Service
 public class SubmissionPdfService {
 
     private static final String TEMPLATE = "submission-report";
+    private static final String EXPERTISE_TEMPLATE = "expertise-report";
 
     // Preview pages for the phone. 110 dpi makes an A4 page ~910×1290 px: sharp at phone
     // width, ~150 KB per page once base64'd.
@@ -46,20 +52,47 @@ public class SubmissionPdfService {
     // packaged jar, classpath:/static/ is a jar:nested: URL that relative paths can't be
     // resolved against.
     private final String logoDataUri;
+    // the expertise report's header also carries the university's and the client's logos
+    private final String um6pLogoDataUri;
+    private final String ocpLogoDataUri;
+    // the paper report's measurement drawings (static/expertise), by name
+    private final Map<String, String> drawings;
 
     public SubmissionPdfService(ITemplateEngine templateEngine)
     {
         this.templateEngine = templateEngine;
         this.logoDataUri = "data:image/png;base64,"
                 + Base64.getEncoder().encodeToString(readClasspath("/static/phova_logo.png"));
+        this.um6pLogoDataUri = "data:image/png;base64,"
+                + Base64.getEncoder().encodeToString(readClasspath("/static/um6p_logo.png"));
+        this.ocpLogoDataUri = "data:image/jpeg;base64,"
+                + Base64.getEncoder().encodeToString(readClasspath("/static/ocp_logo.jpg"));
+        Map<String, String> drawings = new HashMap<>();
+        for (String name : List.of("arbre-palier", "coupe-pompe", "concentricite-arbre", "deplacement-axial",
+                "deplacement-radial", "perpendicularite", "concentricite-boite"))
+            drawings.put(name, "data:image/png;base64,"
+                + Base64.getEncoder().encodeToString(readClasspath("/static/expertise/" + name + ".png")));
+        this.drawings = Map.copyOf(drawings);
     }
 
     public byte[] render(SubmissionReport report)
     {
         Context context = new Context(Locale.FRENCH);
-        context.setVariable("report", report);
         context.setVariable("logo", logoDataUri);
-        String html = templateEngine.process(TEMPLATE, context);
+        String template = TEMPLATE;
+        if (ExpertiseReport.isFor(report.title())) {
+            template = EXPERTISE_TEMPLATE;
+            context.setVariable("report", ExpertiseReport.of(report));
+            context.setVariable("um6pLogo", um6pLogoDataUri);
+            context.setVariable("ocpLogo", ocpLogoDataUri);
+            context.setVariable("drawings", drawings);
+            // in the order of the report's geometric checks
+            context.setVariable("geometricDrawings", List.of("concentricite-arbre", "deplacement-axial",
+                    "deplacement-radial", "perpendicularite", "concentricite-boite"));
+        } else {
+            context.setVariable("report", report);
+        }
+        String html = templateEngine.process(template, context);
 
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             PdfRendererBuilder builder = new PdfRendererBuilder();

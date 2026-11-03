@@ -23,14 +23,15 @@ export function TopBar({ active }) {
     }`;
 
   return (
-    <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+    // wraps on a phone: logo on one line, the links under it, so the page never gets wider than the screen
+    <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
       <Link to={homeFor(user?.role)} className="flex items-center gap-3">
         <PhovaLogo className="h-7" />
         <span className="border-l border-slate-200 pl-3 text-sm font-semibold text-slate-900 dark:border-slate-600 dark:text-slate-100">
           GreenSense 4.0
         </span>
       </Link>
-      <nav className="flex items-center gap-4">
+      <nav className="flex flex-wrap items-center gap-x-4 gap-y-1">
         {/* each role sees its own links (roleTabs.js), like the mobile app's tabs; coming pages have no link yet */}
         {tabsFor(user?.role).filter((page) => NAV_LINKS[page].to).map((page) => (
           <Link key={page} to={NAV_LINKS[page].to} className={linkClass(page)}>{NAV_LINKS[page].label}</Link>

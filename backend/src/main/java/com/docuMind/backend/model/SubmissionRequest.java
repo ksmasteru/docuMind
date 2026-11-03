@@ -52,7 +52,8 @@ public record SubmissionRequest(
         @NotBlank(message = "itemId must not be blank")
         String itemId,
 
-        @NotBlank(message = "value must not be blank")
+        // required by the service, except where a form lets a question be left empty
+        // (the full expertise report: SubmissionService.allowsBlank)
         String value,
 
         // optional here; the service requires it for a critical MAUVAIS

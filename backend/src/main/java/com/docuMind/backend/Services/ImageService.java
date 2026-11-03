@@ -3,6 +3,7 @@ package com.docuMind.backend.services;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -91,7 +92,8 @@ public class ImageService {
         if (id == null || !imageDataRepository.existsById(id))
             return null;
         try {
-            BufferedImage source = ImageIO.read(new ByteArrayInputStream(getImageData(id).getData()));
+            byte[] bytes = getImageData(id).getData();
+            BufferedImage source = ImageIO.read(new ByteArrayInputStream(bytes));
             if (source == null)
                 return null;
             double scale = Math.min(1.0,
@@ -107,11 +109,80 @@ public class ImageService {
             g.dispose();
 
             ByteArrayOutputStream jpeg = new ByteArrayOutputStream();
-            ImageIO.write(scaled, "jpg", jpeg);
+            ImageIO.write(upright(scaled, exifOrientation(bytes)), "jpg", jpeg);
             return "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(jpeg.toByteArray());
         } catch (IOException e) {
             return null;
         }
+    }
+
+    // A phone camera often stores the picture sideways plus an EXIF tag saying how to turn it;
+    // ImageIO ignores the tag, so the PDF would show it sideways. (Photos sent by the web form
+    // are already upright: the browser applies the tag when it shrinks them.)
+    // 1 = upright, 3 = upside down, 6 = turn 90° clockwise, 8 = turn 90° anticlockwise;
+    // 1 when the file has no such tag or isn't a JPEG.
+    static int exifOrientation(byte[] jpeg)
+    {
+        try {
+            if ((jpeg[0] & 0xFF) != 0xFF || (jpeg[1] & 0xFF) != 0xD8)
+                return 1;
+            int i = 2;
+            while (i + 4 <= jpeg.length && (jpeg[i] & 0xFF) == 0xFF) {
+                int marker = jpeg[i + 1] & 0xFF;
+                int length = u16(jpeg, i + 2, false);
+                if (marker == 0xDA)       // the picture itself starts: no EXIF before it
+                    return 1;
+                if (marker == 0xE1 && jpeg[i + 4] == 'E' && jpeg[i + 5] == 'x' && jpeg[i + 6] == 'i' && jpeg[i + 7] == 'f') {
+                    int tiff = i + 10;
+                    boolean little = jpeg[tiff] == 'I';
+                    int ifd = tiff + (int) u32(jpeg, tiff + 4, little);
+                    int entries = u16(jpeg, ifd, little);
+                    for (int e = 0; e < entries; e++) {
+                        int entry = ifd + 2 + e * 12;
+                        if (u16(jpeg, entry, little) == 0x0112)
+                            return u16(jpeg, entry + 8, little);
+                    }
+                    return 1;
+                }
+                i += 2 + length;
+            }
+        } catch (ArrayIndexOutOfBoundsException e) {
+            // a truncated or odd header: show the photo as stored
+        }
+        return 1;
+    }
+
+    // the photo turned the way its EXIF orientation says (the mirrored orientations, which
+    // cameras don't produce, are left as they are)
+    static BufferedImage upright(BufferedImage image, int orientation)
+    {
+        int w = image.getWidth();
+        int h = image.getHeight();
+        AffineTransform turn = new AffineTransform();
+        switch (orientation) {
+            case 3 -> { turn.translate(w, h); turn.rotate(Math.PI); }
+            case 6 -> { turn.translate(h, 0); turn.rotate(Math.PI / 2); }
+            case 8 -> { turn.translate(0, w); turn.rotate(-Math.PI / 2); }
+            default -> { return image; }
+        }
+        boolean sideways = orientation != 3;
+        BufferedImage turned = new BufferedImage(sideways ? h : w, sideways ? w : h, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = turned.createGraphics();
+        g.drawImage(image, turn, null);
+        g.dispose();
+        return turned;
+    }
+
+    private static int u16(byte[] b, int at, boolean little)
+    {
+        return little ? (b[at] & 0xFF) | (b[at + 1] & 0xFF) << 8 : (b[at] & 0xFF) << 8 | (b[at + 1] & 0xFF);
+    }
+
+    private static long u32(byte[] b, int at, boolean little)
+    {
+        return little
+            ? (u16(b, at, true) & 0xFFFFL) | (long) u16(b, at + 2, true) << 16
+            : (long) u16(b, at, false) << 16 | (u16(b, at + 2, false) & 0xFFFFL);
     }
 
     public List<ImageEntity> getReportImages(String reportId)

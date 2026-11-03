@@ -3,9 +3,11 @@ package com.docuMind.backend.services;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -26,6 +28,7 @@ import com.docuMind.backend.model.CheckListAnswer;
 import com.docuMind.backend.model.CheckListItem;
 import com.docuMind.backend.model.CheckListSubmission;
 import com.docuMind.backend.model.CheckListTemplate;
+import com.docuMind.backend.model.ExpertiseReport;
 import com.docuMind.backend.model.ImageEntity;
 import com.docuMind.backend.model.SubmissionReport;
 import com.docuMind.backend.model.SubmissionRequest;
@@ -65,6 +68,9 @@ public class SubmissionService {
     private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final DateTimeFormatter DAY_TIME = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     private static final ZoneId SITE_ZONE = ZoneId.of("Africa/Casablanca");
+
+    // photos one IMAGE answer may hold (the full expertise report's 2×2 grids)
+    private static final int MAX_PHOTOS = 4;
 
     public SubmissionService(SubmissionRepository submissionRepository,
                              CheckListTemplateRepository checkListTemplateRepository,
@@ -117,21 +123,24 @@ public class SubmissionService {
                 rows);
     }
 
-    // An IMAGE answer's value is the image id: the PDF shows the photo, never the id.
-    // The renderer can't call the authenticated /images endpoint, so the photo goes in as a
-    // data URI. A photo that can't be read becomes a note instead of failing the whole PDF.
+    // An IMAGE answer's value is its image ids ("id1,id2", or null for no photo): the PDF shows
+    // the photos, never the ids. The renderer can't call the authenticated /images endpoint, so
+    // each photo goes in as a data URI. A photo that can't be read becomes a note instead of
+    // failing the whole PDF.
     private SubmissionReport.ReportRow toReportRow(CheckListAnswer a)
     {
         CheckListItem item = a.getItem();
         String value = a.getValue();
-        String photo = null;
+        List<String> photos = List.of();
         if (item.getAnswerType() == AnswerType.IMAGE)
         {
-            photo = imageService.getPhotoDataUri(value);
-            value = photo == null ? "Photo non disponible" : null;
+            List<String> ids = value == null ? List.of()
+                    : Arrays.stream(value.split(",")).map(String::trim).filter(id -> !id.isEmpty()).toList();
+            photos = ids.stream().map(imageService::getPhotoDataUri).filter(Objects::nonNull).toList();
+            value = photos.size() < ids.size() ? "Photo non disponible" : null;
         }
         return new SubmissionReport.ReportRow(item.getPosition(), item.getLabelFr(), item.getLabelAr(),
-                item.isCritical(), value, a.getComment(), photo);
+                item.isCritical(), value, a.getComment(), photos.isEmpty() ? null : photos.get(0), photos);
     }
 
     // the author, or the manager who sent the task this report answers.
@@ -142,6 +151,13 @@ public class SubmissionService {
         if (submission.getUserId().equals(userId))
             return true;
         return submission.getTaskId() != null && taskService.isTaskManager(submission.getTaskId(), userId);
+    }
+
+    // The full expertise report is the paper report: much of it can stay empty (a part with no
+    // photo, a measure not taken). Every other form needs every answer.
+    private static boolean allowsBlank(CheckListTemplate template)
+    {
+        return ExpertiseReport.isFor(template.getTitle());
     }
 
     private SubmissionStatus checkSumbSubmissionStatus(SubmissionRequest request, CheckListTemplate template)
@@ -166,6 +182,13 @@ public class SubmissionService {
                 // dependon collect preseving the order.
                 int index = answersId.indexOf(question.getId());
                 AnswerItem answer = answers.get(index);
+                // an empty answer: only where the form allows it, and never for Bon / Mauvais
+                if (answer.value() == null || answer.value().isBlank())
+                {
+                    if (question.getAnswerType() == AnswerType.BON_MAUVAIS || !allowsBlank(template))
+                        throw new IncompleteAnswersException("question " + question.getPosition() + " is not answered");
+                    continue;
+                }
                 // now we check if the answer is valid.
                 if (question.isCritical() && question.getAnswerType() == AnswerType.BON_MAUVAIS && answer.value().trim().toLowerCase().equals("mauvais"))
                 {
@@ -293,25 +316,38 @@ public class SubmissionService {
                 checkAnswer.setValue(answer.value().trim().toLowerCase());
             else if (item.getAnswerType().equals(AnswerType.IMAGE))
             {
-                String imageId = answer.value().trim();
-                // a wrong id is a bad request body, not a missing resource
-                ImageEntity imageEntity;
-                try {
-                    imageEntity = imageService.getImageMetaData(imageId);
-                } catch (ImageNotFoundException e) {
+                // One or more image ids, comma-separated ("id1,id2"): the full expertise report
+                // takes up to MAX_PHOTOS per component. Empty = no photo; the forms that need one
+                // refuse to send without it.
+                List<String> imageIds = answer.value() == null ? List.of()
+                        : Arrays.stream(answer.value().split(","))
+                            .map(String::trim)
+                            .filter(id -> !id.isEmpty())
+                            .toList();
+                if (imageIds.size() > MAX_PHOTOS)
                     throw new InvalidResponseException("invalid answer for question " + item.getPosition()
-                            + ": no image with id " + imageId);
+                            + ": at most " + MAX_PHOTOS + " photos");
+                for (String imageId : imageIds)
+                {
+                    // a wrong id is a bad request body, not a missing resource
+                    ImageEntity imageEntity;
+                    try {
+                        imageEntity = imageService.getImageMetaData(imageId);
+                    } catch (ImageNotFoundException e) {
+                        throw new InvalidResponseException("invalid answer for question " + item.getPosition()
+                                + ": no image with id " + imageId);
+                    }
+                    // only the technician who uploaded the photo can use it
+                    if (!imageEntity.getUploadedBy().equals(userId))
+                        throw new AccessDeniedException("image " + imageId + " does not belong to you");
+                    if (imageEntity.getReportId() != null || !usedImageIds.add(imageId))
+                        throw new ImageAlreadyAttachedException("image " + imageId + " is already attached to a report");
+                    images.add(imageEntity);
                 }
-                // only the technician who uploaded the photo can use it
-                if (!imageEntity.getUploadedBy().equals(userId))
-                    throw new AccessDeniedException("image " + imageId + " does not belong to you");
-                if (imageEntity.getReportId() != null || !usedImageIds.add(imageId))
-                    throw new ImageAlreadyAttachedException("image " + imageId + " is already attached to a report");
-                images.add(imageEntity);
-                checkAnswer.setValue(imageId);
+                checkAnswer.setValue(imageIds.isEmpty() ? null : String.join(",", imageIds));
             }
             else
-                checkAnswer.setValue(answer.value());
+                checkAnswer.setValue(answer.value() == null || answer.value().isBlank() ? null : answer.value());
             checkAnswer.setComment(answer.comment());
             _answers.add(checkAnswer);
         }

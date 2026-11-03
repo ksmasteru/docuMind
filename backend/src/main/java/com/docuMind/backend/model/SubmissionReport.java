@@ -33,7 +33,16 @@ public record SubmissionReport(
         boolean critical,
         String value,        // "bon" / "mauvais" (stored lowercase), a text answer, or null for a photo
         String comment,
-        String photo         // IMAGE answers: the photo as a data URI; null otherwise or when unreadable
+        String photo,        // IMAGE answers: the first photo as a data URI; null otherwise or when unreadable
+        List<String> photos  // IMAGE answers: every photo, as data URIs (the full expertise report takes up to 4)
     )
-    {}
+    {
+        // a row with at most one photo (the checklists)
+        public ReportRow(int position, String labelFr, String labelAr, boolean critical,
+                         String value, String comment, String photo)
+        {
+            this(position, labelFr, labelAr, critical, value, comment, photo,
+                 photo == null ? List.of() : List.of(photo));
+        }
+    }
 }
