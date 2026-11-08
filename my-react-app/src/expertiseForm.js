@@ -1,9 +1,10 @@
-import { COMPLETE_FORM_TITLE } from "./expertiseComplet";
+import { COMPLETE_FORM_TITLE, DISMANTLING_FORM_TITLE, MOUNTING_FORM_TITLE } from "./expertiseComplet";
 
 // The pump expertise report. Technicians choose between two versions of it (Forms.jsx): the
 // short one, a photo and two dictated fields, and the full one, whose title is also the one the
 // mobile app's expertise build opens (EXPERTISE_FORM_TITLE, constants/app-variant).
-// Both are matched on the template's title. The full paper report is a third form (expertiseComplet.js).
+// Both are matched on the template's title. The full paper report is a third form (expertiseComplet.js),
+// and its démontage and montage parts a fourth and a fifth.
 export const EXPERTISE_FORM_TITLE = "Rapport d'expertise";
 export const QUICK_FORM_TITLE = "Rapport d'expertise rapide";
 
@@ -14,6 +15,14 @@ export const TECHNICIAN_FORMS = [
   {
     title: COMPLETE_FORM_TITLE,
     hint: "Tout le rapport papier : pièce par pièce, contrôles, pièces et montage. Son PDF reprend la mise en page PHOVA.",
+  },
+  {
+    title: DISMANTLING_FORM_TITLE,
+    hint: "Le rapport papier jusqu'aux pièces, sans le montage : ce que l'on remplit au démontage en atelier.",
+  },
+  {
+    title: MOUNTING_FORM_TITLE,
+    hint: "Les informations générales, les pièces changées, la pompe assemblée et les contrôles du montage.",
   },
 ];
 
@@ -38,9 +47,13 @@ const EXPERTISE_SECTIONS = [
   },
 ];
 
+// the forms laid out like the paper report (InspectionForm's isComplete): the full one and its two parts
+const COMPLETE_LAYOUT_TITLES = [COMPLETE_FORM_TITLE, DISMANTLING_FORM_TITLE, MOUNTING_FORM_TITLE];
+export const usesCompleteLayout = (title) => COMPLETE_LAYOUT_TITLES.some((t) => sameText(title, t));
+
 // the sections a template is shown in, or null for the one-page sheet
 export const sectionsFor = (title) => (sameText(title, EXPERTISE_FORM_TITLE) ? EXPERTISE_SECTIONS : null);
 
-// every version of the report (full, rapide…) gets the pump vocabulary for dictation (InspectionForm.jsx)
+// every version of the report (full, rapide, démontage, montage…) gets the pump vocabulary for dictation (InspectionForm.jsx)
 export const isExpertiseTitle = (title) =>
-  !!title?.trim().toLowerCase().startsWith(EXPERTISE_FORM_TITLE.toLowerCase());
+  !!title?.trim().toLowerCase().startsWith(EXPERTISE_FORM_TITLE.toLowerCase()) || usesCompleteLayout(title);

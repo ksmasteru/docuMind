@@ -136,6 +136,18 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorFormat, HttpStatus.NOT_FOUND);
     }
 
+    // the checklist form can't be deleted because submissions already answer it
+    @ExceptionHandler(FormInUseException.class)
+    public ResponseEntity<ErrorFormat> handleFormInUseException(FormInUseException ex,
+        WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.CONFLICT);
+    }
+
     // no submission with the requested id, or not one of the caller's
     @ExceptionHandler(SubmissionNotFoundException.class)
     public ResponseEntity<ErrorFormat> handleSubmissionNotFoundException(SubmissionNotFoundException ex,
@@ -292,6 +304,30 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorFormat, HttpStatus.CONFLICT);
     }
 
+    // no workshop intervention with the requested id
+    @ExceptionHandler(InterventionNotFoundException.class)
+    public ResponseEntity<ErrorFormat> handleInterventionNotFoundException(InterventionNotFoundException ex,
+        WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.NOT_FOUND);
+    }
+
+    // the button can't be pressed on the intervention as it is (e.g. validating a step nobody took)
+    @ExceptionHandler(InvalidInterventionException.class)
+    public ResponseEntity<ErrorFormat> handleInvalidInterventionException(InvalidInterventionException ex,
+        WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.CONFLICT);
+    }
+
     // the JSON body can't be read : broken JSON, unknown enum value ("taskType": "CORRECTI"),
     // wrong date format ("dueDate": "24-10-2026")...
     @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -312,6 +348,30 @@ public class GlobalExceptionHandler {
             message,
             request.getDescription(false));
         return new ResponseEntity<>(errorFormat, HttpStatus.BAD_REQUEST);
+    }
+
+    // no quote with that id
+    @ExceptionHandler(QuoteNotFoundException.class)
+    public ResponseEntity<ErrorFormat> handleQuoteNotFoundException(QuoteNotFoundException ex,
+        WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.NOT_FOUND);
+    }
+
+    // a quote action the intervention's state doesn't allow (step 10 not taken by the caller…)
+    @ExceptionHandler(InvalidQuoteException.class)
+    public ResponseEntity<ErrorFormat> handleInvalidQuoteException(InvalidQuoteException ex,
+        WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.CONFLICT);
     }
 
     @ExceptionHandler(Exception.class)

@@ -2,6 +2,10 @@
 ## LEARN DATABASE REALTIONS!!!!!!!!!!
 # To handle later
 
+
+## report filling persistenceis to be completed.
+
+
 ## Security: admin-only endpoints are not enforced
 
 Noted on 2026-10-03.

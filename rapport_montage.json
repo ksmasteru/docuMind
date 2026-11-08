@@ -1,0 +1,202 @@
+
+// make sure the front end of the server doesnt hide this form ; expertiseform.js
+
+{
+  "title": "Rapport d'expertise (montage)",
+  "type": "INSPECTION",
+  "instructions": "Rapport au montage, section par section : informations générales, pièces changées, pompe assemblée et contrôles du montage. Prenez les photos, dictez les commentaires et cochez Bon / Mauvais pour chaque contrôle.",
+  "items": [
+    {
+      "labelFr": "Informations générales : Client",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations générales : Adresse client",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations générales : Entité",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations générales : N° de commande client",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations générales : N° d'opération",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations générales : Matricule équipement",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations générales : Type",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations générales : Fabricant",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations générales : Fluide pompé",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations générales : Raison de la demande d'expertise",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations générales : Date de réception",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations générales : Auteur rapport démontage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations générales : Date de montage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations générales : Auteur rapport montage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Pièces changées : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE"
+    },
+    {
+      "labelFr": "Pièces changées : Commentaires",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Commentaires supplémentaires : Commentaires",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Commentaires supplémentaires : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE"
+    },
+    {
+      "labelFr": "Pompe assemblée : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE"
+    },
+    {
+      "labelFr": "Montage pompe : Sales order (OT)",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Montage pompe : 1. Contrôle général de la propreté et conformité visuelle des pièces à remonter",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "BON_MAUVAIS"
+    },
+    {
+      "labelFr": "Montage pompe : 2. Contrôle du centrage de l'arbre",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "BON_MAUVAIS"
+    },
+    {
+      "labelFr": "Montage pompe : 3. Contrôle de la concentricité de la boîte à garniture",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "BON_MAUVAIS"
+    },
+    {
+      "labelFr": "Montage pompe : 4. Contrôle des jeux des déplacements d'arbre (radial et axial)",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "BON_MAUVAIS"
+    },
+    {
+      "labelFr": "Montage pompe : 5. Contrôle de la perpendicularité de l'arbre à la boîte à garniture",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "BON_MAUVAIS"
+    },
+    {
+      "labelFr": "Montage pompe : 6. Test d'étanchéité de la garniture avant montage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "BON_MAUVAIS"
+    },
+    {
+      "labelFr": "Montage pompe : 7. Contrôle du serrage de la visserie de la pompe",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "BON_MAUVAIS"
+    },
+    {
+      "labelFr": "Montage pompe : 8. Ajustage du jeu hydraulique de la pompe",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "BON_MAUVAIS"
+    },
+    {
+      "labelFr": "Montage pompe : 9. Test d'étanchéité de la garniture après montage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "BON_MAUVAIS"
+    },
+    {
+      "labelFr": "Montage pompe : 10. Test d'étanchéité de la pompe",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "BON_MAUVAIS"
+    },
+    {
+      "labelFr": "Montage pompe : 11. Protection des orifices de la garniture mécanique",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "BON_MAUVAIS"
+    },
+    {
+      "labelFr": "Montage pompe : 12. Protection de l'aspiration et du refoulement de la pompe",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "BON_MAUVAIS"
+    }
+  ]
+}

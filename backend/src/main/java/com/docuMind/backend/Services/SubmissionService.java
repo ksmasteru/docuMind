@@ -37,6 +37,7 @@ import com.docuMind.backend.model.SubmissionResponse;
 import com.docuMind.backend.model.User;
 import com.docuMind.backend.model.enums.AnswerType;
 import com.docuMind.backend.model.enums.SubmissionStatus;
+import com.docuMind.backend.model.enums.WorkshopStep;
 import com.docuMind.backend.repository.CheckListTemplateRepository;
 import com.docuMind.backend.repository.SubmissionRepository;
 import com.docuMind.backend.repository.UserRepository;
@@ -143,14 +144,24 @@ public class SubmissionService {
                 item.isCritical(), value, a.getComment(), photos.isEmpty() ? null : photos.get(0), photos);
     }
 
-    // the author, or the manager who sent the task this report answers.
+    // the author, the manager who sent the task this report answers, or, when that task is a
+    // workshop intervention's (step 8 / 16), any workshop role: the file goes from one to the next,
+    // like the intervention itself (the Chef de projet prices the parts from it).
     // Anyone else gets the same 404 as an unknown id, so ids can't be probed.
     // The task is only looked up when the caller isn't the author.
     private boolean canRead(CheckListSubmission submission, String userId)
     {
         if (submission.getUserId().equals(userId))
             return true;
-        return submission.getTaskId() != null && taskService.isTaskManager(submission.getTaskId(), userId);
+        String taskId = submission.getTaskId();
+        if (taskId == null)
+            return false;
+        if (taskService.isTaskManager(taskId, userId))
+            return true;
+        return taskService.isWorkshopTask(taskId)
+            && userRepository.findByEmail(userId)
+                .map(user -> user.getRole() != null && !WorkshopStep.forRole(user.getRole()).isEmpty())
+                .orElse(false);
     }
 
     // The full expertise report is the paper report: much of it can stay empty (a part with no

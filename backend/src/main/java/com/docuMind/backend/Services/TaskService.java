@@ -6,6 +6,7 @@ import java.util.EnumSet;
 import java.util.Optional;
 import java.util.Set;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ import com.docuMind.backend.model.ReviewTask;
 import com.docuMind.backend.model.TaskCreationDto;
 import com.docuMind.backend.model.TaskEvent;
 import com.docuMind.backend.model.TaskModel;
+import com.docuMind.backend.model.TaskSubmittedEvent;
 import com.docuMind.backend.model.User;
 import java.util.List;
 import com.docuMind.backend.model.enums.StatusReason;
@@ -38,6 +40,11 @@ public class TaskService {
     private final UserService userService;
     // to check the task's checklist exists and is still in use
     private final CheckListTemplateRepository checkListTemplateRepository;
+    private final ApplicationEventPublisher events;
+
+    // the reasons a report may be returned with
+    private static final Set<StatusReason> RETURN_REASONS =
+            EnumSet.of(StatusReason.MISSING_INFO, StatusReason.WRONG_MEASUREMENT, StatusReason.OTHER);
 
     // statuses a task may be started from (see maintenace_loop_servicetohandle.md)
     private static final Set<TaskStatus> CAN_START_FROM =
@@ -47,9 +54,11 @@ public class TaskService {
         EnumSet.of(TaskStatus.ASSIGNED, TaskStatus.STARTED, TaskStatus.BLOCKED, TaskStatus.RETURNED);
 
     public TaskService(TaskRepository taskRepository, TaskEventRepository taskEventRepository,
-        UserService userService, CheckListTemplateRepository checkListTemplateRepository
+        UserService userService, CheckListTemplateRepository checkListTemplateRepository,
+        ApplicationEventPublisher events
     )
     {
+        this.events = events;
         this.taskRepository = taskRepository;
         this.taskEventRepository = taskEventRepository;
         this.userService = userService;
@@ -80,6 +89,12 @@ public class TaskService {
 
     // true when this user created the task, false for an unknown task.
     // Lets the manager read the reports sent for his tasks (SubmissionService.getReport)
+    // a workshop intervention's task (démontage or montage), whichever step the intervention is on now
+    public boolean isWorkshopTask(String taskId)
+    {
+        return taskRepository.findById(taskId).map(task -> task.getInterventionId() != null).orElse(false);
+    }
+
     public boolean isTaskManager(String taskId, String email)
     {
         return taskRepository.findById(taskId)
@@ -289,6 +304,95 @@ public class TaskService {
 
         taskRepository.save(task);
         taskEventRepository.save(taskEvent);
+
+        // a workshop task: its intervention moves on to the review step (InterventionService)
+        events.publishEvent(new TaskSubmittedEvent(taskId, technicianEmail, now));
+    }
+
+    // ---------- the review of a sent report (SUBMITTED) ----------
+
+    // the manager who sent the task approves its report: the task is closed (APPROVED).
+    // A workshop task is approved by validating its intervention's review step instead.
+    @Transactional
+    public String approveTask(String taskId, Authentication manager)
+    {
+        TaskModel task = reviewable(taskId, manager.getName());
+        // a workshop task is reviewed from its intervention's page, not with /approve or /return
+        if (task.getInterventionId() != null)
+            throw new InvalidTaskException("task " + taskId + " is reviewed from its workshop intervention");
+        return approve(task, manager.getName());
+    }
+
+    // the manager sends the report back to the technician (RETURNED), saying what to redo;
+    // the technician starts it again and sends a new report
+    @Transactional
+    public String returnTask(String taskId, Authentication manager, StatusReason reason, String comment)
+    {
+        TaskModel task = reviewable(taskId, manager.getName());
+        if (task.getInterventionId() != null)
+            throw new InvalidTaskException("task " + taskId + " is reviewed from its workshop intervention");
+        return sendBack(task, manager.getName(), reason, comment);
+    }
+
+    // the same two, for InterventionService's review step (9 / 17): the caller was checked there
+    // (the step's role, who took it); the task still has to be SUBMITTED
+    @Transactional
+    public void approveForIntervention(String taskId, String reviewerEmail)
+    {
+        approve(findSubmitted(taskId), reviewerEmail);
+    }
+
+    @Transactional
+    public void returnForIntervention(String taskId, String reviewerEmail, String comment)
+    {
+        sendBack(findSubmitted(taskId), reviewerEmail, StatusReason.OTHER, comment);
+    }
+
+    private TaskModel reviewable(String taskId, String managerEmail)
+    {
+        TaskModel task = findSubmitted(taskId);
+        if (!task.getManagerEmail().equals(managerEmail))
+            throw new AccessDeniedException("only the manager who sent the task reviews its report");
+        return task;
+    }
+
+    private TaskModel findSubmitted(String taskId)
+    {
+        TaskModel task = taskRepository.findById(taskId).
+            orElseThrow( () -> new TaskNotFoundException("no task found with id :" + taskId));
+        if (task.getStatus() != TaskStatus.SUBMITTED)
+            throw new InvalidTaskException("a task in status " + task.getStatus() + " has no report to review");
+        return task;
+    }
+
+    private String approve(TaskModel task, String reviewerEmail)
+    {
+        Instant now = Instant.now();
+        task.setStatus(TaskStatus.APPROVED);
+        task.setStatusReason(null);
+        task.setStatusComment(null);
+        task.setClosedAt(now);
+        taskRepository.save(task);
+        return taskEventRepository.save(TaskEvent.statusChanged(task.getId(), task.getEquipmentId(), reviewerEmail,
+                TaskStatus.SUBMITTED, TaskStatus.APPROVED, null, null, now)).getId();
+    }
+
+    private String sendBack(TaskModel task, String reviewerEmail, StatusReason reason, String comment)
+    {
+        String what = comment == null ? null : comment.strip();
+        if (what == null || what.isEmpty())
+            throw new InvalidTaskException("a returned report needs a comment saying what to redo");
+        StatusReason why = reason == null ? StatusReason.OTHER : reason;
+        if (!RETURN_REASONS.contains(why))
+            throw new InvalidTaskException("a report can't be returned with reason " + why);
+
+        Instant now = Instant.now();
+        task.setStatus(TaskStatus.RETURNED);
+        task.setStatusReason(why);
+        task.setStatusComment(what);
+        taskRepository.save(task);
+        return taskEventRepository.save(TaskEvent.statusChanged(task.getId(), task.getEquipmentId(), reviewerEmail,
+                TaskStatus.SUBMITTED, TaskStatus.RETURNED, why, what, now)).getId();
     }
 
     /*

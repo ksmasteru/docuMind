@@ -49,4 +49,7 @@ public interface TaskRepository extends JpaRepository<TaskModel, String>
     // pump history, newest first, one page at a time
     // uses idx_task_equipment_created
     Page<TaskModel> findByEquipmentIdOrderByCreatedAtDesc(String equipmentId, Pageable pageable);
+
+    // a workshop intervention's tasks, oldest first. Uses idx_task_intervention
+    List<TaskModel> findByInterventionIdOrderByCreatedAtAsc(String interventionId);
 }

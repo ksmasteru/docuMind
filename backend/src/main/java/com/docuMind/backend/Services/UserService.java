@@ -1,12 +1,15 @@
 package com.docuMind.backend.services;
 
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.docuMind.backend.exception.InvalidRoleException;
 import com.docuMind.backend.exception.UserNotFoundException;
 import com.docuMind.backend.model.ManagerRegisterForm;
 import com.docuMind.backend.model.UpdateUserRequest;
@@ -59,6 +62,12 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    // the roles register_manager creates: the manager and the workshop roles (fix_workshop.md);
+    // admins and technicians have their own registration
+    private static final Set<UserRole> STAFF_ROLES = EnumSet.of(UserRole.MANAGER, UserRole.SALES,
+        UserRole.BUSINESS_OPS, UserRole.CONTRACT_ADMIN, UserRole.PROJECT_LEAD, UserRole.WORKSHOP_LEAD,
+        UserRole.HSE, UserRole.STOREKEEPER, UserRole.QUALITY, UserRole.BILLING);
+
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public User register_manager(ManagerRegisterForm request)
@@ -67,7 +76,10 @@ public class UserService {
         if (emailExists) {
             throw new IllegalArgumentException("Email is already registered!");
         }
-        User user = new User(request.name(), request.email(), request.password(), UserRole.MANAGER);
+        UserRole role = request.role() == null ? UserRole.MANAGER : request.role();
+        if (!STAFF_ROLES.contains(role))
+            throw new InvalidRoleException("register_manager creates " + STAFF_ROLES + ", not " + role);
+        User user = new User(request.name(), request.email(), request.password(), role);
         String encryptedPassword = passwordEncoder.encode(user.getPassword());
         user.setPassword(encryptedPassword);
         return userRepository.save(user);

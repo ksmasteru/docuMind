@@ -8,6 +8,7 @@
 //
 //   { number, key: "PHB3-J-07:vibration", pumpId, site, kind, severity, raisedAt,
 //     status, priority, clearedAt, resolvedAt, orders: [{ taskId, title, technicianEmail, at }],
+//     interventions: [{ id, number, at }]   (sent to the workshop; missing on older cases),
 //     events: [{ type, at, by?, from?, to?, text?, severity?, message? }] }
 import { useSyncExternalStore } from "react";
 
@@ -147,6 +148,23 @@ export function linkOrder(number, order, by) {
             ...issue,
             status: starts ? "IN_PROGRESS" : issue.status,
             orders: [...issue.orders, { ...order, at }],
+            events: [...issue.events, ...events],
+        };
+    });
+}
+
+// the pump was sent to the workshop from the case (WorkshopRequest.jsx, after the server answered):
+// intervention is { id, number }. Cases saved before this existed have no interventions list.
+export function linkIntervention(number, intervention, by) {
+    update(number, (issue) => {
+        const at = Date.now();
+        const starts = ["NEW", "ACKNOWLEDGED"].includes(issue.status);
+        const events = [{ type: "workshop", at, by, text: intervention.number }];
+        if (starts) events.push({ type: "status", at, by, from: issue.status, to: "IN_PROGRESS" });
+        return {
+            ...issue,
+            status: starts ? "IN_PROGRESS" : issue.status,
+            interventions: [...(issue.interventions ?? []), { ...intervention, at }],
             events: [...issue.events, ...events],
         };
     });

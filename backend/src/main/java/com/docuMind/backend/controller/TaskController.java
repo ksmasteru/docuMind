@@ -19,6 +19,7 @@ import com.docuMind.backend.model.ReviewTasks;
 import com.docuMind.backend.model.TaskCreationDto;
 import com.docuMind.backend.model.TaskDeclineDto;
 import com.docuMind.backend.model.TaskModel;
+import com.docuMind.backend.model.TaskReturnDto;
 import com.docuMind.backend.services.TaskService;
 
 import jakarta.validation.Valid;
@@ -113,6 +114,24 @@ public class TaskController {
             (Map.of("id", taskEventId))
         );
     }
+    // the manager who sent the task: the report is approved, the task closed (SUBMITTED -> APPROVED).
+    // 409 for a workshop task: it is reviewed on its intervention's page
+    @PostMapping("/{id}/approve")
+    public ResponseEntity<?> approveTask(@PathVariable String id, Authentication authentication)
+    {
+        String taskEventId = taskService.approveTask(id, authentication);
+        return ResponseEntity.status(HttpStatus.OK).body(Map.of("id", taskEventId));
+    }
+
+    // the report goes back to the technician with what to redo (SUBMITTED -> RETURNED)
+    @PostMapping("/{id}/return")
+    public ResponseEntity<?> returnTask(@PathVariable String id, Authentication authentication,
+        @Valid @RequestBody TaskReturnDto returnDto)
+    {
+        String taskEventId = taskService.returnTask(id, authentication, returnDto.reason(), returnDto.comment());
+        return ResponseEntity.status(HttpStatus.OK).body(Map.of("id", taskEventId));
+    }
+
     /*
     @PostMapping("/{id}/submit")
     public ResponseEntity<?> submitTask(@PathVariable String id, Authentication authentication)
@@ -139,10 +158,6 @@ public class TaskController {
         );
     }
     // --------- manager / admin ----------
-    @PostMapping("/{id}/reject")
-    
-    @PostMapping("/{id/return")
-
-    @PostMapping ("/{id}/approve")
+    // later: @PostMapping("/{id}/reject")
     */
 }

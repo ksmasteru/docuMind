@@ -34,30 +34,12 @@ const ReviewReport = () => {
     const [searchParams] = useSearchParams();
     const taskId = searchParams.get("taskId");
     const title = searchParams.get("title");
+    const navigate = useNavigate();
 
-    const [report, setReport] = useState(null);
-    const [attempt, setAttempt] = useState(0);
-    const [loadError, setLoadError] = useState(null);
-
-    // attempt: bumped by Retry to run this again
-    useEffect(() => {
-        const loadReport = async () => {
-            try {
-                const { data } = await apiClient.get(`/api/v1/submissions/${id}`);
-                setLoadError(null);
-                setReport(data);
-            }
-            catch (err) {
-                console.log("Error while fetching the report", err);
-                setLoadError(serverMessage(err, "Le rapport n'a pas pu être chargé. Vérifiez votre connexion et réessayez."));
-            }
-        };
-        loadReport();
-    }, [id, attempt]);
-
-    const onRetry = () => {
-        setLoadError(null);
-        setAttempt((n) => n + 1);
+    // the manager's decision, on the task (SUBMITTED -> APPROVED / RETURNED)
+    const send = async (action, comment) => {
+        await apiClient.post(`/api/v1/task/${taskId}/${action}`, action === "return" ? { comment } : undefined);
+        navigate("/review", { state: { notice: `${action === "approve" ? "Rapport approuvé" : "Rapport renvoyé"} : « ${title} ».` } });
     };
 
     return (
@@ -67,55 +49,90 @@ const ReviewReport = () => {
         </Link>
 
         <div className="mt-4">
-            {!report && loadError && <ErrorBanner message={loadError} onRetry={onRetry} />}
-
-            {!report && !loadError && <p className="text-sm text-slate-500 dark:text-slate-400">Chargement du rapport…</p>}
-
-            {report && (
-            <div className="space-y-3">
-                <header className="mb-5">
-                    <div className="flex items-center gap-2 text-xs">
-                        <span className="rounded-full bg-[#1A75BC]/10 px-2 py-0.5 font-semibold text-[#1A75BC] dark:bg-[#5BC6E8]/15 dark:text-[#5BC6E8]">
-                            {report.type}
-                        </span>
-                        <span className="text-slate-500 dark:text-slate-400">v{report.version}</span>
-                    </div>
-                    <h1 className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-100">{report.title}</h1>
-                    {report.instructions && (
-                        <p className="mt-1 whitespace-pre-line text-sm text-slate-500 dark:text-slate-400">{report.instructions}</p>
-                    )}
-                </header>
-
-                <dl className={`${cardClass} grid grid-cols-2 gap-x-4 gap-y-3`}>
-                    <Fact label="Emplacement" value={report.equipment} />
-                    <Fact label="Date d'inspection" value={report.inspectionDate} />
-                    <Fact label="Technicien" value={report.inspector} />
-                    <Fact label="Envoyé le" value={report.submittedAt} />
-                </dl>
-
-                {STATUS_INFO[report.status] && (
-                    <p className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold ${STATUS_INFO[report.status].style}`}>
-                        {STATUS_INFO[report.status].label}
-                    </p>
+            <ReportView submissionId={id}>
+                {(report) => taskId && (
+                    <ReviewDecision send={send}
+                        confirmText={`Approuver le rapport ? La tâche « ${title || report.title} » sera clôturée.`} />
                 )}
-
-                {(report.answers ?? []).map((row) => <AnswerRow key={row.position} row={row} />)}
-
-                <div className={cardClass}>
-                    <SectionLabel>Remarques</SectionLabel>
-                    <p className={`mt-1 whitespace-pre-line text-sm ${report.remarks ? "text-slate-700 dark:text-slate-200" : "italic text-slate-400"}`}>
-                        {report.remarks || "Aucune remarque."}
-                    </p>
-                </div>
-
-                <ReportPdf submissionId={id} />
-
-                {taskId && <ReviewActions taskId={taskId} title={title || report.title} />}
-            </div>
-            )}
+            </ReportView>
         </div>
     </Layout>)
 }
+
+// One sent report, read-only: its facts, every answer, the remarks and the PDF. Also the
+// Workshop Lead's review step (WorkshopReport.jsx). children(report): what goes under it, the decision.
+export const ReportView = ({ submissionId, children }) => {
+    const [report, setReport] = useState(null);
+    const [attempt, setAttempt] = useState(0);
+    const [loadError, setLoadError] = useState(null);
+
+    // attempt: bumped by Retry to run this again
+    useEffect(() => {
+        const loadReport = async () => {
+            try {
+                const { data } = await apiClient.get(`/api/v1/submissions/${submissionId}`);
+                setLoadError(null);
+                setReport(data);
+            }
+            catch (err) {
+                console.log("Error while fetching the report", err);
+                setLoadError(serverMessage(err, "Le rapport n'a pas pu être chargé. Vérifiez votre connexion et réessayez."));
+            }
+        };
+        loadReport();
+    }, [submissionId, attempt]);
+
+    const onRetry = () => {
+        setLoadError(null);
+        setAttempt((n) => n + 1);
+    };
+
+    if (!report)
+        return loadError ? <ErrorBanner message={loadError} onRetry={onRetry} />
+            : <p className="text-sm text-slate-500 dark:text-slate-400">Chargement du rapport…</p>;
+
+    return (
+    <div className="space-y-3">
+        <header className="mb-5">
+            <div className="flex items-center gap-2 text-xs">
+                <span className="rounded-full bg-[#1A75BC]/10 px-2 py-0.5 font-semibold text-[#1A75BC] dark:bg-[#5BC6E8]/15 dark:text-[#5BC6E8]">
+                    {report.type}
+                </span>
+                <span className="text-slate-500 dark:text-slate-400">v{report.version}</span>
+            </div>
+            <h1 className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-100">{report.title}</h1>
+            {report.instructions && (
+                <p className="mt-1 whitespace-pre-line text-sm text-slate-500 dark:text-slate-400">{report.instructions}</p>
+            )}
+        </header>
+
+        <dl className={`${cardClass} grid grid-cols-2 gap-x-4 gap-y-3`}>
+            <Fact label="Emplacement" value={report.equipment} />
+            <Fact label="Date d'inspection" value={report.inspectionDate} />
+            <Fact label="Technicien" value={report.inspector} />
+            <Fact label="Envoyé le" value={report.submittedAt} />
+        </dl>
+
+        {STATUS_INFO[report.status] && (
+            <p className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold ${STATUS_INFO[report.status].style}`}>
+                {STATUS_INFO[report.status].label}
+            </p>
+        )}
+
+        {(report.answers ?? []).map((row) => <AnswerRow key={row.position} row={row} />)}
+
+        <div className={cardClass}>
+            <SectionLabel>Remarques</SectionLabel>
+            <p className={`mt-1 whitespace-pre-line text-sm ${report.remarks ? "text-slate-700 dark:text-slate-200" : "italic text-slate-400"}`}>
+                {report.remarks || "Aucune remarque."}
+            </p>
+        </div>
+
+        <ReportPdf submissionId={submissionId} />
+
+        {children?.(report)}
+    </div>)
+};
 
 const Fact = ({ label, value }) => (
     <div>
@@ -263,31 +280,30 @@ const ReportPdf = ({ submissionId }) => {
     </div>)
 };
 
-// Approve, or send back with what to redo.
-const ReviewActions = ({ taskId, title }) => {
-    const navigate = useNavigate();
+// Approve, or send back with what to redo. send(action, comment): "approve" | "return", resolves
+// once done (the caller navigates away), throws to show the server's refusal here.
+// confirmText: asked before approving, which closes the task for good.
+export const ReviewDecision = ({ send, confirmText, approveLabel = "Approuver" }) => {
     const [returning, setReturning] = useState(false);
     const [comment, setComment] = useState("");
     const [sending, setSending] = useState(null); // 'approve' | 'return' | null
     const [error, setError] = useState("");
 
-    const send = async (action) => {
+    const run = async (action) => {
         setSending(action);
         setError("");
         try {
-            await apiClient.post(`/api/v1/task/${taskId}/${action}`, action === "return" ? { comment: comment.trim() } : undefined);
-            navigate("/review", { state: { notice: `${action === "approve" ? "Rapport approuvé" : "Rapport renvoyé"} : « ${title} ».` } });
+            await send(action, action === "return" ? comment.trim() : null);
         }
         catch (err) {
-            console.log(`Error while trying to ${action} the task`, err);
+            console.log(`Error while trying to ${action} the report`, err);
             setError(serverMessage(err, "La décision n'a pas pu être envoyée. Réessayez."));
             setSending(null);
         }
     };
 
-    // approving closes the task for good, so it's confirmed first
     const approve = () => {
-        if (window.confirm(`Approuver le rapport ? La tâche « ${title} » sera clôturée.`)) send("approve");
+        if (window.confirm(confirmText)) run("approve");
     };
 
     const busy = sending !== null;
@@ -304,7 +320,7 @@ const ReviewActions = ({ taskId, title }) => {
             </button>
             <button type="button" disabled={busy} onClick={approve}
                 className={`${buttonBase} bg-emerald-600 text-white hover:bg-emerald-700`}>
-                {sending === "approve" ? "Approbation…" : "Approuver"}
+                {sending === "approve" ? "Envoi…" : approveLabel}
             </button>
         </div>
         ) : (
@@ -320,7 +336,7 @@ const ReviewActions = ({ taskId, title }) => {
                     className={`${buttonBase} text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700`}>
                     Annuler
                 </button>
-                <button type="button" disabled={busy || !comment.trim()} onClick={() => send("return")}
+                <button type="button" disabled={busy || !comment.trim()} onClick={() => run("return")}
                     className={`${buttonBase} bg-red-600 text-white hover:bg-red-700`}>
                     {sending === "return" ? "Renvoi…" : "Confirmer le renvoi"}
                 </button>

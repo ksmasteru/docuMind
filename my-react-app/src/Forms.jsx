@@ -15,7 +15,7 @@ const TYPE_INFO = {
 
 const Forms = () => {
   const { user } = useAuth();
-  // technicians only fill in the expertise report for now, the quick or the full one (TECHNICIAN_FORMS)
+  // technicians get every active form as a card (TECHNICIAN_FORMS only sets their order and hints)
   const technician = user?.role === "USER";
   const [selected, setSelected] = useState(null);
   const [options, setOptions] = useState(null);   // null = still loading
@@ -46,10 +46,18 @@ const Forms = () => {
     .filter((g) => g.options.length > 0);
 
   if (technician) {
-    // the technician's forms that are active on the server, in TECHNICIAN_FORMS order
-    const choices = TECHNICIAN_FORMS
-      .map((form) => ({ ...form, option: formOptions.find((o) => sameText(o.label, form.title)) }))
-      .filter((choice) => choice.option);
+    // every active form on the server (no title filter for now). The ones in TECHNICIAN_FORMS come
+    // first, in that order, with their hint; any other form follows with its type as the hint.
+    const rank = (option) => {
+      const i = TECHNICIAN_FORMS.findIndex((form) => sameText(option.label, form.title));
+      return i === -1 ? TECHNICIAN_FORMS.length : i;
+    };
+    const choices = [...formOptions]
+      .sort((a, b) => rank(a) - rank(b))
+      .map((option) => ({
+        option,
+        hint: TECHNICIAN_FORMS[rank(option)]?.hint ?? TYPE_INFO[option.type]?.badge ?? "",
+      }));
 
     // answers live in the open sheet, so leaving it drops whatever wasn't sent
     const leaveSheet = () => {
@@ -94,8 +102,8 @@ const Forms = () => {
                 </div>
               ) : (
                 <EmptyState
-                  title="Rapport d’expertise indisponible"
-                  hint="Il n’est pas actif pour le moment. Prévenez votre responsable."
+                  title="Aucun formulaire disponible"
+                  hint="Aucun formulaire n’est actif pour le moment. Prévenez votre responsable."
                 />
               )}
             </>

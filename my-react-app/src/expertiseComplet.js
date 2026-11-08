@@ -12,6 +12,12 @@
 // "☒ Bon état" / "☐ Corrosion" (encodeChoices). The dictated text stays the answer's value.
 
 export const COMPLETE_FORM_TITLE = "Rapport d'expertise complet";
+// the full report's first part, from "Informations générales" to "Pièces" (sections 1–19): what the
+// technician fills at the workshop's démontage (step 8, fix_workshop.md). Same labels, same layout
+export const DISMANTLING_FORM_TITLE = "Rapport d'expertise (démontage)";
+// and its montage part: "Informations générales" (section 1) then "Pièces changées" to "Montage pompe"
+// (sections 20–23), filled at the workshop's montage (step 16)
+export const MOUNTING_FORM_TITLE = "Rapport d'expertise (montage)";
 
 const SEP = " : ";
 

@@ -7,23 +7,45 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import com.docuMind.backend.exception.FormAlreadyExistException;
+import com.docuMind.backend.exception.FormInUseException;
 import com.docuMind.backend.exception.FormNotFoundException;
 import com.docuMind.backend.model.CheckListItem;
 import com.docuMind.backend.model.CheckListTemplate;
 import com.docuMind.backend.model.FormCreationDto;
 import com.docuMind.backend.model.FormCreationDto.FormItem;
 import com.docuMind.backend.repository.CheckListTemplateRepository;
+import com.docuMind.backend.repository.SubmissionRepository;
 import com.docuMind.backend.model.FormOptionsResponse;
 import com.docuMind.backend.model.InspectionFormResponse;
+
+import jakarta.transaction.Transactional;
 
 @Service
 public class CheckListTemplateService{
 
     private final CheckListTemplateRepository checkListTemplateRepository;
-    
-    public CheckListTemplateService(CheckListTemplateRepository checkListTemplateRepository)
+    private final SubmissionRepository submissionRepository;
+
+    public CheckListTemplateService(CheckListTemplateRepository checkListTemplateRepository,
+                                    SubmissionRepository submissionRepository)
     {
         this.checkListTemplateRepository = checkListTemplateRepository;
+        this.submissionRepository = submissionRepository;
+    }
+
+    // deletes a form (and its questions, via cascade) by id.
+    // 404 if no form has this id; 409 if submissions already answer it, since
+    // CheckListSubmission.template_id is a non-null FK and the delete would fail anyway.
+    @Transactional
+    public void deleteForm(String id)
+    {
+        CheckListTemplate template = checkListTemplateRepository.findById(id)
+                .orElseThrow(() -> new FormNotFoundException("no form with id " + id));
+
+        if (submissionRepository.existsByTemplate_Id(id))
+            throw new FormInUseException("form " + id + " has submissions and can't be deleted");
+
+        checkListTemplateRepository.delete(template);
     }
 
     // gets the an active form with the path variable label.

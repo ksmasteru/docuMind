@@ -8,7 +8,9 @@
 
 // ! frontend needs to be rebuild test new changes.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Mic } from "lucide-react";
 import { getAccessToken } from "./apiClient";
+import { useVoiceInput } from "./useVoiceInput";
 
 function UserAvatar() {
   return (
@@ -43,7 +45,9 @@ function TypingDots() {
 
 // compact=true trims the hero copy/padding down for narrow sidebar use;
 // the streaming logic underneath is identical either way.
-export default function AskChat({ compact = false, fileId, fileName }) {
+// The task page's Ask tab passes emptyTitle / emptyHint / placeholder for its own words, and
+// dictation to show the microphone (the question is dictated, then sent like a typed one)
+export default function AskChat({ compact = false, fileId, fileName, emptyTitle, emptyHint, placeholder, dictation = false }) {
   const [messages, setMessages] = useState([]); // { role: "user" | "assistant", text }
   const [question, setQuestion] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -51,6 +55,18 @@ export default function AskChat({ compact = false, fileId, fileName }) {
   const abortControllerRef = useRef(null);
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
+  // the microphone: held while recording, the text lands in the box to read before sending
+  const voice = useVoiceInput({ language: "fr" });
+
+  async function toggleDictation() {
+    if (voice.status === "recording") {
+      const text = await voice.stopReport();
+      if (text) setQuestion((current) => (current.trim() ? `${current.trim()} ${text}` : text));
+      textareaRef.current?.focus();
+    }
+    else if (voice.status === "idle") await voice.start();
+  }
+  const mic = dictation ? { status: voice.status, error: voice.error, onToggle: toggleDictation } : null;
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -61,7 +77,8 @@ export default function AskChat({ compact = false, fileId, fileName }) {
   // Auto-grow the textarea with content, like ChatGPT's composer.
   useLayoutEffect(() => {
     const el = textareaRef.current;
-    if (!el) return;
+    // hidden (the task page's Ask tab while another tab is open): it would measure 0 and collapse
+    if (!el || el.offsetParent === null) return;
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, compact ? 120 : 200)}px`;
   }, [question, compact]);
@@ -156,11 +173,11 @@ export default function AskChat({ compact = false, fileId, fileName }) {
           <h1 className={compact
             ? "text-sm font-semibold text-slate-800 dark:text-slate-100"
             : "text-3xl font-semibold text-slate-800 dark:text-slate-100"}>
-            {compact ? (fileName ? `Question sur ${fileName}` : "Question sur vos données") : "Que voulez-vous savoir ?"}
+            {emptyTitle ?? (compact ? (fileName ? `Question sur ${fileName}` : "Question sur vos données") : "Que voulez-vous savoir ?")}
           </h1>
-          {!compact && (
+          {(emptyHint || !compact) && (
             <p className="mt-2 text-sm text-slate-400 dark:text-slate-500">
-              Posez une question sur une pompe ou sur son entretien.
+              {emptyHint ?? "Posez une question sur une pompe ou sur son entretien."}
             </p>
           )}
 
@@ -174,6 +191,8 @@ export default function AskChat({ compact = false, fileId, fileName }) {
               onSubmit={handleSubmit}
               onKeyDown={handleKeyDown}
               textareaRef={textareaRef}
+              placeholder={placeholder}
+              mic={mic}
             />
           </div>
         </div>
@@ -227,6 +246,8 @@ export default function AskChat({ compact = false, fileId, fileName }) {
                 onSubmit={handleSubmit}
                 onKeyDown={handleKeyDown}
                 textareaRef={textareaRef}
+                placeholder={placeholder}
+                mic={mic}
               />
             </div>
           </div>
@@ -251,7 +272,9 @@ function FileScopeChip({ name }) {
   );
 }
 
-function Composer({ compact, fileName, question, setQuestion, isStreaming, onSubmit, onKeyDown, textareaRef }) {
+function Composer({ compact, fileName, question, setQuestion, isStreaming, onSubmit, onKeyDown, textareaRef, placeholder, mic }) {
+  const recording = mic?.status === "recording";
+  const transcribing = mic?.status === "transcribing";
   return (
     <div>
       {fileName && <FileScopeChip name={fileName} />}
@@ -265,14 +288,29 @@ function Composer({ compact, fileName, question, setQuestion, isStreaming, onSub
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder={compact ? "Posez votre question…" : "Ex. : fréquence de vidange d’huile de la pompe OTW…"}
-          disabled={isStreaming}
+          placeholder={recording ? "Enregistrement… touchez le micro pour arrêter" : transcribing ? "Transcription…"
+            : placeholder ?? (compact ? "Posez votre question…" : "Ex. : fréquence de vidange d’huile de la pompe OTW…")}
+          disabled={isStreaming || recording || transcribing}
           autoFocus={!compact}
           className={`flex-1 resize-none bg-transparent py-1.5 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60 dark:text-slate-100 ${compact ? "max-h-[120px]" : "max-h-[200px]"}`}
         />
+        {mic && (
+          <button
+            type="button"
+            onClick={mic.onToggle}
+            disabled={isStreaming || transcribing}
+            aria-label={recording ? "Arrêter la dictée" : "Dicter la question"}
+            aria-pressed={recording}
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition disabled:opacity-50 ${
+              recording ? "animate-pulse bg-red-600 text-white" : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
+            }`}
+          >
+            <Mic className="h-4 w-4" aria-hidden="true" />
+          </button>
+        )}
         <button
           type="submit"
-          disabled={isStreaming || !question.trim()}
+          disabled={isStreaming || recording || transcribing || !question.trim()}
           aria-label="Envoyer la question"
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:bg-slate-700"
         >
@@ -282,6 +320,7 @@ function Composer({ compact, fileName, question, setQuestion, isStreaming, onSub
           </svg>
         </button>
       </form>
+      {mic?.error && <p className="mt-1.5 px-2 text-xs text-red-600 dark:text-red-400">{mic.error}</p>}
     </div>
   );
 }

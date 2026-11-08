@@ -12,6 +12,7 @@ import com.docuMind.backend.model.enums.TaskType;
 import com.docuMind.backend.model.enums.TaskPriority;
 import com.docuMind.backend.model.enums.TaskStatus;
 import com.docuMind.backend.model.enums.StatusReason;
+import com.docuMind.backend.model.enums.WorkshopStep;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -30,7 +31,9 @@ import jakarta.persistence.Table;
     // manager's view of the tasks he assigned
     @Index(name = "idx_task_manager_status", columnList = "manager_email, status"),
     // pump history, newest first
-    @Index(name = "idx_task_equipment_created", columnList = "equipment_id, created_at")
+    @Index(name = "idx_task_equipment_created", columnList = "equipment_id, created_at"),
+    // a workshop intervention's tasks (démontage, montage, and the ones cancelled or declined before)
+    @Index(name = "idx_task_intervention", columnList = "intervention_id, created_at")
 })
 public class TaskModel {
     @Id
@@ -68,6 +71,16 @@ public class TaskModel {
 
     @Column // the checklist (CheckListTemplate id) to fill for this task, null if none
     private String templateId;
+
+    // ---------- workshop ----------
+    // set when the Workshop Lead assigns it from an intervention (step 7 / 15); null for a manager's task
+
+    @Column // the Intervention it belongs to
+    private String interventionId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 32) // its step: DEMONTAGE_EXPERTISE (8) or MONTAGE_ESSAIS (16)
+    private WorkshopStep interventionStep;
 
     // ---------- current state ----------
 
@@ -147,6 +160,15 @@ public class TaskModel {
     public void setInstructions(String instructions)    { this.instructions = instructions; }
     public String getTemplateId()                       { return templateId; }
     public void setTemplateId(String templateId)        { this.templateId = templateId; }
+
+    public String getInterventionId()                   { return interventionId; }
+    public WorkshopStep getInterventionStep()           { return interventionStep; }
+    // the workshop task's intervention and step, set once at assignment
+    public void linkToIntervention(String interventionId, WorkshopStep step)
+    {
+        this.interventionId = interventionId;
+        this.interventionStep = step;
+    }
     public TaskStatus getStatus()                       { return status; }
     public void setStatus(TaskStatus status)            { this.status = status; }
     public StatusReason getStatusReason()               { return statusReason; }

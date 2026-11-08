@@ -1,0 +1,547 @@
+{
+  "title": "Rapport d'expertise (démontage)",
+  "type": "INSPECTION",
+  "instructions": "Rapport au démontage, section par section : informations générales, pièce par pièce, contrôles et pièces. Prenez les photos de chaque pièce, puis dictez les commentaires et les recommandations.",
+  "items": [
+    {
+      "labelFr": "Informations générales : Client",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations générales : Adresse client",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations générales : Entité",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations générales : N° de commande client",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations générales : N° d'opération",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations générales : Matricule équipement",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations générales : Type",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations générales : Fabricant",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations générales : Fluide pompé",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations générales : Raison de la demande d'expertise",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations générales : Date de réception",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations générales : Auteur rapport démontage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Pompe à la réception : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE"
+    },
+    {
+      "labelFr": "Pompe à la réception : Commentaires",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Corps de la pompe : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE"
+    },
+    {
+      "labelFr": "Corps de la pompe : Commentaires",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Corps de la pompe : Recommandations",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Roue : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE"
+    },
+    {
+      "labelFr": "Roue : Commentaires",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Roue : Recommandations",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Fond : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE"
+    },
+    {
+      "labelFr": "Fond : Commentaires",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Fond : Recommandations",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Palier : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE"
+    },
+    {
+      "labelFr": "Palier : Commentaires",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Palier : Recommandations",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Roulements : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE"
+    },
+    {
+      "labelFr": "Roulements : Commentaires",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Roulements : Recommandations",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Arbre : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE"
+    },
+    {
+      "labelFr": "Arbre : Commentaires",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Arbre : Recommandations",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Flasques côté PPE : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE"
+    },
+    {
+      "labelFr": "Flasques côté PPE : Commentaires",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Flasques côté PPE : Recommandations",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Flasques côté CDE : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE"
+    },
+    {
+      "labelFr": "Flasques côté CDE : Commentaires",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Flasques côté CDE : Recommandations",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Déflecteur : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE"
+    },
+    {
+      "labelFr": "Déflecteur : Commentaires",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Déflecteur : Recommandations",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles géométriques : Concentricité de l'arbre au démontage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles géométriques : Concentricité de l'arbre au remontage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles géométriques : Déplacement axial au démontage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles géométriques : Déplacement axial au remontage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles géométriques : Déplacement radial au démontage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles géométriques : Déplacement radial au remontage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles géométriques : Perpendicularité au démontage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles géométriques : Perpendicularité au remontage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles géométriques : Concentricité de la boîte à garniture au démontage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles géométriques : Concentricité de la boîte à garniture au remontage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles dimensionnels arbre/palier : J au démontage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles dimensionnels arbre/palier : X au démontage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles dimensionnels arbre/palier : J5 au démontage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles dimensionnels arbre/palier : J6 au démontage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles dimensionnels arbre/palier : J7 au démontage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles dimensionnels arbre/palier : J8 au démontage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles dimensionnels arbre/palier : C1 au démontage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles dimensionnels arbre/palier : C2 au démontage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles dimensionnels arbre/palier : C3 au démontage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles dimensionnels arbre/palier : C4 au démontage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles dimensionnels arbre/palier : C5 au démontage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles dimensionnels arbre/palier : J au montage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles dimensionnels arbre/palier : X au montage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles dimensionnels arbre/palier : J5 au montage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles dimensionnels arbre/palier : J6 au montage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles dimensionnels arbre/palier : J7 au montage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles dimensionnels arbre/palier : J8 au montage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles dimensionnels arbre/palier : C1 au montage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles dimensionnels arbre/palier : C2 au montage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles dimensionnels arbre/palier : C3 au montage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles dimensionnels arbre/palier : C4 au montage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles dimensionnels arbre/palier : C5 au montage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Garniture mécanique : Fabricant",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Garniture mécanique : Type",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Garniture mécanique : N° de plan",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Garniture mécanique : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE"
+    },
+    {
+      "labelFr": "Face rotative côté process : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE"
+    },
+    {
+      "labelFr": "Face rotative côté process : Commentaires",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Face rotative côté process : Recommandations",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Face stationnaire côté process : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE"
+    },
+    {
+      "labelFr": "Face stationnaire côté process : Commentaires",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Face stationnaire côté process : Recommandations",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Chemise : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE"
+    },
+    {
+      "labelFr": "Chemise : Commentaires",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Chemise : Recommandations",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Couvercle et boîte à GM : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE"
+    },
+    {
+      "labelFr": "Couvercle et boîte à GM : Commentaires",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Couvercle et boîte à GM : Recommandations",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Pièces : Liste des pièces",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    }
+  ]
+}

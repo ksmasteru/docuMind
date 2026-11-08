@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowUpRight, Bell, CheckCircle2, ClipboardList, MessageSquare, OctagonAlert, RefreshCw, SlidersHorizontal } from "lucide-react";
+import { ArrowUpRight, Bell, CheckCircle2, ClipboardList, MessageSquare, OctagonAlert, RefreshCw, SlidersHorizontal, Wrench } from "lucide-react";
 import { useTheme } from "./ThemeContext";
 import { LIMITS, effectiveState } from "./fleetSimulator";
 import { METRICS } from "./pumpStates";
@@ -151,6 +151,8 @@ function describe(event, issue) {
             return { icon: MessageSquare, text: <>{by} a commenté</>, body: event.text };
         case "order":
             return { icon: ClipboardList, tone: "brand", text: <>{by} a créé l'ordre de travail « {event.text} » pour {event.to} sur {issue.pumpId}</> };
+        case "workshop":
+            return { icon: Wrench, tone: "brand", text: <>{by} a envoyé {issue.pumpId} en atelier{event.text ? ` (${event.text})` : ""}</> };
         default:
             return { icon: Bell, text: humanize(event.type) };
     }

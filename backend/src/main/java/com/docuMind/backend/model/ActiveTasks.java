@@ -1,5 +1,6 @@
 package com.docuMind.backend.model;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -22,12 +23,15 @@ public record ActiveTasks(
         TaskStatus status,
         String instructions,
         String templateId,    // the form to open for this task, null if none
-        String technicianEmail // who the task is assigned to, for the manager's list
+        String technicianEmail, // who the task is assigned to, for the manager's list
+        long workedSeconds,     // time worked in the closed periods
+        Instant activeSince,    // start of the period running now, null when not working: the task page's timer
+        String statusComment    // why it's BLOCKED, or what to redo once RETURNED
     ){
         public static Task from(TaskModel task) {
             return new Task(task.getId(), task.getTitle(), null, task.getEquipmentId(),
                     task.getDueDate(), task.getPriority(), task.getStatus(), task.getInstructions(),
-                    task.getTemplateId(), task.getTechnicianEmail());
+                    task.getTemplateId(), task.getTechnicianEmail(), task.getWorkedSeconds(), task.getActiveSince(), task.getStatusComment());
         }
     }
 

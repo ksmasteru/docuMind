@@ -4,6 +4,7 @@ import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -52,5 +53,14 @@ public class CheckListController{
     {
         FormOptionsResponse response = checkListService.getFormOptions();
         return ResponseEntity.ok(response);
+    }
+
+    // deletes a form by id. Open to every logged-in user for now (no role check).
+    // 204 on success, 404 if no form has this id, 409 if submissions already answer it
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteForm(@PathVariable String id)
+    {
+        checkListService.deleteForm(id);
+        return ResponseEntity.noContent().build();
     }
 }

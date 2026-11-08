@@ -14,6 +14,7 @@ import Ask from "./Ask";
 import Forms from "./Forms";
 import LinkLogin from "./LinkLogin";
 import Tasks from "./Tasks";
+import TaskScreen from "./TaskScreen";
 import DataVisualisor from "./DataVisualisor";
 import Technicians from "./Technicians";
 import AssignTask from "./AssignTask";
@@ -23,6 +24,17 @@ import ReviewReport from "./ReviewReport";
 import Dashboard from "./Dashboard";
 import Pumps from "./Pumps";
 import AlertDetail, { AlertsIndex } from "./AlertDetail";
+import Workshop from "./Workshop";
+import WorkshopRequest from "./WorkshopRequest";
+import WorkshopIntervention from "./WorkshopIntervention";
+import WorkshopAssign from "./WorkshopAssign";
+import WorkshopFollowUp from "./WorkshopFollowUp";
+import WorkshopReport from "./WorkshopReport";
+import WorkshopQuote from "./WorkshopQuote";
+import WorkshopPendingStep from "./WorkshopPendingStep";
+import FinalCheckGuide from "./FinalCheckGuide";
+import WorkshopAttachment from "./WorkshopAttachment";
+import RoleHome from "./RoleHome";
 import { canOpen, homeFor } from "./roleTabs";
 import { pdfjs} from "react-pdf";
 
@@ -66,6 +78,7 @@ export default function App() {
           <Route path="/forms" element={<ProtectedRoute><Forms/></ProtectedRoute>}/>
           <Route path="/data-visualisor" element={<ProtectedRoute><DataVisualisor /></ProtectedRoute>} />
           <Route path="/tasks" element={<ProtectedRoute><Tasks/></ProtectedRoute>}/>
+          <Route path="/tasks/:id" element={<ProtectedRoute><TaskScreen/></ProtectedRoute>}/>
           {/* manager pages: the dashboard (their home page), then the mobile app's Tâche / Ordres / Revue tabs;
               the backend refuses other roles */}
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard/></ProtectedRoute>}/>
@@ -77,6 +90,21 @@ export default function App() {
           <Route path="/orders" element={<ProtectedRoute><Orders/></ProtectedRoute>}/>
           <Route path="/review" element={<ProtectedRoute><Review/></ProtectedRoute>}/>
           <Route path="/review/:id" element={<ProtectedRoute><ReviewReport/></ProtectedRoute>}/>
+          {/* the workshop loop: each role's queue, a new request (Sales, or a manager from an alert), one intervention */}
+          <Route path="/atelier" element={<ProtectedRoute><Workshop/></ProtectedRoute>}/>
+          <Route path="/atelier/nouvelle" element={<ProtectedRoute><WorkshopRequest/></ProtectedRoute>}/>
+          <Route path="/atelier/:id" element={<ProtectedRoute><WorkshopIntervention/></ProtectedRoute>}/>
+          {/* the Workshop Lead's task order for the technician (step 7 / 15) */}
+          <Route path="/atelier/:id/affecter" element={<ProtectedRoute><WorkshopAssign/></ProtectedRoute>}/>
+          <Route path="/atelier/:id/rapport" element={<ProtectedRoute><WorkshopReport/></ProtectedRoute>}/>
+          <Route path="/atelier/:id/rapport/:submissionId" element={<ProtectedRoute><WorkshopReport/></ProtectedRoute>}/>
+          <Route path="/atelier/:id/controle-final" element={<ProtectedRoute><WorkshopReport guide={<FinalCheckGuide/>}/></ProtectedRoute>}/>
+          <Route path="/atelier/:id/devis/:quoteId" element={<ProtectedRoute><WorkshopQuote/></ProtectedRoute>}/>
+          <Route path="/atelier/:id/etape/:slug" element={<ProtectedRoute><WorkshopPendingStep/></ProtectedRoute>}/>
+          <Route path="/atelier/:id/attachement" element={<ProtectedRoute><WorkshopAttachment/></ProtectedRoute>}/>
+          <Route path="/suivi" element={<ProtectedRoute><WorkshopFollowUp/></ProtectedRoute>}/>
+          {/* the placeholder home page of the workshop roles whose step isn't built yet */}
+          <Route path="/accueil" element={<ProtectedRoute><RoleHome/></ProtectedRoute>}/>
           <Route path="*" element={<HomeRedirect />} />
         </Routes>
       </BrowserRouter>

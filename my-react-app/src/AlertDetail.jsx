@@ -8,7 +8,7 @@
 // /alerts/:number?vue=fil|ordres. /alerts opens the worst open case.
 import { useEffect, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ChevronLeft, ChevronRight, ClipboardPlus, Wrench } from "lucide-react";
+import { ChevronLeft, ChevronRight, ClipboardPlus, Warehouse, Wrench } from "lucide-react";
 import Layout from "./Layout";
 import { useAuth } from "./AuthContext";
 import { apiClient } from "./apiClient";
@@ -19,6 +19,7 @@ import { addComment, setPriority, setStatus, useAlertIssues } from "./alertStore
 import { ActivityFeed, OrdersTab, SummaryCard, TrendCard } from "./AlertFeed";
 import { Card, EmptyState, Notice, PriorityBadge, SimulatedBadge } from "./managerUi";
 import { PRIORITY_LABEL, ago, formatDateTime, newOrderRoute, plural, serverMessage } from "./managerUtils";
+import { workshopRequestRoute } from "./workshopUtils";
 
 const SEVERITY_RANK = { critical: 0, warning: 1 };
 const PRIORITIES = ["URGENT", "HIGH", "NORMAL", "LOW"];
@@ -78,7 +79,9 @@ function UpdatePanel({ issue, live, actor }) {
     );
 }
 
-function WorkPanel({ issue, onCreate, onShowOrders }) {
+// onCreate: a work order on site; onWorkshop: the pump goes to the workshop (the request to Sales)
+function WorkPanel({ issue, onCreate, onWorkshop, onShowOrders }) {
+    const interventions = issue.interventions ?? [];
     return (
         <Card>
             <div className="flex items-start gap-3">
@@ -91,6 +94,16 @@ function WorkPanel({ issue, onCreate, onShowOrders }) {
                 className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-[#1A75BC] px-3 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#0F2A49]">
                 <ClipboardPlus className="h-4 w-4" aria-hidden="true" /> Créer un ordre de travail
             </button>
+            <button type="button" onClick={onWorkshop}
+                className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">
+                <Warehouse className="h-4 w-4" aria-hidden="true" /> Envoyer en atelier
+            </button>
+            {interventions.map((intervention) => (
+                <Link key={intervention.id} to={`/atelier/${intervention.id}`}
+                    className="mt-2 block w-full text-center text-xs font-medium text-[#1A75BC] hover:underline dark:text-[#5BC6E8]">
+                    Intervention atelier {intervention.number ?? ""} →
+                </Link>
+            ))}
             {issue.orders.length > 0 && (
                 <button type="button" onClick={onShowOrders} className="mt-2 w-full text-center text-xs font-medium text-[#1A75BC] hover:underline dark:text-[#5BC6E8]">
                     {issue.orders.length} {plural(issue.orders.length, "ordre lié", "ordres liés")} →
@@ -182,6 +195,9 @@ const AlertDetail = () => {
     const goTo = (i) => navigate(`/alerts/${walk[i].number}`);
 
     const createOrder = () => navigate(...newOrderRoute(issue.pumpId, issue.site, live?.message ?? kind.title, issue.number));
+    // the request form, pre-filled: the fault is the alert's message, urgent from the case's priority
+    const sendToWorkshop = () => navigate(workshopRequestRoute(issue.pumpId, live?.message ?? kind.title,
+        ["URGENT", "HIGH"].includes(issue.priority), issue.number));
 
     return (
     <Layout active="alerts" full>
@@ -259,7 +275,7 @@ const AlertDetail = () => {
 
                 <aside className="space-y-6 lg:col-span-4">
                     <UpdatePanel issue={issue} live={live} actor={actor} />
-                    <WorkPanel issue={issue} onCreate={createOrder} onShowOrders={() => setParams({ vue: "ordres" }, { replace: true })} />
+                    <WorkPanel issue={issue} onCreate={createOrder} onWorkshop={sendToWorkshop} onShowOrders={() => setParams({ vue: "ordres" }, { replace: true })} />
                     <ResolutionPanel issue={issue} live={live} now={fleet.updatedAt} actor={actor} />
                 </aside>
             </div>

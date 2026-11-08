@@ -188,7 +188,7 @@ const Field = ({ label, required, children }) => (
 );
 
 // one choice out of a few; the selected chip takes the option's colour
-const Chips = ({ options, value, onChange, disabled }) => (
+export const Chips = ({ options, value, onChange, disabled }) => (
     <div role="radiogroup" className="mt-1.5 flex flex-wrap gap-2">
         {options.map((option) => {
             const selected = value === option.value;
@@ -208,7 +208,7 @@ const Chips = ({ options, value, onChange, disabled }) => (
 
 // The active checklist templates as radio rows. Loading, a failed load (with retry) and
 // "none active" each get their own line instead of the list.
-const TemplatePicker = ({ templates, error, value, onChange, onRetry, disabled }) => {
+export const TemplatePicker = ({ templates, error, value, onChange, onRetry, disabled }) => {
     const stateLine = "mt-1.5 text-sm text-slate-500 dark:text-slate-400";
 
     if (templates === null) return <p className={stateLine}>Chargement des checklists…</p>;

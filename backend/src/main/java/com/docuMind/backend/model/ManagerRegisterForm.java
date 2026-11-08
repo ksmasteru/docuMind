@@ -1,5 +1,7 @@
 package com.docuMind.backend.model;
 
+import com.docuMind.backend.model.enums.UserRole;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
@@ -15,13 +17,16 @@ public record ManagerRegisterForm(
     String email,
 
     @NotBlank(message = "password must not be blank")
-    String password
+    String password,
+
+    // optional: MANAGER when missing, or one of the workshop roles (UserService.STAFF_ROLES)
+    UserRole role
 )
 {
     // hide the password when the request is logged
     @Override
     public String toString()
     {
-        return "ManagerRegisterForm[id=" + id + ", name=" + name + ", email=" + email + ", password=****]";
+        return "ManagerRegisterForm[id=" + id + ", name=" + name + ", email=" + email + ", role=" + role + ", password=****]";
     }
 }

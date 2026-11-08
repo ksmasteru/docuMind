@@ -23,9 +23,9 @@ import {
   Camera, Check, CheckCheck, ChevronLeft, ChevronRight, Download, ImagePlus, Loader2, Mic, RefreshCw, Send, Share2, Square, X,
 } from "lucide-react";
 import { useVoiceInput } from "./useVoiceInput";
-import { isExpertiseTitle, sameText, sectionsFor } from "./expertiseForm";
+import { isExpertiseTitle, sameText, sectionsFor, usesCompleteLayout } from "./expertiseForm";
 import {
-  COMPLETE_FORM_TITLE, COMPLETE_META, DIMENSION_DRAWINGS, DIMENSION_KEYS, DIMENSIONS_SECTION, GEOMETRIC_CHECKS,
+  COMPLETE_META, DIMENSION_DRAWINGS, DIMENSION_KEYS, DIMENSIONS_SECTION, GEOMETRIC_CHECKS,
   GEOMETRIC_SECTION, INFO_SECTION, OUT_OF_TOLERANCE, PART_DECISIONS, PART_RECOMMENDATIONS, PARTS_HINT, PARTS_SECTION,
   SPARE_PARTS, parsePartLines, partLinesOf,
   choicesFor, completeContext, detectChoices, dictatedMeasure, encodeChoices, isDateField, isLongField, isMeasure,
@@ -159,7 +159,9 @@ const CHECK_EACH_CARD = false;
 const inputClass =
   "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#1A75BC] focus:ring-2 focus:ring-[#1A75BC]/20 disabled:bg-slate-50";
 
-export default function InspectionForm({ id }) {
+// taskId: the task this report is sent for (the task page's Rapport tab), so the server marks it
+// submitted; initialEquipment pre-fills the pump; onSubmitted(SubmissionResponse) once it's sent
+export default function InspectionForm({ id, taskId = null, initialEquipment = "", onSubmitted }) {
   const { user } = useAuth();
 
   // the blank form, fetched from the backend
@@ -167,7 +169,7 @@ export default function InspectionForm({ id }) {
 
   // what the technician fills in
   const [answers, setAnswers] = useState({});
-  const [equipment, setEquipment] = useState("");
+  const [equipment, setEquipment] = useState(initialEquipment);
   const [inspectionDate, setInspectionDate] = useState(todayLocal);
   const [remarks, setRemarks] = useState("");
 
@@ -313,10 +315,10 @@ export default function InspectionForm({ id }) {
   const questions = [...(template?.questions ?? [])].sort((a, b) => a.position - b.position);
   if (!template) return <p>Loading...</p>;
 
-  // The full expertise report (expertiseComplet.js): its labels name their section, a photo
+  // The full expertise report (expertiseComplet.js), or its démontage part: its labels name their section, a photo
   // question takes up to 4 photos, Commentaires / Recommandations have the paper report's tick
   // boxes, and only the Bon / Mauvais checks must be answered.
-  const isComplete = sameText(template.title, COMPLETE_FORM_TITLE);
+  const isComplete = usesCompleteLayout(template.title);
   const maxPhotos = isComplete ? 4 : 1;
   const isOptional = (q) => isComplete && q.answerType !== "BON_MAUVAIS";
   const choicesOf = (q) => (isComplete ? choicesFor(q.labelFr) : null);
@@ -410,6 +412,7 @@ export default function InspectionForm({ id }) {
       // the state is an object keyed by id; the backend expects a list
       const body = {
         templateId: template.id,
+        ...(taskId ? { taskId } : {}),
         equipment: equipment.trim(),
         inspectionDate,          // "YYYY-MM-DD" → LocalDate on the server
         remarks,
@@ -426,6 +429,7 @@ export default function InspectionForm({ id }) {
       };
       const { data } = await apiClient.post("/api/v1/submissions", body);
       setResult(data);
+      onSubmitted?.(data);
     } catch (err) {
       // ErrorFormat: { message, errors: { field: message } }
       const data = err.response?.data;

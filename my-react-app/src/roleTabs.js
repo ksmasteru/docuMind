@@ -3,9 +3,9 @@
 // one is where the app opens after login.
 //
 // For most roles this only hides links: a hidden page can still be opened by its URL, so the
-// backend has to refuse what a role may not do. Technicians (LOCKED_ROLES) are also kept to
+// backend has to refuse what a role may not do. Technicians and the workshop roles (LOCKED_ROLES) are also kept to
 // their own pages: App.jsx's ProtectedRoute sends any other URL back to their home page.
-import { Bell, ClipboardCheck, ClipboardList, Cpu, FileSearch, FileUp, LayoutDashboard, ListChecks, MessageSquareText, ShieldCheck, Users } from "lucide-react";
+import { Activity, Bell, ClipboardCheck, ClipboardList, Cpu, FileSearch, FileUp, House, LayoutDashboard, ListChecks, MessageSquareText, ShieldCheck, Users, Wrench } from "lucide-react";
 
 // keyed by the `active` value each page passes to <Layout>
 // soon: shown in the sidebar as a coming page, not a link
@@ -21,6 +21,9 @@ export const NAV_LINKS = {
   technicians: { to: "/technicians",  label: "Techniciens",     icon: Users },
   review:      { to: "/review",       label: "Revue",           icon: ShieldCheck },
   orders:      { to: "/orders",       label: "Ordres",          icon: ClipboardList },
+  workshop:    { to: "/atelier",      label: "Atelier",         icon: Wrench },
+  followup:    { to: "/suivi",        label: "Suivi",           icon: Activity },
+  home:        { to: "/accueil",      label: "Accueil",         icon: House },
 };
 
 export const ROLE_TABS = {
@@ -28,7 +31,21 @@ export const ROLE_TABS = {
   ADMIN: ["upload", "search", "ask"],
   // technicians fill in forms, follow their tasks and look things up in the manuals
   USER: ["forms", "tasks", "ask", "search"],
+  // the workshop loop (fix_workshop.md): each role works its steps from its queue (Atelier)
+  SALES: ["workshop"],
+  BUSINESS_OPS: ["workshop"],
+  CONTRACT_ADMIN: ["workshop"],
+  // they also follow the interventions they worked on (Suivi), like the manager's Ordres
+  PROJECT_LEAD: ["workshop", "followup"],
+  WORKSHOP_LEAD: ["workshop", "followup"],
+  HSE: ["workshop"],
+  STOREKEEPER: ["workshop"],
+  QUALITY: ["workshop"],
+  BILLING: ["workshop"],
 };
+
+// the workshop roles, kept to their own pages like technicians
+const WORKSHOP_ROLES = ["SALES", "BUSINESS_OPS", "CONTRACT_ADMIN", "PROJECT_LEAD", "WORKSHOP_LEAD", "HSE", "STOREKEEPER", "QUALITY", "BILLING"];
 
 // the roles that get the intranet's sidebar; the others keep the top bar
 export const SIDEBAR_ROLES = ["MANAGER"];
@@ -45,7 +62,7 @@ export const NAV_SECTIONS = [
 export const tabsFor = (role) => ROLE_TABS[role] ?? ROLE_TABS.USER;
 
 // roles that may only open their own pages (an old bookmark to /documents goes home instead)
-export const LOCKED_ROLES = ["USER"];
+export const LOCKED_ROLES = ["USER", ...WORKSHOP_ROLES];
 
 // whether `role` may be on `path`: one of its links, or a page under one ("/forms/…")
 export const canOpen = (role, path) =>

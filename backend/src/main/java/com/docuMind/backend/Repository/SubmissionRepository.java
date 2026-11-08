@@ -20,8 +20,14 @@ public interface SubmissionRepository extends JpaRepository<CheckListSubmission,
     // Template_Id = the "id" field of the "template" relation
     List<CheckListSubmission> findByTemplate_IdOrderBySubmittedAtDesc(String templateId);
 
+    // does any submission answer this template? (checked before deleting a form)
+    boolean existsByTemplate_Id(String templateId);
+
     // what one technician submitted, newest first
     List<CheckListSubmission> findByUserIdOrderBySubmittedAtDesc(String userId);
+
+    // the reports sent for these tasks (a task sent back has several), oldest first
+    List<CheckListSubmission> findByTaskIdInOrderBySubmittedAtAsc(java.util.Collection<String> taskIds);
 
     // e.g. every NON_CONFORME submission, for the supervisor's list
     List<CheckListSubmission> findByStatusOrderBySubmittedAtDesc(SubmissionStatus status);
