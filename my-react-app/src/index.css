@@ -24,3 +24,14 @@
     transition-timing-function: ease;
   }
 }
+/* A phone's keyboard is open (keepFocusVisible.js): the scrolling areas get room at their end, so a
+   field near the bottom can still be scrolled above the keyboard, and the bottom tab bar steps aside. */
+.keyboard-open #root::after,
+.keyboard-open [data-keyboard-room]::after {
+  content: "";
+  display: block;
+  height: var(--keyboard-inset, 0px);
+}
+.keyboard-open [data-hide-on-keyboard] {
+  display: none;
+}

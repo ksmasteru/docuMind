@@ -15,6 +15,7 @@
 //
 // An IMAGE question's value is the imageId the server returned for its photo, so the photo
 // must be uploaded before the sheet can be sent.
+import { shrinkPhoto } from "./photoUtils";
 import PhovaLogo from "./PhovaLogo";
 import { apiClient } from "./apiClient";
 import { useAuth } from "./AuthContext";
@@ -72,29 +73,6 @@ const todayLocal = () => {
   const d = new Date();
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 };
-
-// A phone photo is 3–5 MB; redrawn at 2000 px as a 0.8 JPEG it's well under 1 MB, and whatever
-// the browser can open (HEIC on Safari) comes out as a JPEG the server accepts (JPEG, PNG, WebP).
-// If the browser can't decode it, the original goes as is and the server decides.
-const MAX_PHOTO_SIDE = 2000;
-
-async function shrinkPhoto(file) {
-  try {
-    const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, MAX_PHOTO_SIDE / Math.max(bitmap.width, bitmap.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
-    canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    bitmap.close();
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.8));
-    if (!blob) return file;
-    return new File([blob], `${file.name.replace(/\.[^.]*$/, "") || "photo"}.jpg`, { type: "image/jpeg" });
-  } catch (err) {
-    console.log("photo kept as is, the browser could not redraw it", err);
-    return file;
-  }
-}
 
 // The wizard's cards: each section with its questions (in position order), then an "Autres points"
 // card for any question no section names, then remarks and sending. A section left without
@@ -1813,7 +1791,7 @@ const canShareFiles = () => {
 // The sent sheet's PDF, laid out like the mobile app: outcome, the pages shown in place as
 // images the server renders, then the buttons for the real file. It's rebuilt from the saved
 // submission on each request; nothing about the PDF is stored.
-function SentReport({ submissionId, status }) {
+export function SentReport({ submissionId, status }) {
   const [pages, setPages] = useState(null); // base64 PNGs; null while loading
   const [attempt, setAttempt] = useState(0);
   const [previewError, setPreviewError] = useState(false);

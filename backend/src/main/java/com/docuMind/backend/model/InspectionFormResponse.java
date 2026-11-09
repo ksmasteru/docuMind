@@ -3,6 +3,7 @@ package com.docuMind.backend.model;
 import java.util.List;
 
 import com.docuMind.backend.model.enums.AnswerType;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.docuMind.backend.model.enums.ChecklistType;
 
 public record InspectionFormResponse(
@@ -19,7 +20,8 @@ public record InspectionFormResponse(
         String labelAr,
         String labelFr,
         boolean critical,
-        AnswerType answerType
+        AnswerType answerType,
+        JsonNode options            // null for the original checklists (CheckListItem.options)
     )
     {}
 }

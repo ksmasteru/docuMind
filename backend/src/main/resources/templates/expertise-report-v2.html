@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<!--
+  PDF of one v2 expertise report ("Rapport d'expertise V2 …": démontage, montage, complet), in the style of the
+  intervention's final file (expertise-dossier.html, report_pdf.md):
+
+    cover      the report's kind, the pump and its photos, the verdict, the identification
+    contents   with page numbers
+    01         Synthèse et identification: key figures, each part's state (or the points to take up), every
+               identification field
+    02 …       one chapter per rubrique of the form, numbered as in the form: a card per part, the geometric
+               checks as one table, measurement sheets, the montage checklist
+    last       remarks, traceability and signatures
+
+  The pieces are expertise/parts.html's, shared with the final file. Rendered by Thymeleaf then OpenHTMLtoPDF
+  (SubmissionPdfService). Expects "report" (ExpertiseReportV2) and the logos as data URIs: "logo", "um6pLogo",
+  "ocpLogo". The cover has no running header or footer; the next pages a slim band with the report's name.
+-->
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <title th:text="'Rapport d\'expertise — ' + ${report.kindLabel}">Rapport d'expertise</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 21mm 14mm 17mm 14mm;
+      @top-center { content: element(header); }
+      @bottom-center { content: element(footer); }
+    }
+    @page :first {
+      margin: 12mm 14mm 12mm 14mm;
+      @top-center { content: none; }
+      @bottom-center { content: none; }
+    }
+  </style>
+  <style th:replace="~{expertise/parts :: styles}"></style>
+  <style>
+    .ba .frame.wide { height: 92mm; }
+    .ba .frame.wide img { max-height: 88mm; }
+    .tag.kind-DEMONTAGE, .tag.kind-COMPLET { background: #475467; }
+    .tag.kind-MONTAGE { background: #067647; }
+    .tag.part { background: #1a75bc; }
+  </style>
+</head>
+<body th:with="r=${report}, ref=${report.trace.preview ? 'APERÇU — NON ENVOYÉ' : (report.trace.interventionNumber != null ? report.trace.interventionNumber : 'Réf. ' + #strings.substring(report.submissionId, 0, 8))}">
+  <th:block th:replace="~{expertise/parts :: running('Rapport d\'expertise · ' + ${report.kindLabel} + ' — ' + ${report.equipment}, ${ref})}"></th:block>
+
+  <!-- ===================================================================== cover -->
+  <table class="cover-logos">
+    <tr>
+      <td style="width: 33%; text-align: left;"><img class="phova" th:src="${logo}" alt="PHOVA Technology"/></td>
+      <td style="width: 34%; text-align: center;"><img class="um6p" th:src="${um6pLogo}" alt="Mohammed VI Polytechnic University"/></td>
+      <td style="width: 33%; text-align: right;"><img class="ocp" th:src="${ocpLogo}" alt="OCP"/></td>
+    </tr>
+  </table>
+
+  <table class="cover-band">
+    <tr>
+      <td>
+        <div class="kicker" th:text="${r.trace.preview} ? 'Aperçu du rapport d\'expertise' : 'Rapport d\'expertise'">Rapport d'expertise</div>
+        <h1 th:text="${r.kindLabel}">Démontage et expertise</h1>
+        <div class="sub">Pompe <b th:text="${r.equipment}">03DYS30</b>
+          <span th:if="${r.identityValue('Type') != null}" th:text="' · ' + ${r.identityValue('Type')}"> · OTC125-43</span>
+          <span th:if="${r.identityValue('Client') != null}" th:text="' · ' + ${r.identityValue('Client')}"> · OCP S.A</span></div>
+      </td>
+      <td class="no">
+        <div class="l" th:text="${r.trace.interventionNumber != null ? 'Intervention' : (r.trace.preview ? 'Rapport' : 'Référence')}">Intervention</div>
+        <div class="v" th:text="${r.trace.interventionNumber != null ? r.trace.interventionNumber : (r.trace.preview ? 'Aperçu' : #strings.substring(r.submissionId, 0, 8))}">AT-00005</div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- a preview: the report isn't sent, its answers can still change -->
+  <table class="verdict t-repair" th:if="${r.trace.preview}" style="margin-bottom: 4mm;">
+    <tr><td>
+      <div class="title">Aperçu — rapport non envoyé</div>
+      <div class="detail" th:text="'Généré le ' + ${r.trace.generatedAt} + ' à partir des réponses saisies. Le rapport final sera produit à l\'envoi, après les contrôles.'">Généré le</div>
+    </td></tr>
+  </table>
+
+  <!-- the pump: two photos side by side, or one wide -->
+  <table class="ba" th:if="${#lists.size(r.summary.coverPhotos) == 2}">
+    <tr>
+      <td class="side" th:each="cp, cs : ${r.summary.coverPhotos}" th:classappend="${cs.last} ? 'after'">
+        <div class="tag" th:classappend="${cs.first or cp.label == r.summary.coverPhotos[0].label} ? 'kind-' + ${r.kind} : 'part'"
+             th:text="${cp.label}">À la réception</div>
+        <div class="frame"><img th:src="${cp.photo.src}" alt="Photo de la pompe"/></div>
+        <div class="cap" th:text="${cp.photo.title != null ? cp.photo.title : ''}">Vue générale</div>
+      </td>
+    </tr>
+  </table>
+  <table class="ba" th:if="${#lists.size(r.summary.coverPhotos) == 1}">
+    <tr>
+      <td>
+        <div class="tag" th:classappend="'kind-' + ${r.kind}" th:text="${r.summary.coverPhotos[0].label}">À la réception</div>
+        <div class="frame wide"><img th:src="${r.summary.coverPhotos[0].photo.src}" alt="Photo de la pompe"/></div>
+        <div class="cap" th:text="${r.summary.coverPhotos[0].photo.title != null ? r.summary.coverPhotos[0].photo.title : ''}">Vue générale</div>
+      </td>
+    </tr>
+  </table>
+
+  <table class="verdict" th:classappend="'t-' + ${r.summary.tone}">
+    <tr><td>
+      <div class="title" th:text="${r.summary.verdict}">Remise en état nécessaire</div>
+      <div class="detail" th:text="${r.summary.verdictDetail}">2 pièces à remplacer · 2 à réparer · 8 réutilisables</div>
+    </td></tr>
+  </table>
+
+  <th:block th:with="facts=${r.coverFacts()}">
+  <table class="facts" th:if="${!#lists.isEmpty(facts)}">
+    <tr th:each="i : ${#numbers.sequence(0, #lists.size(facts) - 1, 2)}">
+      <td class="k" th:text="${facts[i].label}">Client</td>
+      <td class="v" th:text="${facts[i].value}">OCP S.A</td>
+      <td class="k" th:text="${i + 1 lt #lists.size(facts) ? facts[i + 1].label : ''}">Équipement</td>
+      <td class="v" th:text="${i + 1 lt #lists.size(facts) ? facts[i + 1].value : ''}">03DYS30</td>
+    </tr>
+  </table>
+  </th:block>
+  <div class="cover-foot">
+    <span th:text="'Formulaire : ' + ${r.title}">Formulaire</span> ·
+    <span th:text="${r.trace.preview} ? 'Pas encore envoyé' : 'Envoyé le ' + ${r.submittedAt}">Envoyé le</span>
+    <span th:if="${r.trace.generatedAt != null}" th:text="' · Généré le ' + ${r.trace.generatedAt}"></span>
+  </div>
+
+  <!-- ===================================================================== contents -->
+  <div class="chapter" th:with="shown=${r.sections.?[!cards.isEmpty() or !geometry.isEmpty()]}">
+    <div class="chapter-head">
+      <h2>Sommaire</h2>
+      <div class="intro" th:text="'Rapport ' + ${#strings.toLowerCase(r.kindLabel)} + ' de la pompe ' + ${r.equipment} + (${r.trace.interventionNumber != null} ? ', intervention ' + ${r.trace.interventionNumber} : '') + '.'">Rapport</div>
+    </div>
+    <table class="toc">
+      <tr><td class="no">01</td><td class="t">Synthèse et identification<span class="d" th:text="${r.summary.verdict} + ' — ' + ${r.summary.verdictDetail}">Bilan</span></td><td class="pg"><a href="#c-syn"></a></td></tr>
+      <tr th:each="s : ${shown}">
+        <td class="no" th:text="${s.number}">02</td>
+        <td class="t"><span th:text="${s.name}">Pompe réceptionnée</span><span class="d" th:if="${s.intro != null}" th:text="${s.intro}">État</span></td>
+        <td class="pg"><a th:href="'#' + ${s.anchor}"></a></td>
+      </tr>
+      <tr><td class="no">—</td><td class="t">Traçabilité et validation<span class="d">Rédaction, vérification, signatures</span></td><td class="pg"><a href="#c-trace"></a></td></tr>
+    </table>
+  </div>
+
+  <!-- ===================================================================== 01 synthèse et identification -->
+  <div class="chapter" id="c-syn">
+    <div class="chapter-head">
+      <div class="no">01</div>
+      <h2>Synthèse et identification</h2>
+      <div class="intro" th:text="${r.summary.verdictDetail}">2 pièces à remplacer</div>
+    </div>
+
+    <table class="tiles keep">
+      <tr>
+        <td th:each="t, ts : ${r.summary.tiles}" th:classappend="${ts.first} ? 'first' : (${ts.last} ? 'last' : '')">
+          <div class="tile" th:classappend="'t-' + ${t.tone}">
+            <div class="v" th:text="${t.value}">2</div>
+            <div class="l" th:text="${t.label}">à remplacer</div>
+          </div>
+        </td>
+      </tr>
+    </table>
+
+    <th:block th:if="${!#lists.isEmpty(r.summary.receptionAnomalies)}">
+      <h3 class="block-title">Constats à la réception</h3>
+      <div class="ticked blk" style="margin-bottom: 4mm;"><div th:each="a : ${r.summary.receptionAnomalies}"><span class="box">&#160;</span><span th:text="${a}">Produit colmaté</span></div></div>
+    </th:block>
+
+    <th:block th:if="${!#lists.isEmpty(r.summary.openChecks)}">
+      <h3 class="block-title" style="color: #b42318;">Points à reprendre</h3>
+      <table class="grid">
+        <thead><tr><th style="width: 9%;" class="c">N°</th><th>Contrôle</th><th style="width: 30%;">Remarque</th><th style="width: 18%;">Statut</th></tr></thead>
+        <tr th:each="c : ${r.summary.openChecks}" class="keep">
+          <td class="c b" th:text="${c.number}">06</td>
+          <td class="b" th:text="${c.label}">Test d'étanchéité</td>
+          <td th:text="${c.remark != null ? c.remark : '—'}">fuite</td>
+          <td><span class="chip t-replace" th:text="${c.status}">Non conforme</span></td>
+        </tr>
+      </table>
+    </th:block>
+
+    <th:block th:replace="~{expertise/parts :: partsTable(${r}, '')}"></th:block>
+    <th:block th:replace="~{expertise/parts :: outTable(${r}, '')}"></th:block>
+
+    <div class="keep" th:if="${!#lists.isEmpty(r.identity)}" style="margin-top: 2mm;">
+      <h3 class="block-title">Identification</h3>
+      <th:block th:replace="~{expertise/parts :: identity(${r}, 2)}"></th:block>
+    </div>
+  </div>
+
+  <!-- ===================================================================== the form's rubriques, a chapter each -->
+  <th:block th:replace="~{expertise/parts :: sections(${r}, '', true)}"></th:block>
+
+  <!-- ===================================================================== traceability -->
+  <div class="chapter" id="c-trace">
+    <div class="chapter-head">
+      <h2>Traçabilité et validation</h2>
+      <div class="intro">Qui a rédigé ce rapport, qui l'a vérifié, et dans quel dossier il s'inscrit.</div>
+    </div>
+    <th:block th:replace="~{expertise/parts :: trace(${r}, false)}"></th:block>
+  </div>
+</body>
+</html>

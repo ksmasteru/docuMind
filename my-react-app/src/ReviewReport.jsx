@@ -121,6 +121,19 @@ export const ReportView = ({ submissionId, children }) => {
 
         {(report.answers ?? []).map((row) => <AnswerRow key={row.position} row={row} />)}
 
+        {/* v2: the parts the technician added (« + Ajouter une pièce ») */}
+        {(report.extraParts ?? []).map((part, i) => (
+            <div key={`extra-${i}`} className={cardClass}>
+                <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Pièce ajoutée : {part.name}</p>
+                <div className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-200">
+                    <Gallery photos={part.photos} captions={part.captions} label={part.name} />
+                    {part.findings && <p><span className="text-slate-500 dark:text-slate-400">Constats : </span>{part.findings}</p>}
+                    {part.comment && <p className="whitespace-pre-line"><span className="text-slate-500 dark:text-slate-400">Commentaire : </span>{part.comment}</p>}
+                    {part.recommendation && <p><span className="text-slate-500 dark:text-slate-400">Recommandation : </span>{part.recommendation}</p>}
+                </div>
+            </div>
+        ))}
+
         <div className={cardClass}>
             <SectionLabel>Remarques</SectionLabel>
             <p className={`mt-1 whitespace-pre-line text-sm ${report.remarks ? "text-slate-700 dark:text-slate-200" : "italic text-slate-400"}`}>
@@ -161,9 +174,15 @@ const AnswerRow = ({ row }) => {
         </div>
 
         <div className="mt-3 pl-9">
-            {row.photo ? (
+            {row.photos?.length > 1 || row.captions?.some((c) => c.title || c.comment) ? (
+                <Gallery photos={row.photos} captions={row.captions} label={`point ${row.position}`} />
+            ) : row.photo ? (
                 <img src={row.photo} alt={`Photo du point ${row.position}`}
                     className="max-h-80 rounded-lg border border-slate-200 object-contain dark:border-slate-700" />
+            ) : row.answerType === "MEASURE" && row.data?.readings?.length > 0 ? (
+                <Readings data={row.data} />
+            ) : row.answerType === "PARTS_SUMMARY" && row.data ? (
+                <SummaryTable rows={row.data.rows ?? []} />
             ) : choice ? (
                 <div className="flex gap-2">
                     <ChoiceDisplay label="Bon" good selected={choice === "bon"} />
@@ -172,7 +191,7 @@ const AnswerRow = ({ row }) => {
             ) : row.value ? (
                 <p className="whitespace-pre-line text-sm text-slate-700 dark:text-slate-200">{row.value}</p>
             ) : (
-                <p className="text-sm italic text-slate-400">Photo indisponible</p>
+                <p className="text-sm italic text-slate-400">{row.answerType === "IMAGE" ? "Photo indisponible" : "Non renseigné"}</p>
             )}
 
             {row.comment && (
@@ -184,6 +203,67 @@ const AnswerRow = ({ row }) => {
         </div>
     </div>)
 };
+
+// v2: several photos, each with its title and comment
+const Gallery = ({ photos = [], captions = [], label }) => photos.length === 0 ? null : (
+    <div className={`grid gap-2 ${photos.length === 1 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
+        {photos.map((src, i) => (
+            <figure key={i} className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+                <img src={src} alt={captions[i]?.title || `Photo ${i + 1} : ${label}`} className="h-36 w-full object-cover" />
+                {(captions[i]?.title || captions[i]?.comment) && (
+                    <figcaption className="px-2 py-1.5 text-xs">
+                        {captions[i]?.title && <span className="block font-medium text-slate-800 dark:text-slate-100">{captions[i].title}</span>}
+                        {captions[i]?.comment && <span className="block text-slate-500 dark:text-slate-400">{captions[i].comment}</span>}
+                    </figcaption>
+                )}
+            </figure>
+        ))}
+    </div>
+);
+
+const fr = (n) => (n === null || n === undefined ? "—" : String(n).replace(".", ","));
+
+// v2: every reading of a measure, and their average
+const Readings = ({ data }) => {
+    const unit = data.unit ? ` ${data.unit}` : "";
+    return (
+        <table className="text-sm">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                {(data.readings ?? []).map((r, i) => (
+                    <tr key={i}><td className="py-0.5 pr-4 text-slate-500 dark:text-slate-400">Prise {i + 1}</td><td className="tabular-nums text-slate-800 dark:text-slate-200">{fr(r)}{unit}</td></tr>
+                ))}
+                <tr className="font-medium"><td className="py-1 pr-4 text-slate-700 dark:text-slate-200">Moyenne</td>
+                    <td className={`tabular-nums ${data.out ? "text-red-700 dark:text-red-300" : "text-slate-900 dark:text-slate-100"}`}>
+                        {fr(data.average)}{data.average !== null ? unit : ""}
+                        {data.out && <span className="ml-2 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950 dark:text-red-300">Hors tolérance</span>}
+                    </td></tr>
+            </tbody>
+        </table>
+    );
+};
+
+// v2: the parts summary, the technical recommendation apart from the client's decision
+const SummaryTable = ({ rows }) => (
+    <div className="overflow-x-auto">
+        <table className="w-full min-w-[36rem] text-left text-sm">
+            <thead className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                <tr>{["Qté", "Pièce", "Code", "Recommandation", "Décision client", "Remarque"].map((h) => <th key={h} className="py-1 pr-3 font-semibold">{h}</th>)}</tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-slate-800 dark:divide-slate-700 dark:text-slate-200">
+                {rows.map((r, i) => (
+                    <tr key={i}>
+                        <td className="py-1 pr-3 tabular-nums">{r.quantity ?? "—"}</td>
+                        <td className="py-1 pr-3">{r.description}</td>
+                        <td className="py-1 pr-3">{r.code ?? "—"}</td>
+                        <td className="py-1 pr-3">{r.recommendation ?? "—"}</td>
+                        <td className="py-1 pr-3">{r.decision ?? "—"}</td>
+                        <td className="py-1 pr-3">{r.remark ?? "—"}</td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    </div>
+);
 
 // the sheet's Bon / Mauvais button, as a picture of the answer: nothing to press
 const ChoiceDisplay = ({ label, good, selected }) => {

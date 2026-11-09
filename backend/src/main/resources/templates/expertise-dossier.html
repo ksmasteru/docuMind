@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<!--
+  An intervention's final file (ExpertiseDossier, report_pdf.md idea 7), what the client keeps:
+
+    cover      the pump before and after, the intervention, the verdict
+    contents   with page numbers
+    01 Synthèse              figures, milestones, what was decided for each part
+    02 Avant / après         the photos side by side, the parts changed
+    03 Mesures               each measure at démontage against remontage, and the gap
+    04 Devis
+    05 Rapport de démontage  06 Rapport de montage   (expertise/parts.html, as their own PDFs)
+    07 Historique et validation
+
+  Expects "dossier" and the logos as data URIs: "logo", "um6pLogo", "ocpLogo". Rendered like the reports
+  (SubmissionPdfService.renderDossier); the cover has no running header or footer.
+-->
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <title th:text="'Dossier d\'expertise — ' + ${dossier.interventionNumber}">Dossier d'expertise</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 21mm 14mm 17mm 14mm;
+      @top-center { content: element(header); }
+      @bottom-center { content: element(footer); }
+    }
+    @page :first {
+      margin: 12mm 14mm 12mm 14mm;
+      @top-center { content: none; }
+      @bottom-center { content: none; }
+    }
+  </style>
+  <style th:replace="~{expertise/parts :: styles}"></style>
+  <style>
+    /* milestones */
+    .steps { width: 100%; table-layout: fixed; margin: 1mm 0 5mm 0; }
+    .steps td { padding: 0 0.8mm; vertical-align: top; text-align: center; }
+    .steps .bar { height: 1.2mm; background: #d0d5dd; margin-bottom: 1.6mm; }
+    .steps .done .bar { background: #1a75bc; }
+    .steps .l { font-size: 6.6pt; font-weight: bold; color: #0f2a49; line-height: 1.25; }
+    .steps .todo .l { color: #111111; }
+    .steps .d { font-size: 6.6pt; color: #111111; margin-top: 0.5mm; }
+    .steps .a { font-size: 6.2pt; color: #111111; }
+
+    /* comparison of measures */
+    .cmp { width: 100%; table-layout: fixed; margin-bottom: 4mm; page-break-inside: avoid; }
+    .cmp th, .cmp td { border: 0.5pt solid #d9dee5; }
+    .cmp .band { background: #1a75bc; color: #ffffff; font-size: 7.8pt; font-weight: bold; text-align: left; padding: 1.3mm 2.2mm; border-color: #1a75bc; }
+    .cmp .band .u { font-weight: normal; color: #d8ebf8; }
+    .cmp .hd th { background: #eef3f8; color: #0f2a49; font-size: 6.9pt; padding: 1mm; text-align: center; }
+    .cmp .hd th.l { text-align: left; padding-left: 2.2mm; }
+    .cmp td { padding: 1.1mm 1.4mm; text-align: center; font-size: 8pt; vertical-align: middle; }
+    .cmp td.mark { text-align: left; padding-left: 2.2mm; font-weight: bold; color: #0f2a49; background: #f8f9fb; width: 38%; }
+    .cmp td.after { font-weight: bold; color: #0f2a49; }
+    .cmp td.delta { width: 18%; font-weight: bold; }
+    .cmp td.out { color: #b42318; background: #fef3f2; font-weight: bold; }
+    .cmp td.delta.up { color: #175cd3; } .cmp td.delta.down { color: #067647; } .cmp td.delta.same, .cmp td.delta.none { color: #111111; }
+
+    /* devis */
+    .qmeta { width: 100%; table-layout: fixed; margin-bottom: 4mm; }
+    .qmeta td { padding: 2mm 2.6mm; border: 0.6pt solid #e4e7ec; background: #f8f9fb; }
+    .qmeta .l { font-size: 6.6pt; font-weight: bold; letter-spacing: 0.5pt; text-transform: uppercase; color: #111111; }
+    .qmeta .v { font-size: 9.6pt; font-weight: bold; color: #0f2a49; margin-top: 0.4mm; }
+    .totals { width: 44%; margin-left: 56%; margin-top: 1mm; }
+    .totals td { padding: 1.4mm 2.4mm; font-size: 8.2pt; border-bottom: 0.5pt solid #e4e7ec; }
+    .totals td.r { text-align: right; font-weight: bold; }
+    .totals tr.ttc td { background: #0f2a49; color: #ffffff; font-size: 10.5pt; font-weight: bold; border-bottom: none; }
+
+    /* signatures */
+    .signs { width: 100%; table-layout: fixed; margin-top: 2mm; }
+    .signs td.cell { padding: 0 2.4mm 3mm 0; }
+  </style>
+</head>
+<body>
+  <th:block th:replace="~{expertise/parts :: running(
+      'Dossier d\'expertise · ' + ${dossier.interventionNumber} + ' — ' + ${dossier.equipment},
+      ${dossier.interventionNumber})}"></th:block>
+
+  <!-- ===================================================================== cover -->
+  <table class="cover-logos">
+    <tr>
+      <td style="width: 33%; text-align: left;"><img class="phova" th:src="${logo}" alt="PHOVA Technology"/></td>
+      <td style="width: 34%; text-align: center;"><img class="um6p" th:src="${um6pLogo}" alt="Mohammed VI Polytechnic University"/></td>
+      <td style="width: 33%; text-align: right;"><img class="ocp" th:src="${ocpLogo}" alt="OCP"/></td>
+    </tr>
+  </table>
+
+  <table class="cover-band">
+    <tr>
+      <td>
+        <div class="kicker">Dossier final d'intervention</div>
+        <h1>Expertise et remise en état</h1>
+        <div class="sub">Pompe <b th:text="${dossier.equipment}">03DYS30</b>
+          <span th:if="${dossier.pumpType != null}" th:text="' · ' + ${dossier.pumpType}"> · OTC125-43</span>
+          <span th:if="${dossier.client != null}" th:text="' · ' + ${dossier.client}"> · OCP SAFI</span></div>
+      </td>
+      <td class="no">
+        <div class="l">Intervention</div>
+        <div class="v" th:text="${dossier.interventionNumber}">AT-00002</div>
+      </td>
+    </tr>
+  </table>
+
+  <table class="ba">
+    <tr>
+      <td class="side">
+        <div class="tag before">Avant · à la réception</div>
+        <div class="frame">
+          <img th:if="${dossier.before != null}" th:src="${dossier.before.src}" alt="La pompe à la réception"/>
+          <div class="none" th:if="${dossier.before == null}">Pas de photo à la réception</div>
+        </div>
+        <div class="cap" th:if="${dossier.before != null and dossier.before.title != null}" th:text="${dossier.before.title}">Vue générale</div>
+      </td>
+      <td class="side after">
+        <div class="tag after">Après · remontée</div>
+        <div class="frame">
+          <img th:if="${dossier.after != null}" th:src="${dossier.after.src}" alt="La pompe remontée"/>
+          <div class="none" th:if="${dossier.after == null}">Pas encore de photo de la pompe remontée</div>
+        </div>
+        <div class="cap" th:if="${dossier.after != null and dossier.after.title != null}" th:text="${dossier.after.title}">Pompe assemblée</div>
+      </td>
+    </tr>
+  </table>
+
+  <table class="verdict" th:classappend="'t-' + ${dossier.tone}">
+    <tr><td>
+      <div class="title" th:text="${dossier.verdict}">Pompe remise en état — montage conforme</div>
+      <div class="detail" th:text="${dossier.verdictDetail}">12 contrôles conformes sur 12</div>
+    </td></tr>
+  </table>
+
+  <table class="facts" th:if="${!#lists.isEmpty(dossier.facts)}">
+    <tr th:each="i : ${#numbers.sequence(0, #lists.size(dossier.facts) - 1, 2)}">
+      <td class="k" th:text="${dossier.facts[i].label}">Client</td>
+      <td class="v" th:text="${dossier.facts[i].value}">OCP SAFI</td>
+      <td class="k" th:text="${i + 1 lt #lists.size(dossier.facts) ? dossier.facts[i + 1].label : ''}">Équipement</td>
+      <td class="v" th:text="${i + 1 lt #lists.size(dossier.facts) ? dossier.facts[i + 1].value : ''}">03DYS30</td>
+    </tr>
+  </table>
+  <div class="cover-foot">
+    <span th:text="'Généré le ' + ${dossier.generatedAt}">Généré le</span> ·
+    <span th:text="'Étape en cours : ' + ${dossier.currentStep}">Étape</span>
+  </div>
+
+  <!-- ===================================================================== contents -->
+  <div class="chapter">
+    <div class="chapter-head">
+      <h2>Sommaire</h2>
+      <div class="intro" th:text="'Dossier de l\'intervention ' + ${dossier.interventionNumber} + ' sur la pompe ' + ${dossier.equipment} + '.'">Dossier</div>
+    </div>
+    <table class="toc">
+      <tr><td class="no">01</td><td class="t">Synthèse<span class="d">Bilan, chiffres clés, étapes et décision pour chaque pièce</span></td><td class="pg"><a href="#c1"></a></td></tr>
+      <tr><td class="no">02</td><td class="t">Avant / après<span class="d">La pompe à la réception et remontée, les pièces changées</span></td><td class="pg"><a href="#c2"></a></td></tr>
+      <tr><td class="no">03</td><td class="t">Mesures avant / après<span class="d">Chaque contrôle au démontage comparé au remontage</span></td><td class="pg"><a href="#c3"></a></td></tr>
+      <tr><td class="no">04</td><td class="t">Devis<span class="d">Pièces et prestations chiffrées</span></td><td class="pg"><a href="#c4"></a></td></tr>
+      <tr><td class="no">05</td><td class="t">Rapport de démontage et d'expertise<span class="d">Constats et recommandations pièce par pièce, mesures au démontage</span></td><td class="pg"><a href="#c5"></a></td></tr>
+      <tr><td class="no">06</td><td class="t">Rapport de montage et d'essais<span class="d">Mesures au remontage, contrôle de montage</span></td><td class="pg"><a href="#c6"></a></td></tr>
+      <tr><td class="no">07</td><td class="t">Historique et validation<span class="d">Les décisions de chaque étape, les signatures</span></td><td class="pg"><a href="#c7"></a></td></tr>
+    </table>
+  </div>
+
+  <!-- ===================================================================== 01 synthèse -->
+  <div class="chapter" id="c1">
+    <div class="chapter-head">
+      <div class="no">01</div>
+      <h2>Synthèse</h2>
+      <div class="intro">Ce qui a été constaté au démontage, ce qui a été fait, et où en est le dossier.</div>
+    </div>
+    <table class="verdict keep" th:classappend="'t-' + ${dossier.tone}">
+      <tr><td>
+        <div class="title" th:text="${dossier.verdict}">Pompe remise en état</div>
+        <div class="detail" th:text="${dossier.verdictDetail}">détail</div>
+      </td></tr>
+    </table>
+    <table class="tiles keep">
+      <tr>
+        <td th:each="t, ts : ${dossier.tiles}" th:classappend="${ts.first} ? 'first' : (${ts.last} ? 'last' : '')">
+          <div class="tile" th:classappend="'t-' + ${t.tone}">
+            <div class="v" th:text="${t.value}">2</div>
+            <div class="l" th:text="${t.label}">pièces remplacées</div>
+          </div>
+        </td>
+      </tr>
+    </table>
+
+    <h3 class="block-title">Étapes</h3>
+    <table class="steps keep">
+      <tr>
+        <td th:each="m : ${dossier.milestones}" th:classappend="${m.done} ? 'done' : 'todo'">
+          <div class="bar"></div>
+          <div class="l" th:text="${m.label}">Réception</div>
+          <div class="d" th:text="${m.date != null ? m.date : (m.done ? '' : 'à venir')}">05/11/2026</div>
+          <div class="a" th:if="${m.actor != null}" th:text="${m.actor}">Chef de projet</div>
+        </td>
+      </tr>
+    </table>
+
+    <th:block th:if="${!#lists.isEmpty(dossier.work)}">
+      <h3 class="block-title">Décision pour chaque pièce</h3>
+      <table class="grid">
+        <thead><tr><th style="width: 24%;">Pièce</th><th style="width: 16%;">État à l'expertise</th><th>Constats</th><th style="width: 23%;">Recommandation</th><th style="width: 15%;">Décision client</th></tr></thead>
+        <tr th:each="w, ws : ${dossier.work}" th:classappend="${ws.odd} ? '' : 'alt'" class="keep">
+          <td class="b" th:text="${w.name}">Roue</td>
+          <td><span class="chip" th:classappend="'t-' + ${w.tone}" th:text="${w.state}">À remplacer</span></td>
+          <td th:text="${w.findings != null ? w.findings : '—'}">Usure</td>
+          <td th:text="${w.recommendation != null ? w.recommendation : '—'}">Remplacement</td>
+          <td th:text="${w.decision != null ? w.decision : '—'}">PHOVA</td>
+        </tr>
+      </table>
+    </th:block>
+    <div class="note" th:if="${#lists.isEmpty(dossier.work)}">Aucune pièce expertisée dans le rapport de démontage.</div>
+  </div>
+
+  <!-- ===================================================================== 02 avant / après -->
+  <div class="chapter" id="c2">
+    <div class="chapter-head">
+      <div class="no">02</div>
+      <h2>Avant / après</h2>
+      <div class="intro">La pompe telle que reçue à l'atelier, et telle que remontée après remise en état.</div>
+    </div>
+    <table class="ba keep" th:each="pair, ps : ${dossier.beforeAfter}">
+      <tr>
+        <td class="side">
+          <div class="tag before" th:text="'Avant · photo ' + ${ps.count}">Avant</div>
+          <div class="frame">
+            <img th:if="${pair.before != null}" th:src="${pair.before.src}" alt="Avant"/>
+            <div class="none" th:if="${pair.before == null}">Pas d'autre photo à la réception</div>
+          </div>
+          <div class="cap" th:if="${pair.before != null and pair.before.title != null}" th:text="${pair.before.title}">Vue générale</div>
+        </td>
+        <td class="side after">
+          <div class="tag after" th:text="'Après · photo ' + ${ps.count}">Après</div>
+          <div class="frame">
+            <img th:if="${pair.after != null}" th:src="${pair.after.src}" alt="Après"/>
+            <div class="none" th:if="${pair.after == null}">Pas d'autre photo après remontage</div>
+          </div>
+          <div class="cap" th:if="${pair.after != null and pair.after.title != null}" th:text="${pair.after.title}">Pompe assemblée</div>
+        </td>
+      </tr>
+    </table>
+    <div class="note" th:if="${#lists.isEmpty(dossier.beforeAfter)}">Aucune photo de la pompe à la réception ni remontée.</div>
+
+    <th:block th:if="${!#lists.isEmpty(dossier.changedParts) or dossier.changedPartsComment != null}">
+      <h3 class="block-title" style="margin-top: 3mm;">Pièces changées / réparées</h3>
+      <table class="card">
+        <tr class="body">
+          <td class="pics" th:if="${!#lists.isEmpty(dossier.changedParts)}" style="width: 60%;">
+            <th:block th:replace="~{expertise/parts :: photos(${dossier.changedParts})}"></th:block>
+          </td>
+          <td class="info">
+            <div class="lbl">Commentaire du technicien</div>
+            <div class="para" th:text="${dossier.changedPartsComment != null ? dossier.changedPartsComment : '—'}">Roue et roulements remplacés.</div>
+          </td>
+        </tr>
+      </table>
+    </th:block>
+  </div>
+
+  <!-- ===================================================================== 03 mesures -->
+  <div class="chapter" id="c3">
+    <div class="chapter-head">
+      <div class="no">03</div>
+      <h2>Mesures avant / après</h2>
+      <div class="intro">La moyenne des prises de chaque contrôle au démontage, puis au remontage. Écart = remontage − démontage.</div>
+    </div>
+    <table class="cmp" th:each="g : ${dossier.comparisons}">
+      <tr><th class="band" colspan="4"><span th:text="${g.name}">Contrôles géométriques</span><span class="u" th:text="' — en ' + ${g.unit}"> — en mm</span></th></tr>
+      <tr class="hd"><th class="l">Contrôle / repère</th><th>Au démontage</th><th>Au remontage</th><th>Écart</th></tr>
+      <tr th:each="row : ${g.rows}">
+        <td class="mark" th:text="${row.mark}">Déplacement axial</td>
+        <td th:classappend="${row.beforeOut} ? 'out'"><span th:text="${row.before != null ? row.before : '—'}">0,15</span><span class="flag" th:if="${row.beforeOut}">Hors tolérance</span></td>
+        <td class="after" th:classappend="${row.afterOut} ? 'out'"><span th:text="${row.after != null ? row.after : '—'}">0,05</span><span class="flag" th:if="${row.afterOut}">Hors tolérance</span></td>
+        <td class="delta" th:classappend="${row.trend}" th:text="${row.delta != null ? row.delta : '—'}">−0,1</td>
+      </tr>
+    </table>
+    <div class="note" th:if="${#lists.isEmpty(dossier.comparisons)}">Aucune mesure relevée dans les rapports.</div>
+    <div class="note" th:if="${!#lists.isEmpty(dossier.comparisons)}">
+      <b>À noter : </b>les tolérances du constructeur ne sont pas encore renseignées dans les formulaires ; l'écart est donné à titre de comparaison.
+      Une valeur en rouge a été marquée hors tolérance par le technicien.
+      Le détail des prises figure dans chaque rapport.
+    </div>
+  </div>
+
+  <!-- ===================================================================== 04 devis -->
+  <div class="chapter" id="c4">
+    <div class="chapter-head">
+      <div class="no">04</div>
+      <h2>Devis</h2>
+      <div class="intro">Les pièces et prestations chiffrées à partir du rapport de démontage.</div>
+    </div>
+    <th:block th:if="${dossier.quote != null}" th:with="q=${dossier.quote}">
+      <table class="qmeta">
+        <tr>
+          <td><div class="l">N° de devis</div><div class="v" th:text="${q.number}">DV-00002-1</div></td>
+          <td><div class="l">Statut</div><div class="v" th:text="${q.status}">Accepté</div></td>
+          <td><div class="l">Validé le</div><div class="v" th:text="${q.validatedAt != null ? q.validatedAt : '—'}">08/11/2026</div></td>
+          <td><div class="l">Devise</div><div class="v" th:text="${q.currency}">MAD</div></td>
+        </tr>
+      </table>
+      <table class="grid">
+        <thead><tr><th style="width: 7%;" class="c">N°</th><th>Désignation</th><th style="width: 9%;" class="c">Qté</th><th style="width: 18%;" class="r">Prix unitaire HT</th><th style="width: 18%;" class="r">Total HT</th></tr></thead>
+        <tr th:each="l, ls : ${q.lines}" th:classappend="${ls.odd} ? '' : 'alt'" class="keep">
+          <td class="c muted" th:text="${l.position}">1</td>
+          <td class="b" th:text="${l.designation}">Roue</td>
+          <td class="c" th:text="${l.quantity}">1</td>
+          <td class="r" th:text="${l.unitPrice}">1 200,00</td>
+          <td class="r b" th:text="${l.total}">1 200,00</td>
+        </tr>
+      </table>
+      <table class="totals keep">
+        <tr><td>Total HT</td><td class="r" th:text="${q.subtotal} + ' ' + ${q.currency}">1 575,50 MAD</td></tr>
+        <tr th:if="${q.vatApplicable}"><td th:text="'TVA ' + ${q.vatRate} + ' %'">TVA 20 %</td><td class="r" th:text="${q.vat} + ' ' + ${q.currency}">315,10 MAD</td></tr>
+        <tr th:unless="${q.vatApplicable}"><td>TVA</td><td class="r">Non applicable</td></tr>
+        <tr class="ttc"><td>Total TTC</td><td class="r" th:text="${q.total} + ' ' + ${q.currency}">1 890,60 MAD</td></tr>
+      </table>
+      <div class="note" th:if="${q.notes != null}" th:text="${q.notes}">Notes</div>
+    </th:block>
+    <div class="note" th:if="${dossier.quote == null}">Aucun devis validé pour cette intervention.</div>
+  </div>
+
+  <!-- ===================================================================== 05 / 06 the reports -->
+  <div class="chapter" id="c5">
+    <div class="chapter-tag">05 · Rapport de démontage</div>
+    <th:block th:if="${dossier.dismantling != null}"><th:block th:replace="~{expertise/parts :: content(${dossier.dismantling}, 'd-')}"></th:block></th:block>
+    <div class="note" th:if="${dossier.dismantling == null}">Le rapport de démontage n'a pas encore été envoyé.</div>
+  </div>
+  <div class="chapter" id="c6">
+    <div class="chapter-tag">06 · Rapport de montage</div>
+    <th:block th:if="${dossier.mounting != null}"><th:block th:replace="~{expertise/parts :: content(${dossier.mounting}, 'm-')}"></th:block></th:block>
+    <div class="note" th:if="${dossier.mounting == null}">Le rapport de montage n'a pas encore été envoyé.</div>
+  </div>
+
+  <!-- ===================================================================== 07 historique -->
+  <div class="chapter" id="c7">
+    <div class="chapter-head">
+      <div class="no">07</div>
+      <h2>Historique et validation</h2>
+      <div class="intro">Chaque décision prise sur le dossier, de la demande à aujourd'hui.</div>
+    </div>
+    <table class="grid">
+      <thead><tr><th style="width: 17%;">Date</th><th style="width: 30%;">Étape</th><th style="width: 17%;">Décision</th><th style="width: 16%;">Par</th><th>Commentaire</th></tr></thead>
+      <tr th:each="e, es : ${dossier.timeline}" th:classappend="${es.odd} ? '' : 'alt'" class="keep">
+        <td class="muted" th:text="${e.date}">04/11/2026 16:23</td>
+        <td class="b" th:text="${e.step}">1 · Compléter la demande</td>
+        <td><span class="dot" th:classappend="'t-' + ${e.tone}"></span><span th:text="${e.action}">Validé</span></td>
+        <td th:text="${e.actor}">Sales</td>
+        <td class="small muted" th:text="${e.comment != null ? e.comment : ''}"></td>
+      </tr>
+    </table>
+
+    <h3 class="block-title" style="margin-top: 5mm;">Validation du dossier</h3>
+    <table class="signs keep">
+      <tr th:each="i : ${#numbers.sequence(0, #lists.size(dossier.signatures) - 1, 3)}">
+        <td class="cell" th:each="j : ${#numbers.sequence(i, i + 2)}">
+          <div class="tbox" th:if="${j lt #lists.size(dossier.signatures)}">
+            <div class="tbody">
+              <div class="lbl" th:text="${dossier.signatures[j].role}">Technicien</div>
+              <div class="who" th:text="${dossier.signatures[j].name != null ? dossier.signatures[j].name : '—'}">Hicham</div>
+              <div class="when" th:text="${dossier.signatures[j].date != null ? 'Le ' + dossier.signatures[j].date : 'Date :'}">Le 08/11/2026</div>
+            </div>
+            <div class="sign">Signature</div>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

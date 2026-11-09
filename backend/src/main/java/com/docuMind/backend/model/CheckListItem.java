@@ -48,6 +48,12 @@ public class CheckListItem{
     @Column(nullable=false)
     private AnswerType answerType;
 
+    // JSON, what the answer type needs (StructuredAnswers): the choices of a SINGLE / MULTI_CHOICE,
+    // a MEASURE's unit, a PARTS_SUMMARY's columns, an IMAGE's photo limit, and a "group" to show
+    // fields together on one page. Null for the original checklists
+    @Column(columnDefinition = "TEXT")
+    private String options;
+
     public String getId()                           { return id; }
     public void setId(String id)                    { this.id = id; }
 
@@ -68,4 +74,7 @@ public class CheckListItem{
 
     public AnswerType getAnswerType()               { return answerType; }
     public void setAnswerType(AnswerType answerType) { this.answerType = answerType; }
+
+    public String getOptions()                      { return options; }
+    public void setOptions(String options)          { this.options = options; }
 }

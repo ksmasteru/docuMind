@@ -14,6 +14,7 @@ import { ErrorBanner, ListSkeleton } from "./managerUi";
 import { PRIORITY_LABEL, PRIORITY_STYLE, TASK_TYPES, localIso, serverMessage } from "./managerUtils";
 import { Chips, TemplatePicker } from "./AssignTask";
 import { DISMANTLING_FORM_TITLE, MOUNTING_FORM_TITLE } from "./expertiseComplet";
+import { V2_DISMANTLING_TITLE, V2_MOUNTING_TITLE } from "./reportV2";
 import { isExpertiseTitle } from "./expertiseForm";
 import { Field } from "./WorkshopRequest";
 import { UrgentBadge } from "./Workshop";
@@ -23,8 +24,8 @@ const PRIORITIES = ["LOW", "NORMAL", "HIGH", "URGENT"];
 
 // what each assigning step sends the technician to do, and the form it pre-selects
 const STEP_ORDER = {
-    AFFECTER_EQUIPE:   { title: "Démontage + expertise", template: DISMANTLING_FORM_TITLE },
-    AUTORISER_MONTAGE: { title: "Montage + essais",      template: MOUNTING_FORM_TITLE },
+    AFFECTER_EQUIPE:   { title: "Démontage + expertise", templates: [V2_DISMANTLING_TITLE, DISMANTLING_FORM_TITLE] },
+    AUTORISER_MONTAGE: { title: "Montage + essais",      templates: [V2_MOUNTING_TITLE, MOUNTING_FORM_TITLE] },
 };
 
 const WorkshopAssign = () => {
@@ -51,7 +52,7 @@ const WorkshopAssign = () => {
     // attempt: bumped by Retry to run this again
     useEffect(() => {
         const load = async () => {
-            let wanted = null; // the step's report, pre-selected once the forms are in
+            let wanted = []; // the step's reports, the first one found pre-selected once the forms are in
             try {
                 const [{ data: intervention }, { data: list }] = await Promise.all([
                     apiClient.get(`/api/v1/interventions/${id}`),
@@ -64,7 +65,7 @@ const WorkshopAssign = () => {
                 setTitle(`${order?.title ?? intervention.currentStep.label} · ${intervention.equipmentId}`);
                 setPriority(intervention.urgent ? "URGENT" : "NORMAL");
                 setInstructions(intervention.fault ?? "");
-                wanted = order?.template ?? null;
+                wanted = order?.templates ?? [];
             }
             catch (err) {
                 console.log("Error while loading the assignment", err);
@@ -76,7 +77,8 @@ const WorkshopAssign = () => {
                 // the server refuses any other form on these steps
                 const list = (data.FormItem ?? []).filter((t) => isExpertiseTitle(t.title)).sort((a, b) => a.title.localeCompare(b.title));
                 setTemplates(list);
-                setTemplateId((current) => current ?? list.find((t) => t.title === wanted)?.id ?? null);
+                const preferred = wanted.map((title) => list.find((t) => t.title === title)).find(Boolean);
+                setTemplateId((current) => current ?? preferred?.id ?? null);
             }
             catch (err) {
                 console.log("Error while fetching checklists", err);

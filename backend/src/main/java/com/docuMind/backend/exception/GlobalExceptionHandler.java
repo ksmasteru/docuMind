@@ -350,6 +350,18 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorFormat, HttpStatus.BAD_REQUEST);
     }
 
+    // a form whose questions' options don't fit their answer type
+    @ExceptionHandler(InvalidFormException.class)
+    public ResponseEntity<ErrorFormat> handleInvalidFormException(InvalidFormException ex,
+        WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.BAD_REQUEST);
+    }
+
     // no quote with that id
     @ExceptionHandler(QuoteNotFoundException.class)
     public ResponseEntity<ErrorFormat> handleQuoteNotFoundException(QuoteNotFoundException ex,

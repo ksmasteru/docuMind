@@ -1,0 +1,674 @@
+{
+  "title": "Rapport d'expertise V2 (montage)",
+  "type": "INSPECTION",
+  "instructions": "Rapport au remontage : informations générales, contrôles au remontage, pièces changées ou réparées, commentaires, pompe assemblée et check-list de contrôle de montage. Chaque contrôle a un statut et une remarque.",
+  "items": [
+    {
+      "labelFr": "Informations générales : Client",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Client / dossier"
+      }
+    },
+    {
+      "labelFr": "Informations générales : Adresse",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Client / dossier"
+      }
+    },
+    {
+      "labelFr": "Informations générales : Entité",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Client / dossier"
+      }
+    },
+    {
+      "labelFr": "Informations générales : N° de commande",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Client / dossier"
+      }
+    },
+    {
+      "labelFr": "Informations générales : N° d'opération",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Client / dossier"
+      }
+    },
+    {
+      "labelFr": "Informations générales : Repère géographique",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Client / dossier",
+        "meta": "equipment"
+      }
+    },
+    {
+      "labelFr": "Informations générales : Matricule",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Identification pompe"
+      }
+    },
+    {
+      "labelFr": "Informations générales : Type",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Identification pompe"
+      }
+    },
+    {
+      "labelFr": "Informations générales : Fabricant",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Identification pompe"
+      }
+    },
+    {
+      "labelFr": "Informations générales : Fluide pompé",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Identification pompe"
+      }
+    },
+    {
+      "labelFr": "Informations générales : Raison de la demande d'expertise",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Motif / expertise"
+      }
+    },
+    {
+      "labelFr": "Informations générales : Date de réception",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "DATE",
+      "options": {
+        "group": "Motif / expertise"
+      }
+    },
+    {
+      "labelFr": "Informations générales : Date d'expertise",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "DATE",
+      "options": {
+        "group": "Motif / expertise"
+      }
+    },
+    {
+      "labelFr": "Informations générales : Auteur du rapport de démontage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Motif / expertise"
+      }
+    },
+    {
+      "labelFr": "Informations générales : Date du montage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "DATE",
+      "options": {
+        "group": "Remontage",
+        "meta": "inspectionDate"
+      }
+    },
+    {
+      "labelFr": "Informations générales : Auteur du rapport de montage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Remontage"
+      }
+    },
+    {
+      "labelFr": "Contrôles géométriques > Concentricité de l'arbre au remontage : Mesures",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "drawing": "/expertise/concentricite-arbre.png"
+      }
+    },
+    {
+      "labelFr": "Contrôles géométriques > Concentricité de l'arbre au remontage : Commentaire",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles géométriques > Déplacement axial au remontage : Mesures",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "drawing": "/expertise/deplacement-axial.png"
+      }
+    },
+    {
+      "labelFr": "Contrôles géométriques > Déplacement axial au remontage : Commentaire",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles géométriques > Déplacement radial au remontage : Mesures",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "drawing": "/expertise/deplacement-radial.png"
+      }
+    },
+    {
+      "labelFr": "Contrôles géométriques > Déplacement radial au remontage : Commentaire",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles géométriques > Perpendicularité au remontage : Mesures",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "drawing": "/expertise/perpendicularite.png"
+      }
+    },
+    {
+      "labelFr": "Contrôles géométriques > Perpendicularité au remontage : Commentaire",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles géométriques > Concentricité de la boîte à garniture au remontage : Mesures",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "drawing": "/expertise/concentricite-boite.png"
+      }
+    },
+    {
+      "labelFr": "Contrôles géométriques > Concentricité de la boîte à garniture au remontage : Commentaire",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôles dimensionnels > Arbre et palier au remontage : J",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "group": "Jeux de la pompe (J, X)",
+        "drawing": "/expertise/coupe-pompe.png"
+      }
+    },
+    {
+      "labelFr": "Contrôles dimensionnels > Arbre et palier au remontage : X",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "group": "Jeux de la pompe (J, X)"
+      }
+    },
+    {
+      "labelFr": "Contrôles dimensionnels > Arbre et palier au remontage : J5",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "group": "Jeux palier / arbre (J5 à J8)",
+        "drawing": "/expertise/arbre-palier.png"
+      }
+    },
+    {
+      "labelFr": "Contrôles dimensionnels > Arbre et palier au remontage : J6",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "group": "Jeux palier / arbre (J5 à J8)"
+      }
+    },
+    {
+      "labelFr": "Contrôles dimensionnels > Arbre et palier au remontage : J7",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "group": "Jeux palier / arbre (J5 à J8)"
+      }
+    },
+    {
+      "labelFr": "Contrôles dimensionnels > Arbre et palier au remontage : J8",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "group": "Jeux palier / arbre (J5 à J8)"
+      }
+    },
+    {
+      "labelFr": "Contrôles dimensionnels > Arbre et palier au remontage : C1",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "group": "Concentricité de l'arbre (C1 à C5)"
+      }
+    },
+    {
+      "labelFr": "Contrôles dimensionnels > Arbre et palier au remontage : C2",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "group": "Concentricité de l'arbre (C1 à C5)"
+      }
+    },
+    {
+      "labelFr": "Contrôles dimensionnels > Arbre et palier au remontage : C3",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "group": "Concentricité de l'arbre (C1 à C5)"
+      }
+    },
+    {
+      "labelFr": "Contrôles dimensionnels > Arbre et palier au remontage : C4",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "group": "Concentricité de l'arbre (C1 à C5)"
+      }
+    },
+    {
+      "labelFr": "Contrôles dimensionnels > Arbre et palier au remontage : C5",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "group": "Concentricité de l'arbre (C1 à C5)"
+      }
+    },
+    {
+      "labelFr": "Contrôles dimensionnels > Arbre et palier au remontage : Commentaire",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Pièces changées / réparées : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE",
+      "options": {
+        "photoComments": true
+      }
+    },
+    {
+      "labelFr": "Pièces changées / réparées : Commentaire",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Commentaires supplémentaires : Observations",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Commentaires supplémentaires : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE",
+      "options": {
+        "photoComments": true
+      }
+    },
+    {
+      "labelFr": "Pompe assemblée : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE",
+      "options": {
+        "photoComments": true
+      }
+    },
+    {
+      "labelFr": "Pompe assemblée : Commentaire",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôle de montage : N° d'ordre / lot (OT)",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "En-tête"
+      }
+    },
+    {
+      "labelFr": "Contrôle de montage : Auteur du contrôle",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "En-tête"
+      }
+    },
+    {
+      "labelFr": "Contrôle de montage : 01. Contrôle général de la propreté",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    },
+    {
+      "labelFr": "Contrôle de montage : 02. Conformité visuelle des pièces à monter",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    },
+    {
+      "labelFr": "Contrôle de montage : 03. Contrôle du centrage de l'arbre",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    },
+    {
+      "labelFr": "Contrôle de montage : 04. Contrôle de la concentricité de la boîte à garniture",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    },
+    {
+      "labelFr": "Contrôle de montage : 05. Contrôle des jeux et déplacements radial et axial de l'arbre",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    },
+    {
+      "labelFr": "Contrôle de montage : 06. Contrôle de la perpendicularité de l'arbre / boîte à garniture",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    },
+    {
+      "labelFr": "Contrôle de montage : 07. Test d'étanchéité de la garniture avant montage",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    },
+    {
+      "labelFr": "Contrôle de montage : 08. Contrôle du serrage de la visserie de la pompe",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    },
+    {
+      "labelFr": "Contrôle de montage : 09. Ajustage du jeu hydraulique de la pompe",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    },
+    {
+      "labelFr": "Contrôle de montage : 10. Test d'étanchéité de la garniture après montage",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    },
+    {
+      "labelFr": "Contrôle de montage : 11. Test d'étanchéité de la pompe",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    },
+    {
+      "labelFr": "Contrôle de montage : 12. Protection des orifices de la garniture mécanique",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    },
+    {
+      "labelFr": "Contrôle de montage : 13. Protection des orifices d'aspiration et de refoulement",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    }
+  ]
+}

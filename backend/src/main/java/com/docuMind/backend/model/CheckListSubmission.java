@@ -70,6 +70,11 @@ public class CheckListSubmission{
     @Column
     private String taskId;
 
+    // v2 expertise reports: the parts the technician added (« + Ajouter une pièce »), as JSON
+    // (StructuredAnswers.normalizeExtraParts); null for every other report
+    @Column(columnDefinition = "TEXT")
+    private String extraParts;
+
     // answers: one submission → many answers.
     // No column here: each answer row stores submission_id (see CheckListAnswer.submission).
     // mappedBy = "submission" says "read the link from that field".
@@ -109,6 +114,9 @@ public class CheckListSubmission{
 
     public String getTaskId()                           { return taskId; }
     public void setTaskId(String taskId)                { this.taskId = taskId; }
+
+    public String getExtraParts()                       { return extraParts; }
+    public void setExtraParts(String extraParts)        { this.extraParts = extraParts; }
 
     public List<CheckListAnswer> getAnswers()           { return Collections.unmodifiableList(answers); }
     // replaces all answers, going through addAnswer so each answer gets its submission

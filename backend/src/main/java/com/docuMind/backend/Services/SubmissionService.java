@@ -3,6 +3,9 @@ package com.docuMind.backend.services;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -40,6 +43,7 @@ import com.docuMind.backend.model.enums.SubmissionStatus;
 import com.docuMind.backend.model.enums.WorkshopStep;
 import com.docuMind.backend.repository.CheckListTemplateRepository;
 import com.docuMind.backend.repository.SubmissionRepository;
+import com.docuMind.backend.repository.FormDraftRepository;
 import com.docuMind.backend.repository.UserRepository;
 
 import jakarta.transaction.Transactional;
@@ -70,15 +74,22 @@ public class SubmissionService {
     private static final DateTimeFormatter DAY_TIME = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     private static final ZoneId SITE_ZONE = ZoneId.of("Africa/Casablanca");
 
-    // photos one IMAGE answer may hold (the full expertise report's 2×2 grids)
-    private static final int MAX_PHOTOS = 4;
+    // the v2 expertise reports' answers: choices, readings, photos with titles, added parts
+    private final StructuredAnswers structuredAnswers;
+
+    // the form's draft goes once the report is sent (form-draft-persistence.md)
+    private final FormDraftRepository formDraftRepository;
 
     public SubmissionService(SubmissionRepository submissionRepository,
                              CheckListTemplateRepository checkListTemplateRepository,
                              UserRepository userRepository,
                             ImageService imageService,
-                            TaskService taskService)
+                            TaskService taskService,
+                            StructuredAnswers structuredAnswers,
+                            FormDraftRepository formDraftRepository)
     {
+        this.structuredAnswers = structuredAnswers;
+        this.formDraftRepository = formDraftRepository;
         this.submissionRepository = submissionRepository;
         this.checkListTemplateRepository = checkListTemplateRepository;
         this.userRepository = userRepository;
@@ -93,6 +104,12 @@ public class SubmissionService {
         CheckListSubmission submission = submissionRepository.findById(submissionId)
                 .filter(s -> canRead(s, userId))
                 .orElseThrow(() -> new SubmissionNotFoundException("no submission with id " + submissionId));
+        return toReport(submission, submission.getId());
+    }
+
+    // a submission, saved or not (previewReport), as the PDF reads it; id: the reference printed on it
+    private SubmissionReport toReport(CheckListSubmission submission, String id)
+    {
         CheckListTemplate template = submission.getTemplate();
 
         // the template expects the rows in sheet order
@@ -114,34 +131,79 @@ public class SubmissionService {
                 },
                 template.getVersion(),
                 template.getInstructions(),
-                submission.getId(),
+                id,
                 submission.getEquipment(),
                 submission.getInspectionDate() == null ? "" : submission.getInspectionDate().format(DAY),
                 inspector,
                 submission.getSubmittedAt() == null ? "" : submission.getSubmittedAt().atZone(SITE_ZONE).format(DAY_TIME),
                 submission.getStatus().name(),
                 submission.getRemarks(),
-                rows);
+                rows,
+                structuredAnswers.readExtraParts(submission.getExtraParts()).stream()
+                    .map(part -> {
+                        Gallery gallery = gallery(part.photos());
+                        return new SubmissionReport.ExtraPart(part.name(), part.findings(), part.comment(),
+                                part.recommendation(), gallery.photos(), gallery.captions());
+                    })
+                    .toList());
+    }
+
+    // the photos that could be read, as data URIs, and their captions in the same order
+    private record Gallery(List<String> photos, List<SubmissionReport.Caption> captions, boolean missing) {}
+
+    private Gallery gallery(List<StructuredAnswers.PhotoRef> refs)
+    {
+        List<String> photos = new ArrayList<>();
+        List<SubmissionReport.Caption> captions = new ArrayList<>();
+        for (StructuredAnswers.PhotoRef ref : refs)
+        {
+            String uri = imageService.getPhotoDataUri(ref.imageId());
+            if (uri == null)
+                continue;
+            photos.add(uri);
+            captions.add(new SubmissionReport.Caption(ref.title(), ref.comment()));
+        }
+        return new Gallery(photos, captions, photos.size() < refs.size());
     }
 
     // An IMAGE answer's value is its image ids ("id1,id2", or null for no photo): the PDF shows
     // the photos, never the ids. The renderer can't call the authenticated /images endpoint, so
     // each photo goes in as a data URI. A photo that can't be read becomes a note instead of
     // failing the whole PDF.
+    // An IMAGE answer is stored as "id1,id2" (old forms) or [{ imageId, title, comment }] (v2); the v2
+    // types (choices, readings, parts summary) as JSON, read back as a line of text for the PDF and
+    // their structure for the review page (StructuredAnswers.describe).
     private SubmissionReport.ReportRow toReportRow(CheckListAnswer a)
     {
         CheckListItem item = a.getItem();
         String value = a.getValue();
         List<String> photos = List.of();
-        if (item.getAnswerType() == AnswerType.IMAGE)
+        List<SubmissionReport.Caption> captions = List.of();
+        com.fasterxml.jackson.databind.JsonNode data = null;
+        AnswerType type = item.getAnswerType();
+        if (type == AnswerType.IMAGE)
         {
-            List<String> ids = value == null ? List.of()
-                    : Arrays.stream(value.split(",")).map(String::trim).filter(id -> !id.isEmpty()).toList();
-            photos = ids.stream().map(imageService::getPhotoDataUri).filter(Objects::nonNull).toList();
-            value = photos.size() < ids.size() ? "Photo non disponible" : null;
+            Gallery gallery = gallery(structuredAnswers.photoRefs(value));
+            photos = gallery.photos();
+            captions = gallery.captions();
+            value = gallery.missing() ? "Photo non disponible" : null;
         }
+        else if (isStructured(type))
+        {
+            StructuredAnswers.Readable readable = structuredAnswers.describe(item, value);
+            value = readable.text();
+            data = readable.data();
+        }
+        String group = item.getOptions() == null ? null : structuredAnswers.readOptions(item.getOptions()).path("group").asText(null);
         return new SubmissionReport.ReportRow(item.getPosition(), item.getLabelFr(), item.getLabelAr(),
-                item.isCritical(), value, a.getComment(), photos.isEmpty() ? null : photos.get(0), photos);
+                item.isCritical(), value, a.getComment(), photos.isEmpty() ? null : photos.get(0), photos,
+                type.name(), data, captions, group);
+    }
+
+    // the answer types checked and stored by StructuredAnswers (JSON, or the photos' ids)
+    private static boolean isStructured(AnswerType type)
+    {
+        return type != AnswerType.BON_MAUVAIS && type != AnswerType.TEXT;
     }
 
     // the author, the manager who sent the task this report answers, or, when that task is a
@@ -165,10 +227,11 @@ public class SubmissionService {
     }
 
     // The full expertise report is the paper report: much of it can stay empty (a part with no
-    // photo, a measure not taken). Every other form needs every answer.
+    // photo, a measure not taken), and so can the v2 reports (a part not inspected, report_ui.md).
+    // Every other form needs every answer.
     private static boolean allowsBlank(CheckListTemplate template)
     {
-        return ExpertiseReport.isFor(template.getTitle());
+        return ExpertiseReport.isFor(template.getTitle()) || StructuredAnswers.isV2(template.getTitle());
     }
 
     private SubmissionStatus checkSumbSubmissionStatus(SubmissionRequest request, CheckListTemplate template)
@@ -193,12 +256,27 @@ public class SubmissionService {
                 // dependon collect preseving the order.
                 int index = answersId.indexOf(question.getId());
                 AnswerItem answer = answers.get(index);
+                // the v2 types are checked here (choices among the options, readings are numbers…);
+                // "{ selected: [] }" counts as blank like an empty text
+                StructuredAnswers.Normalized structured = isStructured(question.getAnswerType())
+                        ? structuredAnswers.normalize(question, answer.value(), StructuredAnswers.isV2(template.getTitle()))
+                        : null;
+                boolean blank = structured != null ? structured.blank()
+                        : answer.value() == null || answer.value().isBlank();
                 // an empty answer: only where the form allows it, and never for Bon / Mauvais
-                if (answer.value() == null || answer.value().isBlank())
+                if (blank)
                 {
                     if (question.getAnswerType() == AnswerType.BON_MAUVAIS || !allowsBlank(template))
                         throw new IncompleteAnswersException("question " + question.getPosition() + " is not answered");
                     continue;
+                }
+                // a critical choice that says the work isn't right (« Non conforme », « À reprendre »):
+                // like a critical Mauvais, it needs a comment and makes the report non conforme
+                if (structured != null && structured.nonConforming() && question.isCritical())
+                {
+                    if (answer.comment() == null || answer.comment().isBlank())
+                        throw new CommentRequiredException("comment required for question " + question.getPosition());
+                    status = SubmissionStatus.NON_CONFORME;
                 }
                 // now we check if the answer is valid.
                 if (question.isCritical() && question.getAnswerType() == AnswerType.BON_MAUVAIS && answer.value().trim().toLowerCase().equals("mauvais"))
@@ -240,6 +318,7 @@ public class SubmissionService {
             throw new FormNotActiveException("form " + templateId + " is not active anymore");
         
         SubmissionStatus status = this.checkSumbSubmissionStatus(request, template);
+        boolean v2 = StructuredAnswers.isV2(template.getTitle());
 
         // used by the save loop below
         List<CheckListItem> questions = template.getQuestions();
@@ -325,37 +404,14 @@ public class SubmissionService {
             checkAnswer.setItem(item);
             if (item.getAnswerType().equals(AnswerType.BON_MAUVAIS))
                 checkAnswer.setValue(answer.value().trim().toLowerCase());
-            else if (item.getAnswerType().equals(AnswerType.IMAGE))
+            else if (isStructured(item.getAnswerType()))
             {
-                // One or more image ids, comma-separated ("id1,id2"): the full expertise report
-                // takes up to MAX_PHOTOS per component. Empty = no photo; the forms that need one
-                // refuse to send without it.
-                List<String> imageIds = answer.value() == null ? List.of()
-                        : Arrays.stream(answer.value().split(","))
-                            .map(String::trim)
-                            .filter(id -> !id.isEmpty())
-                            .toList();
-                if (imageIds.size() > MAX_PHOTOS)
-                    throw new InvalidResponseException("invalid answer for question " + item.getPosition()
-                            + ": at most " + MAX_PHOTOS + " photos");
-                for (String imageId : imageIds)
-                {
-                    // a wrong id is a bad request body, not a missing resource
-                    ImageEntity imageEntity;
-                    try {
-                        imageEntity = imageService.getImageMetaData(imageId);
-                    } catch (ImageNotFoundException e) {
-                        throw new InvalidResponseException("invalid answer for question " + item.getPosition()
-                                + ": no image with id " + imageId);
-                    }
-                    // only the technician who uploaded the photo can use it
-                    if (!imageEntity.getUploadedBy().equals(userId))
-                        throw new AccessDeniedException("image " + imageId + " does not belong to you");
-                    if (imageEntity.getReportId() != null || !usedImageIds.add(imageId))
-                        throw new ImageAlreadyAttachedException("image " + imageId + " is already attached to a report");
-                    images.add(imageEntity);
-                }
-                checkAnswer.setValue(imageIds.isEmpty() ? null : String.join(",", imageIds));
+                // already checked by checkSumbSubmissionStatus; normalized again for the stored form.
+                // Photos: "id1,id2" on the old forms (up to 4), [{ imageId, title, comment }] on v2
+                StructuredAnswers.Normalized normalized = structuredAnswers.normalize(item, answer.value(), v2);
+                for (StructuredAnswers.PhotoRef photo : normalized.photos())
+                    images.add(ownImage(photo.imageId(), "question " + item.getPosition(), userId, usedImageIds));
+                checkAnswer.setValue(normalized.value());
             }
             else
                 checkAnswer.setValue(answer.value() == null || answer.value().isBlank() ? null : answer.value());
@@ -365,10 +421,25 @@ public class SubmissionService {
         
         checkListSubmission.setAnswers(_answers);
 
+        // the parts the technician added: only on the v2 reports, their photos checked like the answers'
+        if (request.extraParts() != null && !request.extraParts().isEmpty())
+        {
+            if (!v2)
+                throw new InvalidResponseException("form " + template.getTitle() + " doesn't take added parts");
+            checkListSubmission.setExtraParts(structuredAnswers.normalizeExtraParts(request.extraParts()));
+            for (SubmissionRequest.ExtraPart part : request.extraParts())
+                if (part.photos() != null)
+                    for (SubmissionRequest.PhotoItem photo : part.photos())
+                        images.add(ownImage(photo.imageId().strip(), "added part « " + part.name().strip() + " »", userId, usedImageIds));
+        }
+
         String taskId = (request.taskId() == null || request.taskId().isBlank()) ? null : request.taskId().trim();
         checkListSubmission.setTaskId(taskId);
 
         submissionRepository.save(checkListSubmission);
+
+        // the report is sent: its draft goes (in this transaction, so a refused report keeps it)
+        formDraftRepository.findByUserIdAndTemplateIdAndTaskId(userId, templateId, taskId).ifPresent(formDraftRepository::delete);
 
         // a report for a task: check the task and move it to SUBMITTED. After the save because
         // the task keeps the submission's id; a refused task still undoes the save, since both
@@ -382,5 +453,92 @@ public class SubmissionService {
             image.setReportId(checkListSubmission.getId());
 
         return new SubmissionResponse(checkListSubmission.getId(), status);
+    }
+
+    // ------------------------------------------------------------------------ before sending
+
+    // The PDF of a report not sent yet, as it stands (« Aperçu du PDF » on the wizard's last page): built from
+    // the request like validateSubmission, but nothing is saved and nothing is refused for being incomplete.
+    // An answer the server would refuse (a reading that isn't a number…) is left out of the preview.
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public SubmissionReport previewReport(SubmissionRequest request, String userId)
+    {
+        CheckListTemplate template = checkListTemplateRepository.findById(request.templateId()).orElseThrow(
+            () -> new FormNotFoundException("no form with id " + request.templateId()));
+        boolean v2 = StructuredAnswers.isV2(template.getTitle());
+        CheckListSubmission preview = new CheckListSubmission();
+        preview.setTemplate(template);
+        preview.setEquipment(request.equipment() == null || request.equipment().isBlank() ? "—" : request.equipment().trim());
+        preview.setInspectionDate(request.inspectionDate());
+        preview.setUserId(userId);
+        preview.setRemarks(request.remarks());
+        SubmissionStatus status = SubmissionStatus.CONFORME;
+        List<CheckListAnswer> answers = new ArrayList<>();
+        Map<String, AnswerItem> byItem = new HashMap<>();
+        if (request.answers() != null)
+            for (AnswerItem a : request.answers())
+                if (a != null && a.itemId() != null) byItem.put(a.itemId(), a);
+        for (CheckListItem item : template.getQuestions())
+        {
+            AnswerItem sent = byItem.get(item.getId());
+            CheckListAnswer answer = new CheckListAnswer();
+            answer.setItem(item);
+            answer.setSubmission(preview);
+            String value = sent == null ? null : sent.value();
+            if (value != null && !value.isBlank() && isStructured(item.getAnswerType()))
+            {
+                try {
+                    StructuredAnswers.Normalized normalized = structuredAnswers.normalize(item, value, v2);
+                    value = normalized.value();
+                    if (normalized.nonConforming() && item.isCritical()) status = SubmissionStatus.NON_CONFORME;
+                } catch (RuntimeException refused) {
+                    value = null;
+                }
+            }
+            answer.setValue(value == null || value.isBlank() ? null : value);
+            answer.setComment(sent == null ? null : sent.comment());
+            answers.add(answer);
+        }
+        preview.setAnswers(answers);
+        preview.setStatus(status);
+        if (v2 && request.extraParts() != null && !request.extraParts().isEmpty())
+        {
+            try {
+                preview.setExtraParts(structuredAnswers.normalizeExtraParts(request.extraParts()));
+            } catch (RuntimeException refused) {
+                // a part without a name yet: the preview goes without the added parts
+            }
+        }
+        return toReport(preview, "APERCU-NON-ENVOYE");
+    }
+
+    // The values already written in some fields of the reports (« Informations générales : Client »…), the most
+    // recently used first, for the form's searchable lists: label → up to 40 values
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public Map<String, List<String>> knownValues(List<String> labels)
+    {
+        Map<String, List<String>> out = new LinkedHashMap<>();
+        for (String label : labels == null ? List.<String>of() : labels.stream().limit(20).toList())
+            out.put(label, submissionRepository.knownValues(label, org.springframework.data.domain.PageRequest.of(0, 40)));
+        return out;
+    }
+
+    // an uploaded photo used by this report: it exists, the caller uploaded it, and no report (nor
+    // another answer of this one) uses it yet. where: for the error message
+    private ImageEntity ownImage(String imageId, String where, String userId, Set<String> usedImageIds)
+    {
+        // a wrong id is a bad request body, not a missing resource
+        ImageEntity imageEntity;
+        try {
+            imageEntity = imageService.getImageMetaData(imageId);
+        } catch (ImageNotFoundException e) {
+            throw new InvalidResponseException("invalid answer for " + where + ": no image with id " + imageId);
+        }
+        // only the technician who uploaded the photo can use it
+        if (!imageEntity.getUploadedBy().equals(userId))
+            throw new AccessDeniedException("image " + imageId + " does not belong to you");
+        if (imageEntity.getReportId() != null || !usedImageIds.add(imageId))
+            throw new ImageAlreadyAttachedException("image " + imageId + " is already attached to a report");
+        return imageEntity;
     }
 }

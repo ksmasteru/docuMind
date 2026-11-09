@@ -96,3 +96,15 @@ The one new problem is an abandoned draft, which leaves photos linked to nothing
 
 - **Returned tasks:** when a manager returns a task, should the new round start from the last submission's answers? A draft could be created from `latestSubmissionId`.
 - **Several devices:** "last save wins" is probably fine. If not, send `updatedAt` with each save and reject one based on an older copy.
+
+## Built (8 November 2026), for the v2 expertise reports
+
+- `DraftController`: `GET /api/v1/drafts?templateId&taskId` (200 the draft, 204 none), `PUT /api/v1/drafts`
+  `{ templateId, taskId, payload }`, `DELETE /api/v1/drafts?templateId&taskId`. `FormDraftService` looks the draft up
+  before saving (the unique constraint can't catch standalone drafts), caps the payload at 512 KB.
+- `SubmissionService.validateSubmission` deletes the draft after the save, in its transaction.
+- `ReportWizard.jsx` saves on every page change (« Suivant », as noted above), on « Enregistrer », and when the app
+  goes to the background; it opens on the draft. The payload: `{ v: 1, index, remarks, answers, extraParts }`, photos
+  as `{ key, imageId, title, comment }` only.
+- The old checklists (`InspectionForm.jsx`) don't use drafts yet.
+

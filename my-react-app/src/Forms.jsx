@@ -1,7 +1,7 @@
 import Layout from "./Layout";
 import React, { useEffect, useState } from "react";
 import Select from "react-select";
-import InspectionForm from "./InspectionForm";
+import ReportForm from "./ReportForm";
 import { ChevronLeft, ChevronRight, ClipboardCheck } from "lucide-react";
 import { TECHNICIAN_FORMS, sameText } from "./expertiseForm";
 import { apiClient } from "./apiClient";
@@ -77,7 +77,7 @@ const Forms = () => {
                 <ChevronLeft className="h-4 w-4" /> Changer de formulaire
               </button>
               {/* key: a new form gets a fresh, empty sheet */}
-              <InspectionForm key={selected.value} id={selected.value} />
+              <ReportForm key={selected.value} id={selected.value} />
             </>
           ) : (
             <>
@@ -134,7 +134,7 @@ const Forms = () => {
 
         {selected ? (
           // key: a new form gets a fresh, empty sheet
-          <InspectionForm key={selected.value} id={selected.value} />
+          <ReportForm key={selected.value} id={selected.value} />
         ) : (
           <EmptyState />
         )}

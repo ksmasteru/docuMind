@@ -6,16 +6,18 @@
 //   accept  → POST /api/v1/task/:id/start          (ASSIGNED → STARTED)
 //   decline → POST /api/v1/task/:id/decline        ({ reason, comment })
 //   resume  → POST /api/v1/task/:id/start          (BLOCKED / RETURNED → STARTED: back to work, or to correct the report)
-//   report  → InspectionForm with taskId           (POST /api/v1/submissions marks the task SUBMITTED)
+//   report  → ReportForm with taskId               (POST /api/v1/submissions marks the task SUBMITTED)
 //   ask     → AskChat                              (not linked to the task yet, no sources yet)
 //
 // The three tabs stay mounted: switching tabs keeps the conversation and the report's answers.
+// While a phone's keyboard is open the bottom bar steps aside and the field typed in stays in view
+// (keepFocusVisible.js).
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ChevronLeft, ClipboardCheck, Info, MessageSquareText, Timer, Wrench } from "lucide-react";
 import { TopBar } from "./Layout";
 import AskChat from "./AskChat";
-import InspectionForm from "./InspectionForm";
+import ReportForm from "./ReportForm";
 import { apiClient } from "./apiClient";
 import { ErrorBanner, ListSkeleton, PriorityBadge } from "./managerUi";
 import { buttonBase, formatDay, serverMessage } from "./managerUtils";
@@ -147,7 +149,7 @@ const TaskScreen = () => {
 
         {/* the tab's content; the chat fills the height, the others scroll */}
         <div className="relative min-h-0 flex-1">
-            <section hidden={tab !== "details"} className="h-full overflow-y-auto">
+            <section hidden={tab !== "details"} className="h-full overflow-y-auto" data-keyboard-room>
                 <div className="mx-auto w-full max-w-2xl px-4 py-5">
                     <DetailsTab task={task} onAccepted={accepted} onDeclined={declined} onOpenReport={() => openTab("rapport")} />
                 </div>
@@ -168,7 +170,7 @@ const TaskScreen = () => {
                 </div>
             </section>
 
-            <section hidden={tab !== "rapport"} className="h-full overflow-y-auto">
+            <section hidden={tab !== "rapport"} className="h-full overflow-y-auto" data-keyboard-room>
                 <div className="mx-auto w-full max-w-6xl px-4 py-5">
                     <ReportTab task={task} onSubmitted={submitted} onAccept={() => openTab("details")} />
                 </div>
@@ -177,7 +179,7 @@ const TaskScreen = () => {
 
         {/* phone: the tabs at the bottom, like the mobile app */}
         <nav className="shrink-0 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] md:hidden dark:border-slate-700 dark:bg-slate-800"
-            aria-label="Onglets de la tâche">
+            aria-label="Onglets de la tâche" data-hide-on-keyboard>
             <div className="grid grid-cols-3">
                 {TABS.map(({ key, label, icon: Icon }) => (
                     <button key={key} type="button" onClick={() => openTab(key)} aria-current={tab === key ? "page" : undefined}
@@ -400,7 +402,7 @@ const ReportTab = ({ task, onSubmitted, onAccept }) => {
                 <button type="button" onClick={onAccept} className="font-medium text-[#1A75BC] underline dark:text-[#5BC6E8]">Voir les détails</button></>}
         </Message>);
 
-    return <InspectionForm id={task.templateId} taskId={task.id} initialEquipment={task.equipmentId ?? ""} onSubmitted={onSubmitted} />;
+    return <ReportForm id={task.templateId} taskId={task.id} initialEquipment={task.equipmentId ?? ""} onSubmitted={onSubmitted} />;
 };
 
 const Message = ({ children }) => (

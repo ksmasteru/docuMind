@@ -1,6 +1,6 @@
 // Step 18 "Valider attachement" (Business Operations Manager): opened once he took the step
 // (WorkshopIntervention.jsx's "Prendre en charge" leads here). He reads the intervention's documents
-// (démontage report, montage report, devis: each in a new tab), the final file will be generated from here later, and
+// (démontage report, montage report, devis: each in a new tab), generates the final file (DossierButton), and
 // "Valider" passes the intervention on to step 19 (Dossier final + livraison, Chef de projet).
 //
 //   details ← GET  /api/v1/interventions/:id          (tasks and their reports, quoteId, availableActions)
@@ -9,7 +9,8 @@
 import Layout from "./Layout";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ExternalLink, FileCheck2, FileText, Receipt, Wrench } from "lucide-react";
+import { ExternalLink, FileText, Receipt, Wrench } from "lucide-react";
+import DossierButton from "./DossierButton";
 import { apiClient } from "./apiClient";
 import { Card, ErrorBanner, ListSkeleton } from "./managerUi";
 import { serverMessage } from "./managerUtils";
@@ -127,13 +128,8 @@ const WorkshopAttachment = () => {
                 </div>
             </Card>
 
-            <Card title="Dossier final">
-                {/* later: builds the final file (reports, devis…) */}
-                <button type="button" disabled title="Bientôt disponible"
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1A75BC] px-4 py-2.5 text-sm font-medium text-white opacity-50 sm:w-auto">
-                    <FileCheck2 className="h-4 w-4" aria-hidden="true" /> Générer le dossier final
-                    <span className="text-xs font-normal">· bientôt</span>
-                </button>
+            <Card title="Dossier final" subtitle="Un seul PDF pour le client : avant / après, mesures, devis, les deux rapports et l'historique.">
+                <DossierButton interventionId={details.id} />
             </Card>
 
             {actionError && (

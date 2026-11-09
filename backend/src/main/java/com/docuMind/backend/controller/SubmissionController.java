@@ -20,6 +20,8 @@ import com.docuMind.backend.model.SubmissionPreview;
 import com.docuMind.backend.model.SubmissionReport;
 import com.docuMind.backend.model.SubmissionRequest;
 import com.docuMind.backend.model.SubmissionResponse;
+import com.docuMind.backend.services.ExpertiseDossierService;
+import com.docuMind.backend.services.StructuredAnswers;
 import com.docuMind.backend.services.SubmissionPdfService;
 import com.docuMind.backend.services.SubmissionService;
 
@@ -31,12 +33,46 @@ import jakarta.validation.Valid;
 public class SubmissionController {
     private final SubmissionService submissionService;
     private final SubmissionPdfService submissionPdfService;
+    private final ExpertiseDossierService expertiseDossierService;
 
     public SubmissionController(SubmissionService submissionService,
-                                SubmissionPdfService submissionPdfService)
+                                SubmissionPdfService submissionPdfService,
+                                ExpertiseDossierService expertiseDossierService)
     {
         this.submissionService = submissionService;
         this.submissionPdfService = submissionPdfService;
+        this.expertiseDossierService = expertiseDossierService;
+    }
+
+    // the report's PDF; a v2 expertise report also says where it sits in the workshop loop (its trace)
+    private byte[] pdfOf(SubmissionReport report, String id)
+    {
+        return StructuredAnswers.isV2(report.title())
+                ? submissionPdfService.render(report, expertiseDossierService.traceOf(id))
+                : submissionPdfService.render(report);
+    }
+
+    // POST /api/v1/submissions/preview — the PDF of a report not sent yet, as it stands: nothing is saved,
+    // nothing refused for being incomplete (SubmissionService.previewReport). « Aperçu du PDF » on the wizard
+    @PostMapping("/preview")
+    public ResponseEntity<byte[]> previewPdf(@RequestBody SubmissionRequest request, Authentication authentication)
+    {
+        SubmissionReport report = submissionService.previewReport(request, authentication.getName());
+        byte[] pdf = StructuredAnswers.isV2(report.title())
+                ? submissionPdfService.render(report, expertiseDossierService.traceOfPreview(request.taskId()))
+                : submissionPdfService.render(report);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline().filename("apercu-rapport.pdf").build().toString())
+                .body(pdf);
+    }
+
+    // GET /api/v1/submissions/known-values?labels=…&labels=… — the values already written in these fields of the
+    // reports, most recently used first (the form's searchable lists: clients, addresses, sites…)
+    @GetMapping("/known-values")
+    public ResponseEntity<java.util.Map<String, List<String>>> knownValues(@org.springframework.web.bind.annotation.RequestParam List<String> labels)
+    {
+        return ResponseEntity.ok(submissionService.knownValues(labels));
     }
 
     // POST /api/v1/submissions  (no trailing slash needed)
@@ -67,7 +103,7 @@ public class SubmissionController {
     public ResponseEntity<byte[]> pdf(@PathVariable String id, Authentication authentication)
     {
         SubmissionReport report = submissionService.getReport(id, authentication.getName());
-        byte[] pdf = submissionPdfService.render(report);
+        byte[] pdf = pdfOf(report, id);
         // fileName() is plain ASCII, so a simple filename="…" is enough for every client
         ContentDisposition disposition = ContentDisposition.attachment()
                 .filename(fileName(report))
@@ -84,7 +120,7 @@ public class SubmissionController {
     public ResponseEntity<SubmissionPreview> preview(@PathVariable String id, Authentication authentication)
     {
         SubmissionReport report = submissionService.getReport(id, authentication.getName());
-        byte[] pdf = submissionPdfService.render(report);
+        byte[] pdf = pdfOf(report, id);
         List<String> pages = submissionPdfService.renderPages(pdf).stream()
                 .map(Base64.getEncoder()::encodeToString)
                 .toList();

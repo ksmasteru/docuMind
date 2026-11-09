@@ -3,12 +3,16 @@ package com.docuMind.backend.services;
 import java.util.ArrayList;
 import java.util.List;
 
+import java.sql.SQLException;
+
+import org.springframework.core.NestedExceptionUtils;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import com.docuMind.backend.exception.FormAlreadyExistException;
 import com.docuMind.backend.exception.FormInUseException;
 import com.docuMind.backend.exception.FormNotFoundException;
+import com.docuMind.backend.exception.InvalidFormException;
 import com.docuMind.backend.model.CheckListItem;
 import com.docuMind.backend.model.CheckListTemplate;
 import com.docuMind.backend.model.FormCreationDto;
@@ -25,12 +29,15 @@ public class CheckListTemplateService{
 
     private final CheckListTemplateRepository checkListTemplateRepository;
     private final SubmissionRepository submissionRepository;
+    // the questions' options (choices, units…) of the v2 expertise reports
+    private final StructuredAnswers structuredAnswers;
 
     public CheckListTemplateService(CheckListTemplateRepository checkListTemplateRepository,
-                                    SubmissionRepository submissionRepository)
+                                    SubmissionRepository submissionRepository, StructuredAnswers structuredAnswers)
     {
         this.checkListTemplateRepository = checkListTemplateRepository;
         this.submissionRepository = submissionRepository;
+        this.structuredAnswers = structuredAnswers;
     }
 
     // deletes a form (and its questions, via cascade) by id.
@@ -62,7 +69,7 @@ public class CheckListTemplateService{
         {
             items.add(new InspectionFormResponse.QuestionItem(question.getId(), question.getPosition(),
                         question.getLabelAr(), question.getLabelFr(), question.isCritical(),
-                        question.getAnswerType()));
+                        question.getAnswerType(), question.getOptions() == null ? null : structuredAnswers.readOptions(question.getOptions())));
         }
         return new InspectionFormResponse(fetchedTemplate.getId(), fetchedTemplate.getTitle(),
                     fetchedTemplate.getCheckListType(), fetchedTemplate.getVersion(),
@@ -84,7 +91,7 @@ public class CheckListTemplateService{
         // we simply check if a form  with the same name exist and active.
         boolean templateExist = checkListTemplateRepository.existsByTitleAndActiveTrue(newForm.title());
         if (templateExist)
-            throw (new FormAlreadyExistException());
+            throw new FormAlreadyExistException("an active form is already called \"" + newForm.title() + "\"");
         
         CheckListTemplate template = new CheckListTemplate();
         
@@ -99,9 +106,13 @@ public class CheckListTemplateService{
         
         // transform them into CheckListItem
         List <CheckListItem> checkListItems = new ArrayList<>();
+        int position = 0;
         for (FormItem item : formItems)
         {
+            position++;
             CheckListItem newItem = new CheckListItem();
+            // what the answer type needs (choices, unit…), checked now so a report can't meet a broken question
+            newItem.setOptions(structuredAnswers.checkOptions(item.answerType(), item.options(), position));
             newItem.setLabelAr(item.labelAr());
             newItem.setLabelFr(item.labelFr());
             newItem.setCritical(item.critical());
@@ -122,8 +133,13 @@ public class CheckListTemplateService{
             return checkListTemplateRepository.saveAndFlush(template).getId();
         }       
         catch (DataIntegrityViolationException e) {
-            throw new FormAlreadyExistException("form already exists: " + template.getTitle()
-                + " v" + template.getVersion());
+            // only a duplicate (title, version) is "already exists": two forms created at the same time.
+            // Anything else the database refuses keeps its real cause, as a 400
+            if (isUniqueViolation(e))
+                throw new FormAlreadyExistException("form already exists: " + template.getTitle()
+                    + " v" + template.getVersion());
+            throw new InvalidFormException("the form could not be saved: "
+                + NestedExceptionUtils.getMostSpecificCause(e).getMessage());
         }
 
     }
@@ -140,5 +156,14 @@ public class CheckListTemplateService{
         }
         FormOptionsResponse response = new FormOptionsResponse(items, items.size());
         return response;
+    }
+
+    // PostgreSQL's unique_violation (SQLState 23505), wherever it sits in the cause chain
+    private static boolean isUniqueViolation(Throwable e)
+    {
+        for (Throwable t = e; t != null; t = t.getCause())
+            if (t instanceof SQLException sql && "23505".equals(sql.getSQLState()))
+                return true;
+        return false;
     }
 }

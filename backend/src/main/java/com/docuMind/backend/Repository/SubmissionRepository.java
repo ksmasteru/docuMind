@@ -29,6 +29,15 @@ public interface SubmissionRepository extends JpaRepository<CheckListSubmission,
     // the reports sent for these tasks (a task sent back has several), oldest first
     List<CheckListSubmission> findByTaskIdInOrderBySubmittedAtAsc(java.util.Collection<String> taskIds);
 
+    // the values already answered to a question with this label, in any form, the most recently used first
+    // (the report's searchable lists: clients, addresses, sites…)
+    @org.springframework.data.jpa.repository.Query("""
+        select a.value from CheckListAnswer a
+        where a.item.labelFr = :label and a.value is not null and trim(a.value) <> ''
+        group by a.value order by max(a.submission.submittedAt) desc""")
+    List<String> knownValues(@org.springframework.data.repository.query.Param("label") String label,
+                             org.springframework.data.domain.Pageable page);
+
     // e.g. every NON_CONFORME submission, for the supervisor's list
     List<CheckListSubmission> findByStatusOrderBySubmittedAtDesc(SubmissionStatus status);
 }

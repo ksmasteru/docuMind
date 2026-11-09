@@ -24,6 +24,7 @@ import { Card, ErrorBanner, ListSkeleton, Notice } from "./managerUi";
 import { formatDateTime, serverMessage } from "./managerUtils";
 import { Field } from "./WorkshopRequest";
 import { UrgentBadge } from "./Workshop";
+import DossierButton from "./DossierButton";
 import { ACTION_TEXT, INTERVENTION_STATUS, PENDING_STEPS, REPORT_KIND, REVIEW_STEPS, ROLE_LABEL, STEP_STATUS, TASK_STATUS, inputClass, originLabel, pendingStepRoute, stepLabel } from "./workshopUtils";
 
 // "Refuser / Annuler" says what the final no means on each step that has one (canCancel)
@@ -378,6 +379,13 @@ const WorkshopIntervention = () => {
                             </li>
                         ))}
                     </ul>
+                </Card>
+            )}
+
+            {/* from the attachment (step 18) on: the final file, for whoever reads the intervention */}
+            {details.currentStep?.number >= 18 && (details.tasks ?? []).some((t) => t.reports.length > 0) && (
+                <Card title="Dossier final" subtitle="Avant / après, mesures, devis, rapports de démontage et de montage, historique.">
+                    <DossierButton interventionId={details.id} />
                 </Card>
             )}
 

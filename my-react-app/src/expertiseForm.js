@@ -1,3 +1,4 @@
+import { V2_COMPLETE_TITLE, V2_DISMANTLING_TITLE, V2_MOUNTING_TITLE } from "./reportV2";
 import { COMPLETE_FORM_TITLE, DISMANTLING_FORM_TITLE, MOUNTING_FORM_TITLE } from "./expertiseComplet";
 
 // The pump expertise report. Technicians choose between two versions of it (Forms.jsx): the
@@ -10,6 +11,10 @@ export const QUICK_FORM_TITLE = "Rapport d'expertise rapide";
 
 // what a technician can pick, in this order; a form not active on the server isn't offered
 export const TECHNICIAN_FORMS = [
+  // the v2 reports (report_ui.md): section by section, one page per part
+  { title: V2_DISMANTLING_TITLE, hint: "Nouveau : le démontage rubrique par rubrique, une page par pièce, photos titrées et mesures en plusieurs prises." },
+  { title: V2_MOUNTING_TITLE, hint: "Nouveau : le remontage, les pièces changées, la pompe assemblée et la check-list de montage en 13 contrôles." },
+  { title: V2_COMPLETE_TITLE, hint: "Nouveau : tout le rapport, du démontage au contrôle de montage, rubrique par rubrique." },
   { title: QUICK_FORM_TITLE, hint: "Une photo, le constat et les pièces à changer, dictés au micro." },
   { title: EXPERTISE_FORM_TITLE, hint: "Le rapport au démontage, point par point, avec les photos." },
   {

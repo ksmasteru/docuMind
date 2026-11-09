@@ -22,7 +22,10 @@ import com.docuMind.backend.model.InterventionDetails;
 import com.docuMind.backend.model.InterventionFollowUp;
 import com.docuMind.backend.model.InterventionQueue;
 import com.docuMind.backend.model.InterventionRequestDto;
+import com.docuMind.backend.model.ExpertiseDossier;
+import com.docuMind.backend.services.ExpertiseDossierService;
 import com.docuMind.backend.services.InterventionService;
+import com.docuMind.backend.services.SubmissionPdfService;
 
 import jakarta.validation.Valid;
 
@@ -31,10 +34,31 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/v1/interventions")
 public class InterventionController {
     private final InterventionService interventionService;
+    private final ExpertiseDossierService expertiseDossierService;
+    private final SubmissionPdfService submissionPdfService;
 
-    public InterventionController(InterventionService interventionService)
+    public InterventionController(InterventionService interventionService, ExpertiseDossierService expertiseDossierService,
+                                  SubmissionPdfService submissionPdfService)
     {
         this.interventionService = interventionService;
+        this.expertiseDossierService = expertiseDossierService;
+        this.submissionPdfService = submissionPdfService;
+    }
+
+    // GET /api/v1/interventions/{id}/dossier/pdf — the final file: cover, synthèse, avant / après, devis,
+    // the démontage and montage reports, the history. Rebuilt on every call; same readers as the intervention
+    @GetMapping("/{id}/dossier/pdf")
+    public ResponseEntity<byte[]> dossierPdf(@PathVariable String id, Authentication caller)
+    {
+        ExpertiseDossier dossier = expertiseDossierService.dossier(id, caller);
+        byte[] pdf = submissionPdfService.renderDossier(dossier);
+        String name = "dossier-" + (dossier.interventionNumber() == null ? id : dossier.interventionNumber())
+                + "-" + dossier.equipment().replaceAll("[^A-Za-z0-9_-]", "") + ".pdf";
+        return ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        org.springframework.http.ContentDisposition.inline().filename(name).build().toString())
+                .body(pdf);
     }
 
     // a manager from an alert, or Sales for a client. 403 for the other roles

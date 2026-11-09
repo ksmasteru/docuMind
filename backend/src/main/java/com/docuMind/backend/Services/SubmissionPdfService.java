@@ -21,7 +21,9 @@ import org.springframework.stereotype.Service;
 import org.thymeleaf.ITemplateEngine;
 import org.thymeleaf.context.Context;
 
+import com.docuMind.backend.model.ExpertiseDossier;
 import com.docuMind.backend.model.ExpertiseReport;
+import com.docuMind.backend.model.ExpertiseReportV2;
 import com.docuMind.backend.model.SubmissionReport;
 import com.openhtmltopdf.bidi.support.ICUBidiReorderer;
 import com.openhtmltopdf.bidi.support.ICUBidiSplitter;
@@ -33,7 +35,8 @@ import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 // Turns a SubmissionReport into the PDF of the filled sheet:
 //   report → Thymeleaf (templates/submission-report.html) → XHTML → OpenHTMLtoPDF → PDF bytes
 // The full expertise report (ExpertiseReport.isFor) has its own template, laid out like
-// PHOVA's paper report: templates/expertise-report.html.
+// PHOVA's paper report: templates/expertise-report.html; the v2 reports theirs,
+// templates/expertise-report-v2.html (ExpertiseReportV2).
 // Nothing is stored: the PDF is rebuilt from the saved submission on every request.
 // We go through HTML because PDFBox alone can't shape or order Arabic text.
 @Service
@@ -41,6 +44,10 @@ public class SubmissionPdfService {
 
     private static final String TEMPLATE = "submission-report";
     private static final String EXPERTISE_TEMPLATE = "expertise-report";
+    // the v2 expertise reports (StructuredAnswers.isV2): a summary page, then a card per part (report_pdf.md)
+    private static final String EXPERTISE_V2_TEMPLATE = "expertise-report-v2";
+    // an intervention's final file: cover, synthèse, avant / après, devis, both reports, history
+    private static final String DOSSIER_TEMPLATE = "expertise-dossier";
 
     // Preview pages for the phone. 110 dpi makes an A4 page ~910×1290 px: sharp at phone
     // width, ~150 KB per page once base64'd.
@@ -75,12 +82,29 @@ public class SubmissionPdfService {
         this.drawings = Map.copyOf(drawings);
     }
 
+    // the measurement drawings as data URIs, by name ("arbre-palier")
+    public Map<String, String> drawings()
+    {
+        return drawings;
+    }
+
     public byte[] render(SubmissionReport report)
+    {
+        return render(report, null);
+    }
+
+    // trace: where a v2 report sits in the workshop loop (ExpertiseDossierService.traceOf), null if unknown
+    public byte[] render(SubmissionReport report, ExpertiseReportV2.Trace trace)
     {
         Context context = new Context(Locale.FRENCH);
         context.setVariable("logo", logoDataUri);
         String template = TEMPLATE;
-        if (ExpertiseReport.isFor(report.title())) {
+        if (StructuredAnswers.isV2(report.title())) {
+            template = EXPERTISE_V2_TEMPLATE;
+            context.setVariable("report", trace == null ? ExpertiseReportV2.of(report, drawings) : ExpertiseReportV2.of(report, drawings, trace));
+            context.setVariable("um6pLogo", um6pLogoDataUri);
+            context.setVariable("ocpLogo", ocpLogoDataUri);
+        } else if (ExpertiseReport.isFor(report.title())) {
             template = EXPERTISE_TEMPLATE;
             context.setVariable("report", ExpertiseReport.of(report));
             context.setVariable("um6pLogo", um6pLogoDataUri);
@@ -92,8 +116,22 @@ public class SubmissionPdfService {
         } else {
             context.setVariable("report", report);
         }
-        String html = templateEngine.process(template, context);
+        return toPdf(templateEngine.process(template, context));
+    }
 
+    // the intervention's final file (ExpertiseDossierService.dossier)
+    public byte[] renderDossier(ExpertiseDossier dossier)
+    {
+        Context context = new Context(Locale.FRENCH);
+        context.setVariable("dossier", dossier);
+        context.setVariable("logo", logoDataUri);
+        context.setVariable("um6pLogo", um6pLogoDataUri);
+        context.setVariable("ocpLogo", ocpLogoDataUri);
+        return toPdf(templateEngine.process(DOSSIER_TEMPLATE, context));
+    }
+
+    private byte[] toPdf(String html)
+    {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             PdfRendererBuilder builder = new PdfRendererBuilder();
             builder.useFastMode();
