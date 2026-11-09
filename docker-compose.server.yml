@@ -1,0 +1,104 @@
+# Production stack for the remote server (/opt/documind).
+# Standalone: run it on its own so docker-compose.override.yml (dev mounts) is NOT merged in:
+#   docker compose -f docker-compose.server.yml up -d --build
+#
+# Keep running it from /opt/documind so the project name stays "documind" and the
+# existing volumes (documind_postgres_data, documind_redis_data, ...) are reused.
+
+services:
+
+  backend:
+    image: documind-backend-prod
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: backend
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+
+  front_end:
+    build:
+      context: ./my-react-app
+      dockerfile: Dockerfile
+      # no target: uses the final stage (`serve -s dist`), not the Vite dev server
+    container_name: front_end
+    restart: unless-stopped
+    depends_on:
+      - backend
+    env_file:
+      - .env
+    ports:
+      - "5173:5173"
+
+  analysis-service:
+    build: ./analysis-service
+    container_name: analysis-service
+    restart: unless-stopped
+    env_file:
+      - .env
+    # only the backend calls it, over the compose network
+    expose:
+      - "8001"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  postgres:
+    build:
+      context: ./postgres
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    # localhost only: reachable via SSH tunnel, not from the internet
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./backend/prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+
+volumes:
+  postgres_data:
+  redis_data:
+  grafana_data:
