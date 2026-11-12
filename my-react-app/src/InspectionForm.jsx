@@ -1879,7 +1879,8 @@ export function SentReport({ submissionId, status }) {
     <div ref={box} className="mx-auto mt-6 w-full max-w-[1000px] scroll-mt-6 space-y-3">
       <div className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold ${STATUS_STYLES[shown]}`}>
         <CheckCheck className="h-5 w-5" />
-        Envoyé · {STATUS_LABELS[shown] ?? shown}
+        {/* status null: a form without a result (a complaint, a certificate) */}
+        {status === null ? "Envoyé" : `Envoyé · ${STATUS_LABELS[shown] ?? shown}`}
       </div>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">

@@ -5,7 +5,7 @@
 // For most roles this only hides links: a hidden page can still be opened by its URL, so the
 // backend has to refuse what a role may not do. Technicians and the workshop roles (LOCKED_ROLES) are also kept to
 // their own pages: App.jsx's ProtectedRoute sends any other URL back to their home page.
-import { Activity, Bell, ClipboardCheck, ClipboardList, Cpu, FileSearch, FileUp, House, LayoutDashboard, ListChecks, MessageSquareText, ShieldCheck, Users, Wrench } from "lucide-react";
+import { Activity, Bell, ClipboardCheck, ClipboardList, Cpu, FileCheck, FileSearch, FileUp, House, LayoutDashboard, ListChecks, MessageSquareText, ShieldCheck, Users, Wrench } from "lucide-react";
 
 // keyed by the `active` value each page passes to <Layout>
 // soon: shown in the sidebar as a coming page, not a link
@@ -23,25 +23,30 @@ export const NAV_LINKS = {
   orders:      { to: "/orders",       label: "Ordres",          icon: ClipboardList },
   workshop:    { to: "/atelier",      label: "Atelier",         icon: Wrench },
   followup:    { to: "/suivi",        label: "Suivi",           icon: Activity },
+  // the quality forms sent, for the roles their forms let read them, and each person's own (ControlSheets.jsx)
+  controls:    { to: "/controles",    label: "Fiches qualité",  icon: FileCheck },
   home:        { to: "/accueil",      label: "Accueil",         icon: House },
 };
 
 export const ROLE_TABS = {
-  MANAGER: ["dashboard", "pumps", "alerts", "technicians", "orders", "review", "search", "ask"],
+  MANAGER: ["dashboard", "pumps", "alerts", "technicians", "orders", "review", "forms", "controls", "search", "ask"],
   ADMIN: ["upload", "search", "ask"],
   // technicians fill in forms, follow their tasks and look things up in the manuals
-  USER: ["forms", "tasks", "ask", "search"],
-  // the workshop loop (fix_workshop.md): each role works its steps from its queue (Atelier)
-  SALES: ["workshop"],
-  BUSINESS_OPS: ["workshop"],
-  CONTRACT_ADMIN: ["workshop"],
+  USER: ["forms", "tasks", "controls", "ask", "search"],
+  // the workshop loop (fix_workshop.md): each role works its steps from its queue (Atelier). Every
+  // PHOVA role also fills the quality forms (non-conformité, réclamations, dérogation) and finds them,
+  // and what their role may read, in Fiches qualité
+  SALES: ["workshop", "forms", "controls"],
+  BUSINESS_OPS: ["workshop", "forms", "controls"],
+  CONTRACT_ADMIN: ["workshop", "forms", "controls"],
   // they also follow the interventions they worked on (Suivi), like the manager's Ordres
-  PROJECT_LEAD: ["workshop", "followup"],
-  WORKSHOP_LEAD: ["workshop", "followup"],
-  HSE: ["workshop"],
-  STOREKEEPER: ["workshop"],
-  QUALITY: ["workshop"],
-  BILLING: ["workshop"],
+  PROJECT_LEAD: ["workshop", "followup", "forms", "controls"],
+  WORKSHOP_LEAD: ["workshop", "followup", "forms", "controls"],
+  HSE: ["workshop", "forms", "controls"],
+  STOREKEEPER: ["workshop", "forms", "controls"],
+  // Quality also fills the control sheets (Formulaires) and reads every one sent (Contrôles)
+  QUALITY: ["workshop", "forms", "controls"],
+  BILLING: ["workshop", "forms", "controls"],
 };
 
 // the workshop roles, kept to their own pages like technicians
@@ -55,6 +60,7 @@ export const NAV_SECTIONS = [
   { title: "Vue d'ensemble", pages: ["dashboard"] },
   { title: "Parc",           pages: ["pumps", "alerts"] },
   { title: "Maintenance",    pages: ["technicians", "orders", "review", "tasks", "forms"] },
+  { title: "Qualité",        pages: ["controls"] },
   { title: "Documentation",  pages: ["search", "ask", "upload"] },
 ];
 

@@ -1,0 +1,207 @@
+{
+  "title": "Fiche de contrôle usinage",
+  "type": "INSPECTION",
+  "instructions": "Contrôle dimensionnel et d'état de surface d'une pièce usinée. Tolérances signées comme sur le plan (TOL INF −0,05 / TOL SUP +0,02) : la conformité de chaque cote est calculée.",
+  "paperReference": "EN-PFD-MIC-01",
+  "paperEdition": "2.0",
+  "paperDate": "29/03/2024",
+  "layout": "CONTROL_SHEET",
+  "fillRoles": [
+    "QUALITY"
+  ],
+  "readRoles": [
+    "QUALITY",
+    "WORKSHOP_LEAD",
+    "PROJECT_LEAD",
+    "SALES"
+  ],
+  "items": [
+    {
+      "labelFr": "Identification : Type de pièce",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Pièce"
+      }
+    },
+    {
+      "labelFr": "Identification : Réf. plan",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Plan"
+      }
+    },
+    {
+      "labelFr": "Identification : Version du plan",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Plan"
+      }
+    },
+    {
+      "labelFr": "Identification : Réf. enregistrement",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Plan"
+      }
+    },
+    {
+      "labelFr": "Identification : Fournisseur",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Origine"
+      }
+    },
+    {
+      "labelFr": "Identification : Date de contrôle",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "DATE",
+      "options": {
+        "meta": "inspectionDate",
+        "group": "Origine"
+      }
+    },
+    {
+      "labelFr": "Identification : Type de pompe",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Pompe"
+      }
+    },
+    {
+      "labelFr": "Identification : Matériau de coulée",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Pompe"
+      }
+    },
+    {
+      "labelFr": "Identification : N° de série",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "meta": "equipment",
+        "group": "Pompe"
+      }
+    },
+    {
+      "labelFr": "Plan : Plan de fabrication de la pièce",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE",
+      "options": {
+        "maxPhotos": 2
+      }
+    },
+    {
+      "labelFr": "Contrôle dimensionnel : Cotes contrôlées",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "TABLE",
+      "options": {
+        "columns": [
+          {
+            "key": "repere",
+            "label": "N° repère cote",
+            "type": "text"
+          },
+          {
+            "key": "tool",
+            "label": "Outil de contrôle",
+            "type": "text"
+          },
+          {
+            "key": "measured",
+            "label": "Valeur contrôlée",
+            "type": "number"
+          },
+          {
+            "key": "nominal",
+            "label": "Valeur sur plan",
+            "type": "number"
+          },
+          {
+            "key": "min",
+            "label": "Tol. inf",
+            "type": "number"
+          },
+          {
+            "key": "max",
+            "label": "Tol. sup",
+            "type": "number"
+          },
+          {
+            "key": "result",
+            "label": "Conformité",
+            "type": "result"
+          },
+          {
+            "key": "comment",
+            "label": "Commentaire",
+            "type": "text"
+          }
+        ],
+        "rows": 12,
+        "tolerance": {
+          "measured": "measured",
+          "nominal": "nominal",
+          "min": "min",
+          "max": "max"
+        }
+      }
+    },
+    {
+      "labelFr": "État de surface : Surfaces contrôlées",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "TABLE",
+      "options": {
+        "columns": [
+          {
+            "key": "surface",
+            "label": "Type de surface",
+            "type": "text"
+          },
+          {
+            "key": "requirement",
+            "label": "Exigence",
+            "type": "text"
+          },
+          {
+            "key": "conformity",
+            "label": "Conformité",
+            "type": "choice",
+            "choices": [
+              "Conforme",
+              "Non conforme"
+            ],
+            "nonConforming": [
+              "Non conforme"
+            ]
+          },
+          {
+            "key": "comment",
+            "label": "Commentaire",
+            "type": "text"
+          }
+        ],
+        "rows": 4
+      }
+    }
+  ]
+}

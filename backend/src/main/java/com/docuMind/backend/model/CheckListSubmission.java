@@ -75,6 +75,17 @@ public class CheckListSubmission{
     @Column(columnDefinition = "TEXT")
     private String extraParts;
 
+    // printed on the PDF with its QR code: anyone holding the paper can check it at /verify/{code}
+    // (ReportVerification). Random, not the id, so the public page never shows internal ids.
+    // Nullable only for rows sent before it existed, until VerificationService.backfill fills them.
+    @Column(unique = true, length = 16)
+    private String verificationCode;
+
+    // SHA-256 of the report's content when it was sent (ReportVerification.fingerprint): the
+    // verification page recomputes it, so a row changed afterwards shows as altered
+    @Column(length = 64)
+    private String contentHash;
+
     // answers: one submission → many answers.
     // No column here: each answer row stores submission_id (see CheckListAnswer.submission).
     // mappedBy = "submission" says "read the link from that field".
@@ -117,6 +128,12 @@ public class CheckListSubmission{
 
     public String getExtraParts()                       { return extraParts; }
     public void setExtraParts(String extraParts)        { this.extraParts = extraParts; }
+
+    public String getVerificationCode()                 { return verificationCode; }
+    public void setVerificationCode(String verificationCode) { this.verificationCode = verificationCode; }
+
+    public String getContentHash()                      { return contentHash; }
+    public void setContentHash(String contentHash)      { this.contentHash = contentHash; }
 
     public List<CheckListAnswer> getAnswers()           { return Collections.unmodifiableList(answers); }
     // replaces all answers, going through addAnswer so each answer gets its submission

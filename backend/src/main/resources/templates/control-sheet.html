@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<!--
+  PDF template for a quality control sheet (FormLayout.CONTROL_SHEET: EN-CPE-QU-01, EN-PFD-MIC-01/03/04),
+  rendered by Thymeleaf then OpenHTMLtoPDF (SubmissionPdfService). Laid out like PHOVA's paper sheets:
+  logo │ title │ reference / edition / date, then each rubrique in a framed block under its heading,
+  the quality signature box, and the verification QR code.
+
+  Expects "sheet" (model/ControlSheet) and "logo" (a data URI); "verification" for the QR block
+  (absent on a preview). Well-formed XHTML only (every tag closed, &#160; not &nbsp;).
+-->
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <title th:text="${sheet.title}">Fiche de contrôle</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 12mm 12mm 16mm 12mm;
+      @bottom-center {
+        content: "Page " counter(page) " / " counter(pages);
+        font-family: "Noto Sans";
+        font-size: 7.5pt;
+        color: #6b6b6b;
+      }
+    }
+
+    * { box-sizing: border-box; }
+    body { font-family: "Noto Sans"; font-size: 8.5pt; line-height: 1.3; color: #1a1a1a; margin: 0; }
+    table { width: 100%; border-collapse: collapse; }
+
+    /* ─── Header: logo │ title │ reference box, like the paper sheets ─── */
+    .header td { border: 0.8pt solid #3a3a3a; vertical-align: middle; }
+    .header .logo { width: 42mm; height: 18mm; text-align: center; padding: 2mm; }
+    .header .logo img { height: 9mm; }
+    .header .title { text-align: center; font-size: 13pt; font-weight: 700; color: #1F4E79; padding: 2mm 4mm; }
+    .header .ref { width: 38mm; font-size: 7pt; font-weight: 700; padding: 1.5mm 2mm; line-height: 1.5; }
+
+    /* ─── Who / when / which sheet ─── */
+    .ident { margin-top: 4mm; }
+    .ident td { border: 0.8pt solid #3a3a3a; padding: 1.5mm 2.5mm; }
+    .ident .l { font-weight: 700; width: 24mm; background: #DCE9F5; }
+    .status { font-weight: 700; padding: 0.4mm 2mm; border-radius: 1mm; }
+    .status-ok { color: #1d6b35; background: #e3f4e8; }
+    .status-nok { color: #a01c1c; background: #fbe4e4; }
+
+    .instructions { margin-top: 3mm; font-weight: 700; font-size: 8.5pt; }
+
+    /* ─── A rubrique: its heading, then a framed block ─── */
+    .section { margin-top: 4.5mm; page-break-inside: auto; }
+    .section h2 { font-size: 9pt; font-weight: 700; margin: 0 0 1mm 0; }
+    .box { border: 0.8pt solid #3a3a3a; padding: 1.5mm 2.5mm; }
+
+    .line { padding: 0.8mm 0; border-bottom: 0.4pt dotted #9aa5b1; }
+    .line:last-child { border-bottom: none; }
+    .line .l { color: #333333; }
+    .line .v { font-weight: 700; }
+    .empty { color: #9aa5b1; font-weight: 400; }
+
+    .long { padding: 1mm 0; }
+    .long .l { color: #333333; }
+    .long .v { margin-top: 0.8mm; white-space: pre-wrap; min-height: 6mm; }
+
+    /* a TABLE answer: header in the paper's light blue, result cells coloured */
+    .grid { margin: 1.5mm 0; }
+    .grid th { border: 0.6pt solid #3a3a3a; background: #DCE9F5; font-size: 7pt; font-weight: 700; padding: 1mm; text-align: center; }
+    .grid td { border: 0.6pt solid #3a3a3a; font-size: 7.5pt; padding: 0.9mm 1.2mm; text-align: center; height: 5.5mm; }
+    .grid tr { page-break-inside: avoid; }
+    .grid .ok { color: #1d6b35; font-weight: 700; background: #e3f4e8; }
+    .grid .bad { color: #a01c1c; font-weight: 700; background: #fbe4e4; }
+    .grid-label { color: #333333; margin-top: 1mm; }
+
+    .photos td { border: none; width: 50%; padding: 1.5mm; vertical-align: top; text-align: center; }
+    .photos img { max-width: 100%; max-height: 70mm; }
+    .photos .caption { font-size: 7pt; color: #333333; margin-top: 0.8mm; }
+
+    /* ─── Remarks and the quality signature box (light blue, like the paper's decision block) ─── */
+    .closing { margin-top: 5mm; page-break-inside: avoid; }
+    .closing td { border: 0.8pt solid #3a3a3a; vertical-align: top; padding: 2mm 2.5mm; }
+    .closing .sign { width: 62mm; background: #DCE9F5; }
+    .closing .sign .t { font-weight: 700; }
+    .closing .sign .who { margin-top: 3mm; }
+
+    .reference { margin-top: 3mm; font-size: 6.5pt; color: #6b6b6b; }
+  </style>
+</head>
+<body th:with="s=${sheet}">
+
+  <!-- ═══ HEADER ═══ -->
+  <table class="header">
+    <tr>
+      <td class="logo"><img src="../static/phova_logo.png" th:src="${logo}" alt="PHOVA Technology"/></td>
+      <td class="title" th:text="${#strings.toUpperCase(s.title)}">FICHE DE CONTRÔLE</td>
+      <td class="ref">
+        <div th:if="${s.reference != null}">Référence : <span th:text="${s.reference}">EN-PFD-MIC-01</span></div>
+        <div th:if="${s.edition != null}">Edition : <span th:text="${s.edition}">2.0</span></div>
+        <div th:if="${s.date != null}">Date : <span th:text="${s.date}">29/03/2024</span></div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- ═══ WHO / WHEN ═══ -->
+  <table class="ident">
+    <tr>
+      <td class="l" th:text="${s.graded ? 'Date du contrôle' : 'Date'}">Date du contrôle</td>
+      <td th:text="${s.inspectionDate}">06/10/2026</td>
+      <td class="l" th:text="${s.graded ? 'Contrôlé par' : 'Rempli par'}">Contrôlé par</td>
+      <td th:text="${s.inspector}">Sara Alami</td>
+      <th:block th:if="${s.graded}">
+        <td class="l">Résultat</td>
+        <td>
+          <span th:if="${s.status == 'NON_CONFORME'}" class="status status-nok">NON CONFORME</span>
+          <span th:unless="${s.status == 'NON_CONFORME'}" class="status status-ok">CONFORME</span>
+        </td>
+      </th:block>
+    </tr>
+  </table>
+
+  <p class="instructions" th:if="${s.instructions != null and !#strings.isEmpty(s.instructions)}" th:text="${s.instructions}">
+    Nous soussignés, PHOVA Technology, certifions que…
+  </p>
+
+  <!-- ═══ THE RUBRIQUES ═══ -->
+  <div class="section" th:each="sec, n : ${s.sections}">
+    <h2 th:text="${n.count + '. ' + sec.name + ' :'}">1. Information sur le lot :</h2>
+    <div class="box">
+      <th:block th:each="f : ${sec.fields}">
+
+        <div th:if="${f.kind == 'text'}" class="line">
+          <span class="l" th:text="${f.label + ' : '}">Identification du lot : </span>
+          <span class="v" th:if="${f.value != null}" th:text="${f.value}">LOT-2026-114</span>
+          <span class="v empty" th:if="${f.value == null}">—</span>
+        </div>
+
+        <div th:if="${f.kind == 'long'}" class="long">
+          <div class="l" th:text="${f.label + ' :'}">Commentaire :</div>
+          <div class="v" th:text="${f.value != null ? f.value : ''}">RAS</div>
+        </div>
+
+        <th:block th:if="${f.kind == 'table'}">
+          <div class="grid-label" th:if="${#lists.size(sec.fields) > 1}" th:text="${f.label + ' :'}">Contrôle dimensionnel :</div>
+          <table class="grid">
+            <thead><tr><th th:each="c : ${f.columns}" th:text="${c}">Cote</th></tr></thead>
+            <tbody>
+              <tr th:each="r : ${f.rows}">
+                <td th:each="c : ${r}" th:text="${c.text != null ? c.text : ''}"
+                    th:class="${c.tone == 'ok' ? 'ok' : (c.tone == 'bad' ? 'bad' : '')}">0,05</td>
+              </tr>
+              <tr th:if="${#lists.isEmpty(f.rows)}"><td th:colspan="${#lists.size(f.columns)}" class="empty">Aucune ligne</td></tr>
+            </tbody>
+          </table>
+        </th:block>
+
+        <th:block th:if="${f.kind == 'photos'}">
+          <div class="grid-label" th:text="${f.label + ' :'}">Photos :</div>
+          <table class="photos" th:if="${!#lists.isEmpty(f.photos)}">
+            <tr th:each="i : ${#numbers.sequence(0, #lists.size(f.photos) - 1, 2)}">
+              <td>
+                <img th:src="${f.photos[i]}" src="" alt="Photo"/>
+                <div class="caption" th:if="${i < #lists.size(f.captions) and f.captions[i].title != null}" th:text="${f.captions[i].title}">Avant ressuage</div>
+              </td>
+              <td>
+                <th:block th:if="${i + 1 < #lists.size(f.photos)}">
+                  <img th:src="${f.photos[i + 1]}" src="" alt="Photo"/>
+                  <div class="caption" th:if="${i + 1 < #lists.size(f.captions) and f.captions[i + 1].title != null}" th:text="${f.captions[i + 1].title}">Après ressuage</div>
+                </th:block>
+              </td>
+            </tr>
+          </table>
+          <div class="line" th:if="${#lists.isEmpty(f.photos)}"><span class="v empty" th:text="${f.value != null ? f.value : 'Aucune photo'}">Aucune photo</span></div>
+        </th:block>
+
+      </th:block>
+    </div>
+  </div>
+
+  <!-- ═══ REMARKS │ QUALITY SIGNATURE ═══ -->
+  <table class="closing">
+    <tr>
+      <td>
+        <b>Commentaires, recommandations &amp; suggestions :</b>
+        <div style="margin-top: 1mm; white-space: pre-wrap;" th:text="${s.remarks != null ? s.remarks : ''}"></div>
+      </td>
+      <td class="sign">
+        <div class="t">Date &amp; signature Responsable qualité :</div>
+        <div class="who" th:text="${s.inspector}">Sara Alami</div>
+        <div th:text="${s.submittedAt}">06/10/2026 14:32</div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- a preview not sent yet has no date of sending: say so instead of an empty "le" -->
+  <p class="reference" th:if="${#strings.isEmpty(s.submittedAt)}">Aperçu — fiche non envoyée</p>
+  <p class="reference" th:unless="${#strings.isEmpty(s.submittedAt)}">
+    Fiche envoyée via GreenSense 4.0 le <span th:text="${s.submittedAt}">06/10/2026 14:32</span>
+    · réf. <span th:text="${s.submissionId}">8e8c5c3e-…</span>
+  </p>
+
+  <table th:replace="~{verification :: block}"></table>
+
+</body>
+</html>

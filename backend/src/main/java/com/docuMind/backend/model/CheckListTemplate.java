@@ -7,10 +7,15 @@
 package com.docuMind.backend.model;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.docuMind.backend.model.enums.ChecklistType;
+import com.docuMind.backend.model.enums.FormLayout;
+import com.docuMind.backend.model.enums.UserRole;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -48,6 +53,28 @@ public class CheckListTemplate{
     @Column(nullable = false)
     private String instructions;
     
+    // how it's filled and printed; null for the forms made before it existed (told apart by title)
+    @Enumerated(EnumType.STRING)
+    @Column(length = 32)
+    private FormLayout layout;
+
+    // the paper sheet it replaces, printed in the PDF's header: "EN-PFD-MIC-01", "2.0", "29/03/2024"
+    @Column(length = 64)
+    private String paperReference;
+    @Column(length = 16)
+    private String paperEdition;
+    @Column(length = 16)
+    private String paperDate;
+
+    // the roles that may fill it, "QUALITY" or "USER,MANAGER"; null = every role (the forms made before).
+    // Checked by the backend: the form isn't listed, opened or accepted for anyone else
+    @Column(length = 255)
+    private String fillRoles;
+
+    // the roles that may read every report sent with it, not only their own: "QUALITY,SALES"; null = none
+    @Column(length = 255)
+    private String readRoles;
+
     @OneToMany(mappedBy = "template",
                 cascade = CascadeType.ALL,
                 orphanRemoval = true)
@@ -69,6 +96,48 @@ public class CheckListTemplate{
 
     public boolean isActive()                   { return active; }
     public void setActive(boolean active)       { this.active = active; }
+
+    public FormLayout getLayout()               { return layout; }
+    public void setLayout(FormLayout layout)    { this.layout = layout; }
+
+    public String getPaperReference()                   { return paperReference; }
+    public void setPaperReference(String paperReference) { this.paperReference = paperReference; }
+    public String getPaperEdition()                     { return paperEdition; }
+    public void setPaperEdition(String paperEdition)    { this.paperEdition = paperEdition; }
+    public String getPaperDate()                        { return paperDate; }
+    public void setPaperDate(String paperDate)          { this.paperDate = paperDate; }
+
+    public String getFillRoles()                { return fillRoles; }
+    public void setFillRoles(Collection<UserRole> roles) { this.fillRoles = joinRoles(roles); }
+    public String getReadRoles()                { return readRoles; }
+    public void setReadRoles(Collection<UserRole> roles) { this.readRoles = joinRoles(roles); }
+
+    // whether this role may list, open and send the form. The admin, who creates the forms, always may
+    public boolean canFill(UserRole role)
+    {
+        return fillRoles == null || role == UserRole.ADMIN || splitRoles(fillRoles).contains(role);
+    }
+
+    // whether this role may read every report sent with the form (not only its own)
+    public boolean canReadAll(UserRole role)
+    {
+        return readRoles != null && splitRoles(readRoles).contains(role);
+    }
+
+    // "QUALITY,SALES"; null for none, so "every role" (fill) and "nobody else" (read) stay null
+    private static String joinRoles(Collection<UserRole> roles)
+    {
+        return roles == null || roles.isEmpty() ? null
+                : roles.stream().distinct().map(UserRole::name).collect(Collectors.joining(","));
+    }
+
+    // an unknown name (a role removed since) is skipped, not an error
+    private static List<UserRole> splitRoles(String roles)
+    {
+        return Arrays.stream(roles.split(",")).map(String::strip)
+                .filter(name -> Arrays.stream(UserRole.values()).anyMatch(r -> r.name().equals(name)))
+                .map(UserRole::valueOf).toList();
+    }
 
     public String getInstructions()                     { return instructions; }
     public void setInstructions(String instructions)    { this.instructions = instructions; }

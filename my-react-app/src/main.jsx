@@ -1,6 +1,9 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+// the app's two faces (index.css: font-sans / font-ui, font-mono / font-data)
+import '@fontsource-variable/hanken-grotesk'
+import '@fontsource-variable/jetbrains-mono'
 import App from './App.jsx'
 import { keepFocusedFieldVisible } from './keepFocusVisible'
 

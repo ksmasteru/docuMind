@@ -40,4 +40,18 @@ public interface SubmissionRepository extends JpaRepository<CheckListSubmission,
 
     // e.g. every NON_CONFORME submission, for the supervisor's list
     List<CheckListSubmission> findByStatusOrderBySubmittedAtDesc(SubmissionStatus status);
+
+    // the reports sent with these forms (every version), newest first: the shared list (SubmissionService.sharedReports)
+    List<CheckListSubmission> findByTemplate_IdInOrderBySubmittedAtDesc(java.util.Collection<String> templateIds,
+                                                                       org.springframework.data.domain.Pageable page);
+
+    // one person's reports sent with these forms, newest first (their own quality forms in the shared list)
+    List<CheckListSubmission> findByUserIdAndTemplate_IdInOrderBySubmittedAtDesc(String userId, java.util.Collection<String> templateIds,
+                                                                                org.springframework.data.domain.Pageable page);
+
+    // the report a scanned QR code points to (the public verification page)
+    java.util.Optional<CheckListSubmission> findByVerificationCode(String verificationCode);
+
+    // reports sent before verification codes existed (VerificationService.backfill)
+    List<CheckListSubmission> findByVerificationCodeIsNull();
 }

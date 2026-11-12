@@ -42,6 +42,12 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 //                   (option A of the tolerances: no limit is stored yet; the flag is the technician's judgement)
 //   IMAGE           maxPhotos (default 30 on v2 forms, 4 on the others), photoComments: true
 //   PARTS_SUMMARY   recommendations / decisions / remarks: [..] (required): each column's suggestions
+//   TABLE           columns: [{ key, label, type, … }] (required), maxRows (default 200), rows: n (empty rows shown)
+//                   column type: "text" | "number" | "date" | "choice" (choices: [..], nonConforming: [..])
+//                            | "result" (computed by the server from tolerance, never sent)
+//                   tolerance: { measured, nominal, min, max }: the keys of four number columns. A row is
+//                   « Conforme » when nominal + min ≤ measured ≤ nominal + max: min and max are signed
+//                   deviations (TOL INF −0,05 / TOL SUP +0,02), as on the drawing
 @Component
 public class StructuredAnswers {
 
@@ -52,6 +58,19 @@ public class StructuredAnswers {
     {
         return title != null && title.strip().toLowerCase().startsWith(V2_PREFIX);
     }
+
+    // the forms answered like the v2 reports (blanks allowed, photos with titles): the v2 reports, told
+    // apart by their title, and the forms created with a layout (the quality control sheets). Added
+    // parts stay the v2 reports' own (isV2)
+    public static boolean usesV2Answers(com.docuMind.backend.model.CheckListTemplate template)
+    {
+        return isV2(template.getTitle()) || template.getLayout() == com.docuMind.backend.model.enums.FormLayout.CONTROL_SHEET;
+    }
+
+    public static final String CONFORME = "Conforme";
+    public static final String NON_CONFORME = "Non conforme";
+    private static final Set<String> COLUMN_TYPES = Set.of("text", "number", "date", "choice", "result");
+    private static final int MAX_COLUMNS = 12;
 
     public static final int LEGACY_MAX_PHOTOS = 4;
     private static final int V2_MAX_PHOTOS = 30;
@@ -77,7 +96,7 @@ public class StructuredAnswers {
     public String checkOptions(AnswerType type, JsonNode options, int position)
     {
         boolean required = type == AnswerType.SINGLE_CHOICE || type == AnswerType.MULTI_CHOICE
-                || type == AnswerType.PARTS_SUMMARY;
+                || type == AnswerType.PARTS_SUMMARY || type == AnswerType.TABLE;
         if (options == null || options.isNull())
         {
             if (required)
@@ -126,6 +145,7 @@ public class StructuredAnswers {
                 for (String column : List.of("recommendations", "decisions", "remarks"))
                     stringList(options.get(column), "item " + position + " " + column, MAX_CHOICES);
             }
+            case TABLE -> checkTableOptions(options, position);
             default -> { }
         }
         return write(options);
@@ -283,8 +303,167 @@ public class StructuredAnswers {
                 }
                 yield new Normalized(write(stored), false, List.of());
             }
+            case TABLE -> normalizeTable(options, raw, where);
             default -> throw new IllegalArgumentException("not a structured answer type: " + item.getAnswerType());
         };
+    }
+
+    // ===================================================================== tables (control sheets)
+
+    private void checkTableOptions(JsonNode options, int position)
+    {
+        String where = "item " + position + ": ";
+        JsonNode columns = options.get("columns");
+        if (columns == null || !columns.isArray() || columns.isEmpty() || columns.size() > MAX_COLUMNS)
+            throw new InvalidFormException(where + "a TABLE needs 1 to " + MAX_COLUMNS + " columns");
+        Set<String> keys = new LinkedHashSet<>();
+        Set<String> numbers = new LinkedHashSet<>();
+        boolean result = false;
+        for (JsonNode column : columns)
+        {
+            String key = text(column.get("key"), 40, where + "column key");
+            String label = text(column.get("label"), SHORT, where + "column label");
+            String type = column.path("type").asText("text");
+            if (key == null || !key.matches("[A-Za-z][A-Za-z0-9_]*") || label == null)
+                throw new InvalidFormException(where + "each column needs a key (letters, digits, _) and a label");
+            if (!keys.add(key))
+                throw new InvalidFormException(where + "column \"" + key + "\" appears twice");
+            if (!COLUMN_TYPES.contains(type))
+                throw new InvalidFormException(where + "column \"" + key + "\" type is one of " + COLUMN_TYPES);
+            if (type.equals("number"))
+                numbers.add(key);
+            if (type.equals("choice"))
+            {
+                List<String> choices = stringList(column.get("choices"), where + "column " + key + " choices", MAX_CHOICES);
+                if (choices.isEmpty())
+                    throw new InvalidFormException(where + "column \"" + key + "\" needs choices");
+                if (column.has("nonConforming") && !choices.containsAll(
+                        stringList(column.get("nonConforming"), where + "column " + key + " nonConforming", MAX_CHOICES)))
+                    throw new InvalidFormException(where + "column \"" + key + "\" nonConforming must be among its choices");
+            }
+            if (type.equals("result"))
+            {
+                if (result)
+                    throw new InvalidFormException(where + "a TABLE has at most one result column");
+                result = true;
+            }
+        }
+        JsonNode tolerance = options.get("tolerance");
+        if (result && (tolerance == null || !tolerance.isObject()))
+            throw new InvalidFormException(where + "a result column needs a tolerance");
+        if (tolerance != null && !tolerance.isNull())
+            for (String role : List.of("measured", "nominal", "min", "max"))
+                if (!numbers.contains(tolerance.path(role).asText("")))
+                    throw new InvalidFormException(where + "tolerance." + role + " must name a number column");
+        optionalInt(options, "maxRows", 1, MAX_ROWS, position);
+        optionalInt(options, "rows", 0, MAX_ROWS, position);
+    }
+
+    // The rows kept: blank rows dropped, numbers as numbers ("0,05" → 0.05), choices among their list,
+    // the result column computed here (whatever was sent in it). nonConforming: a row « Non conforme »
+    // or a choice listed as non conforming.
+    private Normalized normalizeTable(JsonNode options, String raw, String where)
+    {
+        JsonNode answer = readAnswer(raw, where);
+        JsonNode rows = answer.get("rows");
+        if (rows == null || rows.isNull() || (rows.isArray() && rows.isEmpty()))
+            return new Normalized(null, false, List.of());
+        int max = options.path("maxRows").asInt(MAX_ROWS);
+        if (!rows.isArray() || rows.size() > max)
+            throw new InvalidResponseException(where + "rows is a list of at most " + max + " rows");
+        JsonNode tolerance = options.path("tolerance");
+        ObjectNode stored = mapper.createObjectNode();
+        ArrayNode out = stored.putArray("rows");
+        boolean bad = false;
+        int n = 0;
+        for (JsonNode row : rows)
+        {
+            n++;
+            String line = where + "row " + n + " ";
+            if (!row.isObject())
+                throw new InvalidResponseException(line + "is an object of the columns' values");
+            ObjectNode clean = mapper.createObjectNode();
+            boolean any = false;
+            String resultKey = null;
+            for (JsonNode column : options.get("columns"))
+            {
+                String key = column.get("key").asText();
+                String type = column.path("type").asText("text");
+                JsonNode cell = row.get(key);
+                String label = line + column.path("label").asText(key);
+                switch (type)
+                {
+                    case "result" -> resultKey = key;
+                    case "number" -> {
+                        String typed = cell == null || cell.isNull() ? null : cell.asText().strip();
+                        if (typed == null || typed.isEmpty()) { clean.putNull(key); continue; }
+                        // "−0,05" typed with the minus sign of a phone keyboard, "+0,02" with its plus
+                        String plain = typed.replace(" ", "").replace('\u2212', '-');
+                        clean.put(key, number(mapper.getNodeFactory().textNode(plain), label + ": "));
+                        any = true;
+                    }
+                    case "date" -> {
+                        String typed = text(cell, SHORT, label);
+                        if (typed == null) { clean.putNull(key); continue; }
+                        try {
+                            clean.put(key, LocalDate.parse(typed).toString());
+                        } catch (DateTimeParseException e) {
+                            throw new InvalidResponseException(label + ": a date is YYYY-MM-DD");
+                        }
+                        any = true;
+                    }
+                    case "choice" -> {
+                        String typed = text(cell, SHORT, label);
+                        if (typed == null) { clean.putNull(key); continue; }
+                        if (!stringList(column.get("choices"), "choices", MAX_CHOICES).contains(typed))
+                            throw new InvalidResponseException(label + ": \"" + typed + "\" isn't one of the choices");
+                        clean.put(key, typed);
+                        if (stringList(column.get("nonConforming"), "nonConforming", MAX_CHOICES).contains(typed))
+                            bad = true;
+                        any = true;
+                    }
+                    default -> {
+                        String typed = text(cell, SHORT, label);
+                        clean.put(key, typed);
+                        any = any || typed != null;
+                    }
+                }
+            }
+            if (!any)
+                continue;
+            if (resultKey != null)
+            {
+                String result = conformity(clean, tolerance, line);
+                clean.put(resultKey, result);
+                bad = bad || NON_CONFORME.equals(result);
+            }
+            out.add(clean);
+        }
+        if (out.isEmpty())
+            return new Normalized(null, false, List.of());
+        return new Normalized(write(stored), bad, List.of());
+    }
+
+    // « Conforme » / « Non conforme » once the four numbers are there, else null (not measured yet)
+    private static String conformity(JsonNode row, JsonNode tolerance, String line)
+    {
+        JsonNode measured = row.get(tolerance.path("measured").asText());
+        JsonNode nominal = row.get(tolerance.path("nominal").asText());
+        JsonNode min = row.get(tolerance.path("min").asText());
+        JsonNode max = row.get(tolerance.path("max").asText());
+        if (isMissing(measured) || isMissing(nominal) || isMissing(min) || isMissing(max))
+            return null;
+        if (min.decimalValue().compareTo(max.decimalValue()) > 0)
+            throw new InvalidResponseException(line + "TOL INF is above TOL SUP: write them signed (−0,05 / +0,02)");
+        BigDecimal low = nominal.decimalValue().add(min.decimalValue());
+        BigDecimal high = nominal.decimalValue().add(max.decimalValue());
+        BigDecimal value = measured.decimalValue();
+        return value.compareTo(low) >= 0 && value.compareTo(high) <= 0 ? CONFORME : NON_CONFORME;
+    }
+
+    private static boolean isMissing(JsonNode node)
+    {
+        return node == null || node.isNull() || !node.isNumber();
     }
 
     // the photos of an IMAGE answer, as stored or sent: "id1,id2" (old forms) or [{ imageId, title, comment }]
@@ -401,6 +580,7 @@ public class StructuredAnswers {
                     empty.put("group", options.path("group").asText(null));
                     yield new Readable(null, empty);
                 }
+                case TABLE -> new Readable(null, tableData(mapper.createObjectNode().putArray("rows"), options));
                 default -> new Readable(null, null);
             };
         return switch (type)
@@ -463,8 +643,66 @@ public class StructuredAnswers {
                 }
                 yield new Readable(String.join("\n", lines), answer);
             }
+            case TABLE -> {
+                JsonNode rows = readOptions(stored).path("rows");
+                List<String> lines = new ArrayList<>();
+                for (JsonNode row : rows)
+                {
+                    List<String> cells = new ArrayList<>();
+                    for (JsonNode column : options.path("columns"))
+                    {
+                        String cell = cellText(row.get(column.path("key").asText()), column);
+                        if (cell != null)
+                            cells.add(column.path("label").asText() + " : " + cell);
+                    }
+                    lines.add(String.join(" — ", cells));
+                }
+                yield new Readable(String.join("\n", lines), tableData(rows, options));
+            }
             default -> new Readable(stored, null);
         };
+    }
+
+    // a table for the PDF and the review page: { columns: [{ key, label, type }], rows: [[cell text, …]] },
+    // each cell already as shown ("0,05", "06/10/2026"), in the columns' order
+    private JsonNode tableData(JsonNode rows, JsonNode options)
+    {
+        ObjectNode data = mapper.createObjectNode();
+        ArrayNode columns = data.putArray("columns");
+        for (JsonNode column : options.path("columns"))
+        {
+            ObjectNode c = columns.addObject();
+            c.put("key", column.path("key").asText());
+            c.put("label", column.path("label").asText());
+            c.put("type", column.path("type").asText("text"));
+        }
+        ArrayNode cells = data.putArray("rows");
+        for (JsonNode row : rows)
+        {
+            ArrayNode line = cells.addArray();
+            for (JsonNode column : options.path("columns"))
+                line.add(cellText(row.get(column.path("key").asText()), column));
+        }
+        data.put("group", options.path("group").asText(null));
+        return data;
+    }
+
+    // one cell as printed: numbers with a comma, dates as dd/MM/yyyy, null when empty
+    private static String cellText(JsonNode cell, JsonNode column)
+    {
+        if (cell == null || cell.isNull() || cell.asText().isBlank())
+            return null;
+        String type = column.path("type").asText("text");
+        if (type.equals("number") && cell.isNumber())
+            return french(cell.decimalValue().stripTrailingZeros().scale() < 0
+                    ? cell.decimalValue().setScale(0) : cell.decimalValue().stripTrailingZeros());
+        if (type.equals("date"))
+            try {
+                return LocalDate.parse(cell.asText()).format(DAY);
+            } catch (DateTimeParseException e) {
+                return cell.asText();
+            }
+        return cell.asText();
     }
 
     // The values typed with « + Autre »: the web form ticks each like a listed choice and sends them as

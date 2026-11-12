@@ -5,6 +5,7 @@ import java.util.List;
 import com.docuMind.backend.model.enums.AnswerType;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.docuMind.backend.model.enums.ChecklistType;
+import com.docuMind.backend.model.enums.FormLayout;
 
 public record InspectionFormResponse(
     String id,
@@ -12,7 +13,9 @@ public record InspectionFormResponse(
     ChecklistType type,
     int version,
     String instructions,
-    List<QuestionItem> questions)
+    List<QuestionItem> questions,
+    FormLayout layout,          // null for the original forms; CONTROL_SHEET opens the section wizard
+    String paperReference)      // "EN-PFD-MIC-01", shown under the title; null if none
 {
     public record QuestionItem(
         String id,

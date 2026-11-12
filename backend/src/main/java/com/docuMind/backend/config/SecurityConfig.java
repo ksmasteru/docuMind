@@ -53,6 +53,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/error").permitAll()              // Allow Tomcat's internal error dispatch
                 .requestMatchers("/api/auth/**").permitAll()        // Allow registration/login endpoints
+                .requestMatchers("/api/public/**").permitAll()      // report verification from a scanned QR code
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")  // Strictly enforce ADMIN role
                 .requestMatchers("/actuator/**").permitAll() // should be Admin
                 .anyRequest().authenticated()                       // Protect everything else

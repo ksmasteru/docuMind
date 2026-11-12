@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--
+  The verification block at the end of every report: a QR code of the report's verification URL
+  and its code to type in by hand. Included by submission-report, expertise-report and
+  expertise-report-v2 as ~{verification :: block}; reads "verification"
+  (SubmissionPdfService.VerificationBlock), which is absent on a preview not sent, so the
+  block isn't drawn there.
+  Inline styles only, borders included: each report has its own stylesheet, and their td rules
+  would otherwise draw a grid inside the block.
+-->
+<body>
+  <table th:fragment="block" th:if="${verification != null}"
+         style="width: 100%; margin-top: 5mm; border: 0.6pt solid #b8c4ce; border-collapse: collapse; page-break-inside: avoid;">
+    <tr>
+      <td style="width: 30mm; padding: 2mm; border: none; vertical-align: middle;">
+        <img th:src="${verification.qr}" src="" alt="QR" style="width: 26mm; height: 26mm;"/>
+      </td>
+      <td style="padding: 2mm 3mm 2mm 1mm; border: none; vertical-align: middle; font-size: 7.5pt; color: #333333;">
+        <div style="font-weight: bold; font-size: 8.5pt; color: #1A75BC;">Vérifier l'authenticité de ce document</div>
+        <div style="margin-top: 1mm;">
+          Scannez le code QR, ou ouvrez <span th:text="${verification.url}">https://…/verify/…</span>
+        </div>
+        <div style="margin-top: 1mm;">
+          Code de vérification : <b style="letter-spacing: 0.6pt;" th:text="${verification.code}">7K3F-9QXM-2B4C-8DHN</b>
+        </div>
+        <div style="margin-top: 1mm; color: #6b6b6b; font-size: 6.5pt;">
+          La page affiche les informations enregistrées pour ce rapport : comparez-les avec ce document.
+        </div>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

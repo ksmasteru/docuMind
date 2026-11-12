@@ -1,0 +1,130 @@
+{
+  "title": "Fiche de contrôle par ressuage",
+  "type": "INSPECTION",
+  "instructions": "Contrôle par ressuage : photos et commentaire de l'état des pièces avant, puis après ressuage, et le résultat du contrôle.",
+  "paperReference": "EN-PFD-MIC-03",
+  "paperEdition": "2.0",
+  "paperDate": "29/03/2024",
+  "layout": "CONTROL_SHEET",
+  "fillRoles": [
+    "QUALITY"
+  ],
+  "readRoles": [
+    "QUALITY",
+    "WORKSHOP_LEAD",
+    "PROJECT_LEAD",
+    "SALES"
+  ],
+  "items": [
+    {
+      "labelFr": "Identification : Type de pièce",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Pièce"
+      }
+    },
+    {
+      "labelFr": "Identification : Réf. enregistrement",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Pièce"
+      }
+    },
+    {
+      "labelFr": "Identification : Fournisseur",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Origine"
+      }
+    },
+    {
+      "labelFr": "Identification : Date de contrôle",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "DATE",
+      "options": {
+        "meta": "inspectionDate",
+        "group": "Origine"
+      }
+    },
+    {
+      "labelFr": "Identification : Type de pompe",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Pompe"
+      }
+    },
+    {
+      "labelFr": "Identification : Matériau de coulée",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Pompe"
+      }
+    },
+    {
+      "labelFr": "Identification : N° de série",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "meta": "equipment",
+        "group": "Pompe"
+      }
+    },
+    {
+      "labelFr": "État des pièces avant ressuage : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE",
+      "options": {
+        "maxPhotos": 6
+      }
+    },
+    {
+      "labelFr": "État des pièces avant ressuage : Commentaire",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôle des pièces après ressuage : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE",
+      "options": {
+        "maxPhotos": 6
+      }
+    },
+    {
+      "labelFr": "Contrôle des pièces après ressuage : Commentaire",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Contrôle des pièces après ressuage : Résultat du contrôle",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme"
+        ],
+        "nonConforming": [
+          "Non conforme"
+        ]
+      }
+    }
+  ]
+}

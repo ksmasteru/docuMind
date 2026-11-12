@@ -1,3 +1,4 @@
+import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -7,6 +8,10 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  // "@/components/ui/button": the shadcn/ui import paths (components.json, jsconfig.json)
+  resolve: {
+    alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+  },
   // Only relevant if `vite dev` / `vite preview` ever ends up running
   // (e.g. Railway falling back to Nixpacks instead of the Dockerfile).
   // The production Dockerfile serves the build with `serve`, which has

@@ -1,0 +1,171 @@
+{
+  "title": "Demande de dérogation",
+  "type": "INSPECTION",
+  "instructions": "Le demandeur remplit sa demande ; le service qualité complète la réponse et la décision : enregistrez la fiche et reprenez-la dans « Fiches en cours ».",
+  "layout": "CONTROL_SHEET",
+  "paperReference": "EN-PNC-QU-03",
+  "paperEdition": "1.0",
+  "paperDate": "26/02/2024",
+  "fillRoles": [
+    "USER",
+    "MANAGER",
+    "SALES",
+    "BUSINESS_OPS",
+    "CONTRACT_ADMIN",
+    "PROJECT_LEAD",
+    "WORKSHOP_LEAD",
+    "HSE",
+    "STOREKEEPER",
+    "QUALITY",
+    "BILLING"
+  ],
+  "readRoles": [
+    "QUALITY",
+    "WORKSHOP_LEAD",
+    "PROJECT_LEAD"
+  ],
+  "items": [
+    {
+      "labelFr": "Demande : Date de la demande",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "DATE",
+      "options": {
+        "meta": "inspectionDate"
+      }
+    },
+    {
+      "labelFr": "Information sur le demandeur : Nom",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Demandeur"
+      }
+    },
+    {
+      "labelFr": "Information sur le demandeur : Service",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Demandeur"
+      }
+    },
+    {
+      "labelFr": "Information sur le demandeur : Téléphone",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Coordonnées"
+      }
+    },
+    {
+      "labelFr": "Information sur le demandeur : Mail",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Coordonnées"
+      }
+    },
+    {
+      "labelFr": "Information sur le produit : Produit",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "meta": "equipment",
+        "group": "Produit"
+      }
+    },
+    {
+      "labelFr": "Information sur le produit : Référence",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Produit"
+      }
+    },
+    {
+      "labelFr": "Information sur le produit : N° de série",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Origine"
+      }
+    },
+    {
+      "labelFr": "Information sur le produit : Fournisseur",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Origine"
+      }
+    },
+    {
+      "labelFr": "Demande : Description de la demande",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Réponse du service qualité : Nom",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Répondant"
+      }
+    },
+    {
+      "labelFr": "Réponse du service qualité : Fonction",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Répondant"
+      }
+    },
+    {
+      "labelFr": "Réponse du service qualité : Téléphone",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Coordonnées qualité"
+      }
+    },
+    {
+      "labelFr": "Réponse du service qualité : Mail",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Coordonnées qualité"
+      }
+    },
+    {
+      "labelFr": "Décision : Décision",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Dérogation acceptée",
+          "Dérogation refusée"
+        ]
+      }
+    },
+    {
+      "labelFr": "Enregistrement : N° de dérogation",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    }
+  ]
+}

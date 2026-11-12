@@ -1,6 +1,7 @@
 // The v2 expertise reports' inputs (report_ui.md), one per answer type, used by ReportWizard.jsx:
 // a gallery of titled photos, findings ticked from the part's list, a single choice (recommendation,
-// montage status), readings of a measure with their average, and the parts summary table.
+// montage status), readings of a measure with their average, the parts summary table, and the
+// control sheets' tables (columns from the question's options, conformity shown as it's typed).
 // Each gets its value and an onChange taking an updater (value => newValue), so the wizard's
 // single answers object is the only state.
 //
@@ -10,7 +11,7 @@
 // with the transcript.
 import { useRef, useState } from "react";
 import { AlertTriangle, ArrowLeft, ArrowRight, Camera, ChevronDown, Loader2, Mic, Plus, RefreshCw, Search, Trash2, Wand2 } from "lucide-react";
-import { averageOf, dictatedMeasure, frenchNumber, newSummaryRow, pickedSuggestion, readingOf, searchKey } from "./reportV2";
+import { averageOf, dictatedMeasure, frenchNumber, isRowFilled, newSummaryRow, newTableRow, pickedSuggestion, readingOf, searchKey, tableResult } from "./reportV2";
 
 export const fieldInput =
     "block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-[#1A75BC] focus:ring-2 focus:ring-[#1A75BC]/20 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100";
@@ -501,6 +502,85 @@ export const PartsSummaryField = ({ value, onChange, options, onGenerate, mic, d
         <p className="text-xs text-slate-500 dark:text-slate-400">
             La recommandation est l'avis technique ; la décision client dit qui prend la pièce en charge. L'une ne remplit pas l'autre.
         </p>
+    </div>)
+};
+
+// ---------------------------------------------------------------- tables (control sheets)
+
+const RESULT_STYLES = {
+    Conforme: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300",
+    "Non conforme": "bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300",
+    invalid: "bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300",
+};
+
+// A TABLE answer (StructuredAnswers): one card per row, a labelled input per column, so a row of eight
+// columns still fits a phone. A number column takes "0,05" as well as "0.05"; a choice column is a list;
+// the result column shows the conformity the server will compute, from the signed tolerances.
+export const TableField = ({ value, onChange, options, disabled, label }) => {
+    const columns = options.columns ?? [];
+    const put = (key, column, text) => onChange((v) => ({ rows: v.rows.map((r) => (r.key === key ? { ...r, [column]: text } : r)) }));
+    const max = options.maxRows ?? 200;
+    const filled = value.rows.filter((r) => isRowFilled(options, r)).length;
+    return (
+    <div className="space-y-3">
+        {options.tolerance && (
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+                Tolérances signées, comme sur le plan : tol. inf <span className="font-mono">−0,05</span>, tol. sup <span className="font-mono">+0,02</span>. La conformité est calculée.
+            </p>
+        )}
+        <ol className="space-y-3">
+            {value.rows.map((r, i) => {
+                const result = tableResult(options, r);
+                return (
+                <li key={r.key} className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+                    <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Ligne {i + 1}</span>
+                        <div className="flex items-center gap-2">
+                            {result && (
+                                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${RESULT_STYLES[result]}`}>
+                                    {result === "invalid" ? "Tol. inf > tol. sup" : result}
+                                </span>
+                            )}
+                            <IconButton label={`Supprimer la ligne ${i + 1}`} disabled={disabled} danger
+                                onClick={() => onChange((v) => ({ rows: v.rows.filter((x) => x.key !== r.key) }))}><Trash2 className="h-4 w-4" /></IconButton>
+                        </div>
+                    </div>
+                    <div className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        {columns.filter((c) => c.type !== "result").map((c) => {
+                            const cell = r[c.key] ?? "";
+                            const set = (e) => put(r.key, c.key, e.target.value);
+                            const wide = c.type === "text" && /comment|observation|exigence|désignation/i.test(c.label);
+                            return (
+                                <Labelled key={c.key} label={c.label} className={wide ? "col-span-2" : ""}>
+                                    {c.type === "choice" ? (
+                                        <select value={cell} onChange={set} disabled={disabled} className={fieldInput}>
+                                            <option value="">—</option>
+                                            {(c.choices ?? []).map((o) => <option key={o} value={o}>{o}</option>)}
+                                        </select>
+                                    ) : c.type === "date" ? (
+                                        <input type="date" value={cell} onChange={set} disabled={disabled} className={fieldInput} />
+                                    ) : (
+                                        <input value={cell} onChange={set} disabled={disabled}
+                                            inputMode={c.type === "number" ? "decimal" : undefined}
+                                            className={`${fieldInput} ${c.type === "number" ? "tabular-nums" : ""} ${c.type === "number" && String(cell).trim() && readingOf(String(cell).replace("\u2212", "-").replace(/^\+/, "")) === null ? "border-red-400" : ""}`} />
+                                    )}
+                                </Labelled>
+                            );
+                        })}
+                    </div>
+                </li>
+                );
+            })}
+        </ol>
+        <div className="flex items-center justify-between gap-2">
+            <button type="button" onClick={() => onChange((v) => ({ rows: [...v.rows, newTableRow()] }))} disabled={disabled || value.rows.length >= max}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-[#1A75BC] transition hover:bg-[#1A75BC]/10 disabled:opacity-50 dark:text-[#5BC6E8]">
+                <Plus className="h-4 w-4" aria-hidden="true" /> Ajouter une ligne
+            </button>
+            <span className="text-xs text-slate-500 dark:text-slate-400" aria-label={`${label} : lignes remplies`}>
+                {filled} ligne{filled > 1 ? "s" : ""} remplie{filled > 1 ? "s" : ""} · les lignes vides ne sont pas envoyées
+            </span>
+        </div>
     </div>)
 };
 

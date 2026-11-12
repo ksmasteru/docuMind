@@ -12,5 +12,6 @@ public enum AnswerType{
     SINGLE_CHOICE,  // { selected, other }: one of options.choices, or a free "Autre"
     MULTI_CHOICE,   // { selected: [...], other }: findings; options.exclusive ("Bon état") excludes the rest
     MEASURE,        // { readings: [..] }: several readings, the average computed; options.unit
-    PARTS_SUMMARY   // { rows: [{ quantity, description, code, recommendation, decision, remark }] }
+    PARTS_SUMMARY,  // { rows: [{ quantity, description, code, recommendation, decision, remark }] }
+    TABLE           // { rows: [{ <column key>: value, … }] }: columns from options.columns (control sheets)
 }

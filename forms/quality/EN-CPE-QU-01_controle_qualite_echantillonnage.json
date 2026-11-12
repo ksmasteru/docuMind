@@ -1,0 +1,178 @@
+{
+  "title": "Fiche de contrôle qualité par échantillonnage",
+  "type": "INSPECTION",
+  "instructions": "Contrôle d'un lot par échantillonnage : renseignez le lot et le plan d'échantillonnage, une ligne par pièce contrôlée, puis la décision sur le lot.",
+  "paperReference": "EN-CPE-QU-01",
+  "paperEdition": "1.0",
+  "paperDate": "18/03/2024",
+  "layout": "CONTROL_SHEET",
+  "fillRoles": [
+    "QUALITY"
+  ],
+  "readRoles": [
+    "QUALITY",
+    "WORKSHOP_LEAD",
+    "PROJECT_LEAD",
+    "SALES"
+  ],
+  "items": [
+    {
+      "labelFr": "Contrôle : Date du contrôle",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "DATE",
+      "options": {
+        "meta": "inspectionDate",
+        "group": "Contrôle"
+      }
+    },
+    {
+      "labelFr": "Contrôle : Fiche N°",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Contrôle"
+      }
+    },
+    {
+      "labelFr": "Information sur le lot : Identification du lot",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "meta": "equipment",
+        "group": "Lot"
+      }
+    },
+    {
+      "labelFr": "Information sur le lot : Description de la pièce",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Lot"
+      }
+    },
+    {
+      "labelFr": "Information sur le lot : Référence de la pièce",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Lot"
+      }
+    },
+    {
+      "labelFr": "Information sur le lot : Nombre total d'unités dans le lot",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Lot"
+      }
+    },
+    {
+      "labelFr": "Plan d'échantillonnage : Niveau de NQA",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Plan"
+      }
+    },
+    {
+      "labelFr": "Plan d'échantillonnage : Niveau de contrôle",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Niveau I",
+          "Niveau II",
+          "Niveau III"
+        ]
+      }
+    },
+    {
+      "labelFr": "Plan d'échantillonnage : Taille de l'échantillon",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Échantillon"
+      }
+    },
+    {
+      "labelFr": "Plan d'échantillonnage : Acceptance Number",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Échantillon"
+      }
+    },
+    {
+      "labelFr": "Plan d'échantillonnage : Rejection Number",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Échantillon"
+      }
+    },
+    {
+      "labelFr": "Résultats du contrôle : Pièces contrôlées",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TABLE",
+      "options": {
+        "columns": [
+          {
+            "key": "piece",
+            "label": "Numéro de pièce",
+            "type": "text"
+          },
+          {
+            "key": "serial",
+            "label": "Numéro de série",
+            "type": "text"
+          },
+          {
+            "key": "conforme",
+            "label": "Conforme ?",
+            "type": "choice",
+            "choices": [
+              "Conforme",
+              "Non conforme"
+            ],
+            "nonConforming": [
+              "Non conforme"
+            ]
+          },
+          {
+            "key": "observation",
+            "label": "Observation",
+            "type": "text"
+          }
+        ],
+        "rows": 16
+      }
+    },
+    {
+      "labelFr": "Décision : Décision sur le lot",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Acceptation du lot",
+          "Refus du lot"
+        ],
+        "nonConforming": [
+          "Refus du lot"
+        ]
+      }
+    }
+  ]
+}

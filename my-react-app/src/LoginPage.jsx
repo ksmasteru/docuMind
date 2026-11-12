@@ -38,23 +38,23 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 font-ui text-foreground">
             <div className="fixed right-4 top-4">
         <ThemeToggle />
       </div>
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <PhovaLogo className="mx-auto mb-4 h-14" />
-          <h1 className="text-2xl font-semibold text-slate-900">GreenSense 4.0</h1>
-          <p className="mt-1 text-sm text-slate-500">Sign in to your workspace</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">GreenSense 4.0</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Sign in to your workspace</p>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
+          className="rounded-md border border-border bg-card p-6"
         >
           <div className="mb-4">
-            <label htmlFor="email" className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor="email" className="mb-1 block text-sm font-medium text-foreground">
               Email
             </label>
             <input
@@ -64,13 +64,13 @@ export default function LoginPage() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-subtle focus:border-ring focus:ring-2 focus:ring-ring/25"
               placeholder="you@company.com"
             />
           </div>
 
           <div className="mb-5">
-            <label htmlFor="password" className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor="password" className="mb-1 block text-sm font-medium text-foreground">
               Password
             </label>
             <input
@@ -80,7 +80,7 @@ export default function LoginPage() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-subtle focus:border-ring focus:ring-2 focus:ring-ring/25"
               placeholder="••••••••"
             />
           </div>
@@ -88,7 +88,7 @@ export default function LoginPage() {
           {error && (
             <div
               role="alert"
-              className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+              className="mb-4 rounded-md border border-crit/30 bg-crit/10 px-3 py-2 text-sm text-crit"
             >
               {error}
             </div>
@@ -97,15 +97,15 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSubmitting ? "Signing in…" : "Sign in"}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-slate-500">
+        <p className="mt-6 text-center text-sm text-muted-foreground">
           Need a workspace?{" "}
-          <Link to="/register" className="font-medium text-indigo-600 hover:text-indigo-700">
+          <Link to="/register" className="font-medium text-primary hover:underline">
             Create one
           </Link>
         </p>

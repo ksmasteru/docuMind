@@ -1,8 +1,153 @@
 @import "tailwindcss";
+/* shadcn/ui's enter / exit animations (animate-in, fade-in-0, slide-in-from-right…) */
+@import "tw-animate-css";
 
 /* Dark mode: apply dark: variants when the "dark" class is on <html>.
-   This is the v4 equivalent of darkMode: "class" in tailwind.config.js */
+   This is the v4 equivalent of darkMode: "class" in tailwind.config.js.
+   ThemeContext.jsx sets the class (dark by default); index.html sets it before the first paint. */
 @variant dark (&:where(.dark, .dark *));
+
+/* ==== The GreenSense theme: the control console's look, for the whole app ====
+   Two layers, one palette:
+   1. The shadcn/ui tokens below (--background, --primary, --ok…), light and dark. The console
+      (src/dashboard/), the frame (AppShell, TopBar) and the shadcn primitives use them.
+   2. Tailwind's slate scale, redefined in @theme from the same values, so every page written
+      with slate-* / dark:slate-* classes takes the console's neutrals without being rewritten:
+      slate-50 is the light floor, slate-200 the light hairline, slate-700 the dark hairline,
+      slate-800 a dark panel, slate-900 the dark floor.
+   Every text color passes WCAG AA on its surfaces. Status follows high-performance HMI practice:
+   what is normal stays neutral, only what needs attention takes a color, never color alone. */
+:root {
+  color-scheme: light;
+  --background: #f5f6f8;      /* the floor */
+  --foreground: #0c0f12;
+  --card: #ffffff;            /* a panel */
+  --card-foreground: #0c0f12;
+  --popover: #ffffff;         /* raised: sheet, tooltip, toast */
+  --popover-foreground: #0c0f12;
+  --primary: #1a75bc;         /* PHOVA blue, the one accent: links, focus, selection */
+  --primary-foreground: #ffffff;
+  --secondary: #eceff2;
+  --secondary-foreground: #0c0f12;
+  --muted: #eceff2;
+  --muted-foreground: #4f5862;
+  --accent: #eceff2;          /* hover */
+  --accent-foreground: #0c0f12;
+  --destructive: #cf222e;
+  --border: #e1e4e8;          /* the 1px hairlines */
+  --input: #cdd2d8;
+  --ring: #1a75bc;
+
+  --subtle: #5d6773;          /* micro-labels, units */
+  --ok: #177334;
+  --warn: #8a5c00;
+  --crit: #cf222e;
+  --standby: #3d6797;
+  --offline: #5d6773;
+}
+
+:root.dark {
+  color-scheme: dark;
+  --background: #0c0f12;
+  --foreground: #e6e9ec;
+  --card: #11151a;
+  --card-foreground: #e6e9ec;
+  --popover: #171c22;
+  --popover-foreground: #e6e9ec;
+  --primary: #5bc6e8;         /* PHOVA cyan on dark */
+  --primary-foreground: #0a2630;
+  --secondary: #1b2128;
+  --secondary-foreground: #e6e9ec;
+  --muted: #171c22;
+  --muted-foreground: #9aa4ae;
+  --accent: #1d242c;
+  --accent-foreground: #e6e9ec;
+  --destructive: #f47272;
+  --border: #262d35;
+  --input: #343d47;
+  --ring: #5bc6e8;
+
+  --subtle: #7d8792;
+  --ok: #4cc764;
+  --warn: #eaa63f;
+  --crit: #f47272;
+  --standby: #8fb0d9;
+  --offline: #7d8792;
+}
+
+/* Tailwind's own scales, retuned once for every page */
+@theme {
+  /* the console's steel neutrals instead of the blue-tinted slate (see the note above) */
+  --color-slate-50: #f5f6f8;
+  --color-slate-100: #eceff2;
+  --color-slate-200: #e1e4e8;
+  --color-slate-300: #cdd2d8;
+  --color-slate-400: #9aa4ae;
+  --color-slate-500: #5f6873;
+  --color-slate-600: #434c56;
+  --color-slate-700: #262d35;
+  --color-slate-800: #11151a;
+  --color-slate-900: #0c0f12;
+  --color-slate-950: #08090b;
+
+  /* indigo was the older pages' accent (login, documents, upload): it becomes the PHOVA blue ramp,
+     so those pages share the one accent. 600 = #1a75bc (white text 4.9:1), 700 = its hover. */
+  --color-indigo-50: #eef6fc;
+  --color-indigo-100: #d8eaf7;
+  --color-indigo-200: #b0d4ee;
+  --color-indigo-300: #7db8e1;
+  --color-indigo-400: #4a98d2;
+  --color-indigo-500: #2584c9;
+  --color-indigo-600: #1a75bc;
+  --color-indigo-700: #15639f;
+  --color-indigo-800: #134f7e;
+  --color-indigo-900: #0f3d61;
+  --color-indigo-950: #0a2630;
+
+  /* Hanken Grotesk for the interface, JetBrains Mono for data (loaded in main.jsx) */
+  --font-sans: "Hanken Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* tight corners and flat panels: the hairline carries the structure, not the shadow.
+     rounded-full (pills, avatars) and the larger shadows (menus, drawers) are unchanged. */
+  --radius-lg: 0.375rem;
+  --radius-xl: 0.375rem;
+  --radius-2xl: 0.5rem;
+  --radius-3xl: 0.625rem;
+  --shadow-xs: 0 0 #0000;
+  --shadow-sm: 0 0 #0000;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-subtle: var(--subtle);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-crit: var(--crit);
+  --color-standby: var(--standby);
+  --color-offline: var(--offline);
+
+  /* the console's names for the two faces (font-ui = font-sans, font-data = font-mono) */
+  --font-ui: "Hanken Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-data: "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
+}
 
 @layer base {
   html,
@@ -11,9 +156,19 @@
     height: 100%;
   }
 
+  /* the floor shows under every page, and behind the browser's overscroll */
   body {
+    background-color: var(--background);
+    color: var(--foreground);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* a border or divider without a color is a hairline (shadcn/ui's default); a border-* utility still wins */
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
   }
 
   *,
@@ -24,6 +179,38 @@
     transition-timing-function: ease;
   }
 }
+
+/* The section labels the pages write by hand (uppercase + tracking-wide / wider) take the
+   console's micro-label face. In the components layer, so a font-* utility on the element wins. */
+@layer components {
+  .uppercase.tracking-wide,
+  .uppercase.tracking-wider,
+  .uppercase.tracking-widest {
+    font-family: var(--font-mono);
+  }
+}
+
+/* the console's motion: panels rise in once, staggered by --i; a new alert slides in; the
+   thin bar in the header fills until the twin's next reading */
+@keyframes console-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes console-enter {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes console-tick {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.console-rise { animation: console-rise 480ms cubic-bezier(0.2, 0.7, 0.2, 1) both; animation-delay: calc(var(--i, 0) * 50ms); }
+.console-enter { animation: console-enter 360ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.console-tick { transform-origin: left; animation: console-tick linear both; }
+@media (prefers-reduced-motion: reduce) {
+  .console-rise, .console-enter, .console-tick { animation: none; }
+}
+
 /* A phone's keyboard is open (keepFocusVisible.js): the scrolling areas get room at their end, so a
    field near the bottom can still be scrolled above the keyboard, and the bottom tab bar steps aside. */
 .keyboard-open #root::after,

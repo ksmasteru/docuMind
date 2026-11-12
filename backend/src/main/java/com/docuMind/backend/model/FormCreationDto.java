@@ -4,6 +4,8 @@ import java.util.List;
 
 import com.docuMind.backend.model.enums.AnswerType;
 import com.docuMind.backend.model.enums.ChecklistType;
+import com.docuMind.backend.model.enums.FormLayout;
+import com.docuMind.backend.model.enums.UserRole;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import jakarta.validation.Valid;
@@ -28,7 +30,22 @@ public record FormCreationDto(
 
     // @Valid makes the validator also check every FormItem inside the list
     @NotEmpty(message = "a form must have at least one item")
-    List<@Valid FormItem> items
+    List<@Valid FormItem> items,
+
+    // optional, null for the original checklists: CONTROL_SHEET for the quality control sheets
+    FormLayout layout,
+
+    // optional: the paper sheet it replaces, printed in the PDF's header
+    @Size(max = 64, message = "paperReference is at most 64 characters")
+    String paperReference,
+    @Size(max = 16, message = "paperEdition is at most 16 characters")
+    String paperEdition,
+    @Size(max = 16, message = "paperDate is at most 16 characters")
+    String paperDate,
+
+    // optional: who may fill it (null or empty = every role) and who may read every report sent with it
+    List<UserRole> fillRoles,
+    List<UserRole> readRoles
 )
 {
     public record FormItem(

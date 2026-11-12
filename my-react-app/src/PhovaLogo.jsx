@@ -7,7 +7,7 @@ export default function PhovaLogo({ className = "" }) {
     <img
       src={phovaLogo}
       alt="PHOVA Technology"
-      className={`w-auto dark:rounded-md dark:bg-white dark:px-2 dark:py-1 ${className}`}
+      className={`w-auto dark:rounded-sm dark:bg-white dark:px-1.5 dark:py-1 ${className}`}
     />
   );
 }

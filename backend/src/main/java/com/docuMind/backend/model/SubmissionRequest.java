@@ -49,7 +49,11 @@ public record SubmissionRequest(
     String taskId,
     // v2 expertise reports only: the parts the technician added (« + Ajouter une pièce »), each
     // with its photos, findings, comment and recommendation. Refused on other forms
-    List<@Valid ExtraPart> extraParts
+    List<@Valid ExtraPart> extraParts,
+
+    // optional: the ticket this report was filled in (a control sheet saved to finish later,
+    // FormDraftService.tickets). Deleted with the report's save, like a draft
+    String draftId
 )
 {
     public record ExtraPart(

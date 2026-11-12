@@ -39,6 +39,8 @@ import com.docuMind.backend.model.SubmissionRequest.AnswerItem;
 import com.docuMind.backend.model.SubmissionResponse;
 import com.docuMind.backend.model.User;
 import com.docuMind.backend.model.enums.AnswerType;
+import com.docuMind.backend.model.enums.FormLayout;
+import com.docuMind.backend.model.enums.UserRole;
 import com.docuMind.backend.model.enums.SubmissionStatus;
 import com.docuMind.backend.model.enums.WorkshopStep;
 import com.docuMind.backend.repository.CheckListTemplateRepository;
@@ -80,14 +82,19 @@ public class SubmissionService {
     // the form's draft goes once the report is sent (form-draft-persistence.md)
     private final FormDraftRepository formDraftRepository;
 
+    // the code and content fingerprint behind each report's QR code
+    private final ReportVerification reportVerification;
+
     public SubmissionService(SubmissionRepository submissionRepository,
                              CheckListTemplateRepository checkListTemplateRepository,
                              UserRepository userRepository,
                             ImageService imageService,
                             TaskService taskService,
                             StructuredAnswers structuredAnswers,
-                            FormDraftRepository formDraftRepository)
+                            FormDraftRepository formDraftRepository,
+                            ReportVerification reportVerification)
     {
+        this.reportVerification = reportVerification;
         this.structuredAnswers = structuredAnswers;
         this.formDraftRepository = formDraftRepository;
         this.submissionRepository = submissionRepository;
@@ -105,6 +112,55 @@ public class SubmissionService {
                 .filter(s -> canRead(s, userId))
                 .orElseThrow(() -> new SubmissionNotFoundException("no submission with id " + submissionId));
         return toReport(submission, submission.getId());
+    }
+
+    // The reports the caller's role may read because their form says so (CheckListTemplate.readRoles):
+    // the control sheets for Quality, Sales and the workshop leads. Every version of those forms, newest
+    // report first, the latest 300.
+    public List<com.docuMind.backend.model.SharedReport> sharedReports(String userId)
+    {
+        UserRole role = roleOf(userId);
+        List<CheckListTemplate> templates = checkListTemplateRepository.findAll();
+        List<String> forms = templates.stream()
+                .filter(t -> t.canReadAll(role))
+                .map(CheckListTemplate::getId)
+                .toList();
+        // and the caller's own quality forms, whoever else may read them (a complaint entered by Sales)
+        List<String> mine = templates.stream()
+                .filter(t -> t.getLayout() == FormLayout.CONTROL_SHEET && !forms.contains(t.getId()))
+                .map(CheckListTemplate::getId)
+                .toList();
+        var page = org.springframework.data.domain.PageRequest.of(0, 300);
+        List<CheckListSubmission> found = new ArrayList<>();
+        if (!forms.isEmpty())
+            found.addAll(submissionRepository.findByTemplate_IdInOrderBySubmittedAtDesc(forms, page));
+        if (!mine.isEmpty())
+            found.addAll(submissionRepository.findByUserIdAndTemplate_IdInOrderBySubmittedAtDesc(userId, mine, page));
+        found.sort(Comparator.comparing(CheckListSubmission::getSubmittedAt, Comparator.nullsLast(Comparator.reverseOrder())));
+        Map<String, String> names = new HashMap<>();
+        return found.stream().limit(300)
+                .map(s -> new com.docuMind.backend.model.SharedReport(
+                        s.getId(),
+                        s.getTemplate().getTitle(),
+                        s.getTemplate().getPaperReference(),
+                        s.getEquipment(),
+                        s.getInspectionDate() == null ? "" : s.getInspectionDate().format(DAY),
+                        names.computeIfAbsent(s.getUserId(), email -> userRepository.findByEmail(email)
+                                .map(User::getName).filter(n -> n != null && !n.isBlank()).orElse(email)),
+                        s.getSubmittedAt() == null ? "" : s.getSubmittedAt().atZone(SITE_ZONE).format(DAY_TIME),
+                        s.getStatus().name(),
+                        s.getTemplate().getQuestions().stream().anyMatch(CheckListItem::isCritical)))
+                .toList();
+    }
+
+    // A report found by the code printed under its QR code, for whoever holds the paper (the public
+    // verification page): no reader check, the code is the access. Empty for an unknown code.
+    public java.util.Optional<SubmissionReport> getReportByVerificationCode(String code)
+    {
+        String normalized = ReportVerification.normalize(code);
+        if (normalized == null)
+            return java.util.Optional.empty();
+        return submissionRepository.findByVerificationCode(normalized).map(s -> toReport(s, s.getId()));
     }
 
     // a submission, saved or not (previewReport), as the PDF reads it; id: the reference printed on it
@@ -145,7 +201,15 @@ public class SubmissionService {
                         return new SubmissionReport.ExtraPart(part.name(), part.findings(), part.comment(),
                                 part.recommendation(), gallery.photos(), gallery.captions());
                     })
-                    .toList());
+                    .toList(),
+                // a preview isn't saved, so it has no code: its PDF carries no QR code
+                submission.getVerificationCode() == null ? null
+                    : new SubmissionReport.Verification(ReportVerification.format(submission.getVerificationCode()),
+                            reportVerification.urlFor(submission.getVerificationCode())),
+                template.getLayout() == FormLayout.CONTROL_SHEET
+                    ? new SubmissionReport.Paper(template.getPaperReference(), template.getPaperEdition(), template.getPaperDate(),
+                            template.getQuestions().stream().anyMatch(CheckListItem::isCritical))
+                    : null);
     }
 
     // the photos that could be read, as data URIs, and their captions in the same order
@@ -215,6 +279,9 @@ public class SubmissionService {
     {
         if (submission.getUserId().equals(userId))
             return true;
+        // the roles the form lets read every report sent with it (a control sheet: Quality, Sales…)
+        if (submission.getTemplate().canReadAll(roleOf(userId)))
+            return true;
         String taskId = submission.getTaskId();
         if (taskId == null)
             return false;
@@ -226,12 +293,25 @@ public class SubmissionService {
                 .orElse(false);
     }
 
+    // the role of the user with this email, null if unknown
+    private UserRole roleOf(String userId)
+    {
+        return userRepository.findByEmail(userId).map(User::getRole).orElse(null);
+    }
+
+    // only the roles the form names may send it, or see its preview (a control sheet: Quality)
+    private void checkCanFill(CheckListTemplate template, String userId)
+    {
+        if (!template.canFill(roleOf(userId)))
+            throw new AccessDeniedException("your role can't fill the form " + template.getTitle());
+    }
+
     // The full expertise report is the paper report: much of it can stay empty (a part with no
     // photo, a measure not taken), and so can the v2 reports (a part not inspected, report_ui.md).
     // Every other form needs every answer.
     private static boolean allowsBlank(CheckListTemplate template)
     {
-        return ExpertiseReport.isFor(template.getTitle()) || StructuredAnswers.isV2(template.getTitle());
+        return ExpertiseReport.isFor(template.getTitle()) || StructuredAnswers.usesV2Answers(template);
     }
 
     private SubmissionStatus checkSumbSubmissionStatus(SubmissionRequest request, CheckListTemplate template)
@@ -259,7 +339,7 @@ public class SubmissionService {
                 // the v2 types are checked here (choices among the options, readings are numbers…);
                 // "{ selected: [] }" counts as blank like an empty text
                 StructuredAnswers.Normalized structured = isStructured(question.getAnswerType())
-                        ? structuredAnswers.normalize(question, answer.value(), StructuredAnswers.isV2(template.getTitle()))
+                        ? structuredAnswers.normalize(question, answer.value(), StructuredAnswers.usesV2Answers(template))
                         : null;
                 boolean blank = structured != null ? structured.blank()
                         : answer.value() == null || answer.value().isBlank();
@@ -271,10 +351,11 @@ public class SubmissionService {
                     continue;
                 }
                 // a critical choice that says the work isn't right (« Non conforme », « À reprendre »):
-                // like a critical Mauvais, it needs a comment and makes the report non conforme
+                // like a critical Mauvais, it needs a comment and makes the report non conforme.
+                // A table's rows carry their own comment column: no comment asked on top
                 if (structured != null && structured.nonConforming() && question.isCritical())
                 {
-                    if (answer.comment() == null || answer.comment().isBlank())
+                    if (question.getAnswerType() != AnswerType.TABLE && (answer.comment() == null || answer.comment().isBlank()))
                         throw new CommentRequiredException("comment required for question " + question.getPosition());
                     status = SubmissionStatus.NON_CONFORME;
                 }
@@ -316,9 +397,12 @@ public class SubmissionService {
         );
         if (!template.isActive())
             throw new FormNotActiveException("form " + templateId + " is not active anymore");
+        checkCanFill(template, userId);
         
         SubmissionStatus status = this.checkSumbSubmissionStatus(request, template);
+        // v2: added parts allowed (the v2 reports only); v2Answers: photos kept with their titles
         boolean v2 = StructuredAnswers.isV2(template.getTitle());
+        boolean v2Answers = StructuredAnswers.usesV2Answers(template);
 
         // used by the save loop below
         List<CheckListItem> questions = template.getQuestions();
@@ -408,7 +492,7 @@ public class SubmissionService {
             {
                 // already checked by checkSumbSubmissionStatus; normalized again for the stored form.
                 // Photos: "id1,id2" on the old forms (up to 4), [{ imageId, title, comment }] on v2
-                StructuredAnswers.Normalized normalized = structuredAnswers.normalize(item, answer.value(), v2);
+                StructuredAnswers.Normalized normalized = structuredAnswers.normalize(item, answer.value(), v2Answers);
                 for (StructuredAnswers.PhotoRef photo : normalized.photos())
                     images.add(ownImage(photo.imageId(), "question " + item.getPosition(), userId, usedImageIds));
                 checkAnswer.setValue(normalized.value());
@@ -436,10 +520,22 @@ public class SubmissionService {
         String taskId = (request.taskId() == null || request.taskId().isBlank()) ? null : request.taskId().trim();
         checkListSubmission.setTaskId(taskId);
 
-        submissionRepository.save(checkListSubmission);
+        checkListSubmission.setVerificationCode(reportVerification.newCode());
 
-        // the report is sent: its draft goes (in this transaction, so a refused report keeps it)
-        formDraftRepository.findByUserIdAndTemplateIdAndTaskId(userId, templateId, taskId).ifPresent(formDraftRepository::delete);
+        // flushed so the insert runs now and submittedAt is set: the fingerprint covers it.
+        // The hash is then written at commit, like the images' reportId below
+        submissionRepository.saveAndFlush(checkListSubmission);
+        checkListSubmission.setContentHash(reportVerification.fingerprint(checkListSubmission));
+
+        // the report is sent: its draft goes (in this transaction, so a refused report keeps it). A ticket
+        // is named by the request (one person may have several of the same form open); else the one draft
+        if (request.draftId() != null && !request.draftId().isBlank())
+            formDraftRepository.findById(request.draftId().strip())
+                    .filter(d -> d.getUserId().equals(userId))
+                    .ifPresent(formDraftRepository::delete);
+        else if (!FormDraftService.isTicket(template, taskId))
+            formDraftRepository.findFirstByUserIdAndTemplateIdAndTaskIdOrderByUpdatedAtDesc(userId, templateId, taskId)
+                    .ifPresent(formDraftRepository::delete);
 
         // a report for a task: check the task and move it to SUBMITTED. After the save because
         // the task keeps the submission's id; a refused task still undoes the save, since both
@@ -465,7 +561,9 @@ public class SubmissionService {
     {
         CheckListTemplate template = checkListTemplateRepository.findById(request.templateId()).orElseThrow(
             () -> new FormNotFoundException("no form with id " + request.templateId()));
+        checkCanFill(template, userId);
         boolean v2 = StructuredAnswers.isV2(template.getTitle());
+        boolean v2Answers = StructuredAnswers.usesV2Answers(template);
         CheckListSubmission preview = new CheckListSubmission();
         preview.setTemplate(template);
         preview.setEquipment(request.equipment() == null || request.equipment().isBlank() ? "—" : request.equipment().trim());
@@ -488,7 +586,7 @@ public class SubmissionService {
             if (value != null && !value.isBlank() && isStructured(item.getAnswerType()))
             {
                 try {
-                    StructuredAnswers.Normalized normalized = structuredAnswers.normalize(item, value, v2);
+                    StructuredAnswers.Normalized normalized = structuredAnswers.normalize(item, value, v2Answers);
                     value = normalized.value();
                     if (normalized.nonConforming() && item.isCritical()) status = SubmissionStatus.NON_CONFORME;
                 } catch (RuntimeException refused) {

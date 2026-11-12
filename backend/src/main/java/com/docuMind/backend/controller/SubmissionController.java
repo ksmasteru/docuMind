@@ -87,6 +87,14 @@ public class SubmissionController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    // GET /api/v1/submissions/shared — the reports the caller's role may read because their form says so
+    // (the control sheets, for Quality, Sales and the workshop leads), newest first. Empty for other roles
+    @GetMapping("/shared")
+    public ResponseEntity<List<com.docuMind.backend.model.SharedReport>> shared(Authentication authentication)
+    {
+        return ResponseEntity.ok(submissionService.sharedReports(authentication.getName()));
+    }
+
     // GET /api/v1/submissions/{id} — a sent sheet as data, for the app to draw it itself
     // (the review screen). The same SubmissionReport the PDF is built from, so both always
     // agree; same access as /pdf: its author or the manager of its task, else 404.
@@ -127,8 +135,9 @@ public class SubmissionController {
         return ResponseEntity.ok(new SubmissionPreview(pages));
     }
 
-    // "checklist-MP1-12-10-2026.pdf": what a technician would recognise in their downloads
-    private static String fileName(SubmissionReport report)
+    // "checklist-MP1-12-10-2026.pdf": what a technician would recognise in their downloads.
+    // Also the name of the copy downloaded from the verification page (VerificationController)
+    static String fileName(SubmissionReport report)
     {
         String equipment = report.equipment().replaceAll("[^A-Za-z0-9_-]+", "-");
         String day = report.inspectionDate().replace('/', '-');

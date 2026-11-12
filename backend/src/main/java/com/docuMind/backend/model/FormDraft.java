@@ -45,6 +45,11 @@ public class FormDraft {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String payload;
 
+    // what a ticket is about, as the « Fiches en cours » list shows it ("PHB2-0412 · 06/10/2026"):
+    // written by the app from the form's equipment and date fields; null for the other drafts
+    @Column(length = 255)
+    private String label;
+
     // set by Hibernate on every save: when the draft was last saved
     @UpdateTimestamp
     @Column(nullable = false)
@@ -60,6 +65,9 @@ public class FormDraft {
 
     public String getTaskId()                       { return taskId; }
     public void setTaskId(String taskId)            { this.taskId = taskId; }
+
+    public String getLabel()                        { return label; }
+    public void setLabel(String label)              { this.label = label; }
 
     public String getPayload()                      { return payload; }
     public void setPayload(String payload)          { this.payload = payload; }

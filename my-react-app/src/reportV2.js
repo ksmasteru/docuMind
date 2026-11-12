@@ -193,8 +193,42 @@ export const emptyValue = (type) => {
         case "SINGLE_CHOICE": return { selected: null };
         case "MEASURE": return { readings: [] };
         case "PARTS_SUMMARY": return { rows: [] };
+        case "TABLE": return { rows: [] };
         default: return "";
     }
+};
+
+// ---------------------------------------------------------------- tables (the quality control sheets)
+
+// a new row of a TABLE answer: its cells are added as they're typed, by column key
+let tableRowKey = 0;
+export const newTableRow = () => ({ key: `trow-${tableRowKey++}` });
+
+// what a question starts with: a TABLE shows its options.rows empty rows (3 by default), like the paper sheet
+export const startValue = (q) =>
+    q.answerType === "TABLE"
+        ? { rows: Array.from({ length: optionsOf(q).rows ?? 3 }, newTableRow) }
+        : emptyValue(q.answerType);
+
+// the columns typed in (a result column is computed, never typed)
+const typedColumns = (options) => (options.columns ?? []).filter((c) => c.type !== "result");
+
+// a row counts once one of its typed cells holds something; empty rows aren't sent
+export const isRowFilled = (options, row) => typedColumns(options).some((c) => String(row[c.key] ?? "").trim());
+
+// "−0,05" or "+0.02" → -0.05 / 0.02; null if it isn't a number
+const signedNumber = (text) => readingOf(String(text ?? "").replace("\u2212", "-").replace(/^\+/, ""));
+
+// « Conforme » / « Non conforme » as the server will compute it (StructuredAnswers.conformity):
+// nominal + tol. inf ≤ measured ≤ nominal + tol. sup, the tolerances signed; null until all four are typed,
+// "invalid" when tol. inf is above tol. sup
+export const tableResult = (options, row) => {
+    const t = options.tolerance;
+    if (!t) return null;
+    const [measured, nominal, min, max] = [t.measured, t.nominal, t.min, t.max].map((k) => signedNumber(row[k]));
+    if ([measured, nominal, min, max].some((n) => n === null)) return null;
+    if (min > max) return "invalid";
+    return measured >= nominal + min - 1e-9 && measured <= nominal + max + 1e-9 ? "Conforme" : "Non conforme";
 };
 
 // a typed reading: "0,05" or "0.05" → 0.05; null if it isn't a number
@@ -221,6 +255,7 @@ export const isAnswered = (q, answer) => {
         case "SINGLE_CHOICE": return !!v?.selected;
         case "MEASURE": return (v?.readings ?? []).some((r) => readingOf(r) !== null);
         case "PARTS_SUMMARY": return (v?.rows ?? []).some((r) => r.description?.trim());
+        case "TABLE": return (v?.rows ?? []).some((r) => isRowFilled(optionsOf(q), r));
         default: return !!(v ?? "").toString().trim();
     }
 };
@@ -300,6 +335,12 @@ const valueOut = (q, value) => {
                 decision: r.decision?.trim() || null,
                 remark: r.remark?.trim() || null,
             }));
+            return rows.length ? JSON.stringify({ rows }) : "";
+        }
+        case "TABLE": {
+            const options = optionsOf(q);
+            const rows = (value?.rows ?? []).filter((r) => isRowFilled(options, r)).map((r) =>
+                Object.fromEntries(typedColumns(options).map((c) => [c.key, String(r[c.key] ?? "").trim() || null])));
             return rows.length ? JSON.stringify({ rows }) : "";
         }
         default: return (value ?? "").toString().trim();

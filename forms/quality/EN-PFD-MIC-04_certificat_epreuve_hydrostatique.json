@@ -1,0 +1,106 @@
+{
+  "title": "Certificat d'épreuve hydrostatique",
+  "type": "INSPECTION",
+  "instructions": "Nous soussignés, PHOVA Technology, certifions que les pièces suivantes ont subi une épreuve hydrostatique avec de bons résultats pendant une durée de 30 min.",
+  "paperReference": "EN-PFD-MIC-04",
+  "paperEdition": "1.0",
+  "paperDate": "29/03/2024",
+  "layout": "CONTROL_SHEET",
+  "fillRoles": [
+    "QUALITY"
+  ],
+  "readRoles": [
+    "QUALITY",
+    "WORKSHOP_LEAD",
+    "PROJECT_LEAD",
+    "SALES"
+  ],
+  "items": [
+    {
+      "labelFr": "Identification : Réf. enregistrement",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Commande"
+      }
+    },
+    {
+      "labelFr": "Identification : N° de commande",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "meta": "equipment",
+        "group": "Commande"
+      }
+    },
+    {
+      "labelFr": "Identification : Type de pompe",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Test"
+      }
+    },
+    {
+      "labelFr": "Identification : Date de test",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "DATE",
+      "options": {
+        "meta": "inspectionDate",
+        "group": "Test"
+      }
+    },
+    {
+      "labelFr": "Pièces testées : Pièces",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TABLE",
+      "options": {
+        "columns": [
+          {
+            "key": "number",
+            "label": "Numéro",
+            "type": "text"
+          },
+          {
+            "key": "designation",
+            "label": "Désignation",
+            "type": "text"
+          },
+          {
+            "key": "serial",
+            "label": "N° de série",
+            "type": "text"
+          },
+          {
+            "key": "material",
+            "label": "Matériau de coulée",
+            "type": "text"
+          },
+          {
+            "key": "pressure",
+            "label": "Pression d'essai (bar)",
+            "type": "number"
+          }
+        ],
+        "rows": 5
+      }
+    },
+    {
+      "labelFr": "Épreuve : Liquide de test",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Eau"
+        ],
+        "allowOther": true
+      }
+    }
+  ]
+}

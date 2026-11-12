@@ -2,20 +2,21 @@
 // and where a pump model's photo comes from.
 import { CircleCheck, CirclePause, OctagonAlert, TriangleAlert, WifiOff, Wrench } from "lucide-react";
 
-// Status colors are the reserved status palette (good / warning / critical), standby the PHOVA
-// blue; each always shows with its icon and label, never as color alone.
+// Status colors are the theme's status tokens (index.css: --ok, --standby, --warn, --crit), light
+// or dark with the toggle; each always shows with its icon and label, never as color alone.
+// text-background: the floor's color, readable on every status fill in both themes.
 // phrase: the state inside a sentence ("la pompe est en maintenance")
 export const PUMP_STATES = {
-    RUNNING:     { label: "En marche",   phrase: "en marche",      icon: CircleCheck,  fill: "bg-[#0ca30c] text-white" },
-    STANDBY:     { label: "En réserve",  phrase: "en réserve",     icon: CirclePause,  fill: "bg-[#1A75BC] text-white dark:bg-[#2B9BD3]" },
-    MAINTENANCE: { label: "Maintenance", phrase: "en maintenance", icon: Wrench,       fill: "bg-[#fab219] text-slate-950" },
-    FAULT:       { label: "En défaut",   phrase: "en défaut",      icon: OctagonAlert, fill: "bg-[#d03b3b] text-white" },
+    RUNNING:     { label: "En marche",   phrase: "en marche",      icon: CircleCheck,  fill: "bg-ok text-background" },
+    STANDBY:     { label: "En réserve",  phrase: "en réserve",     icon: CirclePause,  fill: "bg-standby text-background" },
+    MAINTENANCE: { label: "Maintenance", phrase: "en maintenance", icon: Wrench,       fill: "bg-warn text-background" },
+    FAULT:       { label: "En défaut",   phrase: "en défaut",      icon: OctagonAlert, fill: "bg-crit text-background" },
     OFFLINE:     { label: "Hors ligne",  phrase: "hors ligne",     icon: WifiOff,      fill: "bg-slate-300 text-slate-700 dark:bg-slate-600 dark:text-slate-100" },
 };
 
 export const SEVERITY = {
-    critical: { label: "Critique",      icon: OctagonAlert,  style: "bg-[#d03b3b]/10 text-[#d03b3b] dark:bg-[#d03b3b]/20 dark:text-[#f08a8a]" },
-    warning:  { label: "Avertissement", icon: TriangleAlert, style: "bg-[#fab219]/15 text-amber-700 dark:bg-[#fab219]/15 dark:text-[#fab219]" },
+    critical: { label: "Critique",      icon: OctagonAlert,  style: "bg-crit/10 text-crit" },
+    warning:  { label: "Avertissement", icon: TriangleAlert, style: "bg-warn/10 text-warn" },
 };
 
 // a pump's readings, in the order the pages list them: [key in the twin's metrics, label, unit]

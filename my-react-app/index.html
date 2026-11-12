@@ -1,10 +1,17 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr" class="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
     <title>GreenSense 4.0</title>
+    <!-- the theme before the first paint: dark unless the user chose light (ThemeContext.jsx, same key) -->
+    <script>
+      try {
+        if (localStorage.getItem("greensense.theme") === "light") document.documentElement.classList.remove("dark");
+      } catch (e) { /* storage blocked: stay dark */ }
+    </script>
   </head>
   <body>
     <div id="root"></div>

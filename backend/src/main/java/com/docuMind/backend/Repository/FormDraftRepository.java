@@ -17,6 +17,13 @@ public interface FormDraftRepository extends JpaRepository<FormDraft, String>
     // the lookup the service needs before saving, since the unique constraint can't catch those
     Optional<FormDraft> findByUserIdAndTemplateIdAndTaskId(String userId, String templateId, String taskId);
 
+    // the newest when there may be several: a control sheet opened outside a task is a ticket, and one
+    // person may have several of the same form open (FormDraftService.tickets)
+    Optional<FormDraft> findFirstByUserIdAndTemplateIdAndTaskIdOrderByUpdatedAtDesc(String userId, String templateId, String taskId);
+
+    // a person's drafts on these forms outside any task: their tickets, last edited first
+    List<FormDraft> findByUserIdAndTaskIdIsNullAndTemplateIdInOrderByUpdatedAtDesc(String userId, java.util.Collection<String> templateIds);
+
     // a technician's unfinished forms, last edited first
     List<FormDraft> findByUserIdOrderByUpdatedAtDesc(String userId);
 

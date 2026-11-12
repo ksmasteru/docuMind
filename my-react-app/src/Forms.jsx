@@ -2,7 +2,8 @@ import Layout from "./Layout";
 import React, { useEffect, useState } from "react";
 import Select from "react-select";
 import ReportForm from "./ReportForm";
-import { ChevronLeft, ChevronRight, ClipboardCheck } from "lucide-react";
+import OpenTickets from "./OpenTickets";
+import { ChevronLeft, ChevronRight, ClipboardCheck, FolderOpen, Plus } from "lucide-react";
 import { TECHNICIAN_FORMS, sameText } from "./expertiseForm";
 import { apiClient } from "./apiClient";
 import { useAuth } from "./AuthContext";
@@ -18,6 +19,9 @@ const Forms = () => {
   // technicians get every active form as a card (TECHNICIAN_FORMS only sets their order and hints)
   const technician = user?.role === "USER";
   const [selected, setSelected] = useState(null);
+  // the ticket open below, to mark it in « Fiches en cours » (a new sheet gets its id on its first save)
+  const [openId, setOpenId] = useState(null);
+  useEffect(() => setOpenId(selected?.ticketId ?? null), [selected]);
   const [options, setOptions] = useState(null);   // null = still loading
   const [loadError, setLoadError] = useState(false);
 
@@ -35,6 +39,15 @@ const Forms = () => {
     };
     fetchOptions();
   }, []);
+
+  // « Fiches en cours »: a ticket resumes its form where it stopped (selected carries its id)
+  const openTicket = (t) => setSelected({ value: t.templateId, label: t.title, ticketId: t.id, ticket: true });
+  // key: a new form, another ticket, or another new sheet of the same form (fresh) gets a fresh sheet
+  const sheetKey = (option) => `${option.value}:${option.ticketId ?? "new"}:${option.fresh ?? 0}`;
+  // whether a form is kept as tickets (a complaint, a control sheet): several open at once, each resumable
+  const isTicketForm = (option) => !!option?.ticket || options?.find((o) => o.id === option?.value)?.layout === "CONTROL_SHEET";
+  // « Nouvelle … »: a fresh sheet of the same form; the one open saves itself as it closes
+  const newSheet = () => setSelected((s) => ({ value: s.value, label: s.label, type: s.type, ticket: true, fresh: Date.now() }));
 
   // react-select reads value/label; group the forms by type
   const formOptions = options?.map(({ type, title, id }) => ({ value: id, label: title, type })) ?? [];
@@ -69,15 +82,19 @@ const Forms = () => {
         <div className="mx-auto max-w-[1000px]">
           {selected ? (
             <>
-              <button
-                type="button"
-                onClick={leaveSheet}
-                className="inline-flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100"
-              >
-                <ChevronLeft className="h-4 w-4" /> Changer de formulaire
-              </button>
+              {isTicketForm(selected) ? (
+                <TicketBar title={selected.label} onList={() => setSelected(null)} onNew={newSheet} />
+              ) : (
+                <button
+                  type="button"
+                  onClick={leaveSheet}
+                  className="inline-flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100"
+                >
+                  <ChevronLeft className="h-4 w-4" /> Changer de formulaire
+                </button>
+              )}
               {/* key: a new form gets a fresh, empty sheet */}
-              <ReportForm key={selected.value} id={selected.value} />
+              <ReportForm key={sheetKey(selected)} id={selected.value} ticketId={selected.ticketId ?? null} onTicket={setOpenId} />
             </>
           ) : (
             <>
@@ -87,6 +104,8 @@ const Forms = () => {
                   Choisissez le rapport à remplir, puis envoyez-le.
                 </p>
               </header>
+
+              <OpenTickets onOpen={openTicket} />
 
               {options === null ? (
                 <p className="mt-6 text-sm text-slate-500 dark:text-slate-400">Chargement des formulaires…</p>
@@ -133,15 +152,39 @@ const Forms = () => {
         />
 
         {selected ? (
-          // key: a new form gets a fresh, empty sheet
-          <ReportForm key={selected.value} id={selected.value} />
+          <>
+            {/* the open sheets stay in view: another one is a tap away, this one is marked */}
+            {isTicketForm(selected) && <OpenTickets onOpen={openTicket} currentId={openId} />}
+            {isTicketForm(selected) && <TicketBar title={selected.label} onList={() => setSelected(null)} onNew={newSheet} />}
+            {/* key: a new form gets a fresh, empty sheet */}
+            <ReportForm key={sheetKey(selected)} id={selected.value} ticketId={selected.ticketId ?? null} onTicket={setOpenId} />
+          </>
         ) : (
-          <EmptyState />
+          <>
+            <OpenTickets onOpen={openTicket} />
+            <EmptyState />
+          </>
         )}
       </div>
     </Layout>
   );
 };
+
+// Above an open complaint or control sheet: it's saved as you go, so leaving it loses nothing. Back to
+// « Fiches en cours » (where it now waits), or start another sheet of the same form right away.
+const TicketBar = ({ title, onList, onNew }) => (
+  <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[#1A75BC]/20 bg-[#1A75BC]/5 px-4 py-2.5 dark:border-[#5BC6E8]/20 dark:bg-[#5BC6E8]/10">
+    <button type="button" onClick={onList}
+      className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-700 hover:text-slate-900 dark:text-slate-200 dark:hover:text-white">
+      <FolderOpen className="h-4 w-4" /> Fiches en cours
+    </button>
+    <span className="hidden text-xs text-slate-500 sm:block dark:text-slate-400">Enregistrée au fur et à mesure : vous pourrez la reprendre.</span>
+    <button type="button" onClick={onNew}
+      className="inline-flex items-center gap-1.5 rounded-lg bg-[#1A75BC] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#15639f]">
+      <Plus className="h-4 w-4" /> Nouvelle {/^fiche de réclamation|réclamation/i.test(title ?? "") ? "réclamation" : "fiche"}
+    </button>
+  </div>
+);
 
 const FormPicker = ({ selected, setSelected, options, count, loading, loadError }) => {
   return (

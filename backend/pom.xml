@@ -158,7 +158,14 @@
             <artifactId>openhtmltopdf-rtl-support</artifactId>
             <version>1.0.10</version>
         </dependency>
-    
+
+        <!-- the QR code printed on each report, pointing to its verification page -->
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>core</artifactId>
+            <version>3.5.3</version>
+        </dependency>
+
     </dependencies>
 
     <build>

@@ -35,6 +35,8 @@ import WorkshopPendingStep from "./WorkshopPendingStep";
 import FinalCheckGuide from "./FinalCheckGuide";
 import WorkshopAttachment from "./WorkshopAttachment";
 import RoleHome from "./RoleHome";
+import VerifyReport from "./VerifyReport";
+import ControlSheets from "./ControlSheets";
 import { canOpen, homeFor } from "./roleTabs";
 import { pdfjs} from "react-pdf";
 
@@ -70,6 +72,9 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           {/* a manager's login link: signs a technician in without a password */}
           <Route path="/t/:token" element={<LinkLogin />} />
+          {/* public: where a report's QR code lands (no login) */}
+          <Route path="/verify" element={<VerifyReport />} />
+          <Route path="/verify/:code" element={<VerifyReport />} />
           <Route path="/documents" element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
           <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
           <Route path="/uploadedFiles" element={<UploadedFiles />}/>
@@ -105,6 +110,7 @@ export default function App() {
           <Route path="/suivi" element={<ProtectedRoute><WorkshopFollowUp/></ProtectedRoute>}/>
           {/* the placeholder home page of the workshop roles whose step isn't built yet */}
           <Route path="/accueil" element={<ProtectedRoute><RoleHome/></ProtectedRoute>}/>
+          <Route path="/controles" element={<ProtectedRoute><ControlSheets/></ProtectedRoute>}/>
           <Route path="*" element={<HomeRedirect />} />
         </Routes>
       </BrowserRouter>

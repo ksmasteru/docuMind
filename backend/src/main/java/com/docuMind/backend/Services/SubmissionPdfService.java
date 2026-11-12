@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
+import java.util.EnumMap;
 import java.util.Locale;
 import java.util.Map;
 
@@ -21,10 +22,17 @@ import org.springframework.stereotype.Service;
 import org.thymeleaf.ITemplateEngine;
 import org.thymeleaf.context.Context;
 
+import com.docuMind.backend.model.ControlSheet;
 import com.docuMind.backend.model.ExpertiseDossier;
 import com.docuMind.backend.model.ExpertiseReport;
 import com.docuMind.backend.model.ExpertiseReportV2;
 import com.docuMind.backend.model.SubmissionReport;
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.EncodeHintType;
+import com.google.zxing.WriterException;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 import com.openhtmltopdf.bidi.support.ICUBidiReorderer;
 import com.openhtmltopdf.bidi.support.ICUBidiSplitter;
 import com.openhtmltopdf.extend.FSSupplier;
@@ -46,6 +54,8 @@ public class SubmissionPdfService {
     private static final String EXPERTISE_TEMPLATE = "expertise-report";
     // the v2 expertise reports (StructuredAnswers.isV2): a summary page, then a card per part (report_pdf.md)
     private static final String EXPERTISE_V2_TEMPLATE = "expertise-report-v2";
+    // the quality control sheets (FormLayout.CONTROL_SHEET), laid out like the paper sheet (ControlSheet)
+    private static final String CONTROL_SHEET_TEMPLATE = "control-sheet";
     // an intervention's final file: cover, synthèse, avant / après, devis, both reports, history
     private static final String DOSSIER_TEMPLATE = "expertise-dossier";
 
@@ -98,8 +108,15 @@ public class SubmissionPdfService {
     {
         Context context = new Context(Locale.FRENCH);
         context.setVariable("logo", logoDataUri);
+        // the verification block at the end of every report (templates/verification.html); none on a preview
+        if (report.verification() != null)
+            context.setVariable("verification", new VerificationBlock(report.verification().code(),
+                    report.verification().url(), qrDataUri(report.verification().url())));
         String template = TEMPLATE;
-        if (StructuredAnswers.isV2(report.title())) {
+        if (report.paper() != null) {
+            template = CONTROL_SHEET_TEMPLATE;
+            context.setVariable("sheet", ControlSheet.of(report));
+        } else if (StructuredAnswers.isV2(report.title())) {
             template = EXPERTISE_V2_TEMPLATE;
             context.setVariable("report", trace == null ? ExpertiseReportV2.of(report, drawings) : ExpertiseReportV2.of(report, drawings, trace));
             context.setVariable("um6pLogo", um6pLogoDataUri);
@@ -117,6 +134,35 @@ public class SubmissionPdfService {
             context.setVariable("report", report);
         }
         return toPdf(templateEngine.process(template, context));
+    }
+
+    // what templates/verification.html reads
+    public record VerificationBlock(String code, String url, String qr) {}
+
+    // The URL as a QR code PNG, as a data URI like the logos. Drawn from ZXing's matrix here rather
+    // than with zxing-javase, which would only add MatrixToImageWriter. Level M survives a creased
+    // or slightly stained printout; the 4-module quiet zone is what phone scanners expect.
+    static String qrDataUri(String url)
+    {
+        try {
+            Map<EncodeHintType, Object> hints = new EnumMap<>(EncodeHintType.class);
+            hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.M);
+            hints.put(EncodeHintType.MARGIN, 4);
+            hints.put(EncodeHintType.CHARACTER_SET, "UTF-8");
+            BitMatrix matrix = new QRCodeWriter().encode(url, BarcodeFormat.QR_CODE, 0, 0, hints);
+            // 8 px per module: sharp once the template scales it to ~22 mm
+            int scale = 8;
+            BufferedImage image = new BufferedImage(matrix.getWidth() * scale, matrix.getHeight() * scale,
+                    BufferedImage.TYPE_BYTE_BINARY);
+            for (int y = 0; y < image.getHeight(); y++)
+                for (int x = 0; x < image.getWidth(); x++)
+                    image.setRGB(x, y, matrix.get(x / scale, y / scale) ? 0x000000 : 0xFFFFFF);
+            ByteArrayOutputStream png = new ByteArrayOutputStream();
+            ImageIO.write(image, "png", png);
+            return "data:image/png;base64," + Base64.getEncoder().encodeToString(png.toByteArray());
+        } catch (WriterException | IOException ex) {
+            throw new IllegalStateException("could not draw the verification QR code", ex);
+        }
     }
 
     // the intervention's final file (ExpertiseDossierService.dossier)

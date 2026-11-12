@@ -1,0 +1,176 @@
+{
+  "title": "Fiche de réclamation fournisseur",
+  "type": "INSPECTION",
+  "instructions": "Enregistrez la réclamation au fournisseur, puis son traitement et sa clôture au fil des échanges : enregistrez la fiche et reprenez-la dans « Fiches en cours ».",
+  "layout": "CONTROL_SHEET",
+  "paperReference": "EN-PNC-QU-04",
+  "paperEdition": "1.0",
+  "paperDate": "26/02/2024",
+  "fillRoles": [
+    "USER",
+    "MANAGER",
+    "SALES",
+    "BUSINESS_OPS",
+    "CONTRACT_ADMIN",
+    "PROJECT_LEAD",
+    "WORKSHOP_LEAD",
+    "HSE",
+    "STOREKEEPER",
+    "QUALITY",
+    "BILLING"
+  ],
+  "readRoles": [
+    "QUALITY",
+    "STOREKEEPER"
+  ],
+  "items": [
+    {
+      "labelFr": "Informations sur le demandeur : Date de détection de la non-conformité",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "DATE",
+      "options": {
+        "meta": "inspectionDate"
+      }
+    },
+    {
+      "labelFr": "Informations sur le demandeur : Nom",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Demandeur"
+      }
+    },
+    {
+      "labelFr": "Informations sur le demandeur : Service",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Demandeur"
+      }
+    },
+    {
+      "labelFr": "Informations sur le demandeur : Mail",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Coordonnées"
+      }
+    },
+    {
+      "labelFr": "Informations sur le demandeur : Téléphone",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Coordonnées"
+      }
+    },
+    {
+      "labelFr": "Information sur le produit : Produit",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "meta": "equipment",
+        "group": "Produit"
+      }
+    },
+    {
+      "labelFr": "Information sur le produit : Référence",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Produit"
+      }
+    },
+    {
+      "labelFr": "Information sur le produit : Quantité",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Produit"
+      }
+    },
+    {
+      "labelFr": "Information sur le produit : Fournisseur",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Commande"
+      }
+    },
+    {
+      "labelFr": "Information sur le produit : N° de la commande",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Commande"
+      }
+    },
+    {
+      "labelFr": "Information sur le produit : N° bon de livraison",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Commande"
+      }
+    },
+    {
+      "labelFr": "Informations sur la réclamation : Description de la réclamation",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Informations sur la réclamation : Problème récurrent",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Oui",
+          "Non"
+        ]
+      }
+    },
+    {
+      "labelFr": "Traitement de la réclamation : Traitement de la réclamation",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    },
+    {
+      "labelFr": "Clôture de la réclamation : Réclamation clôturée",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Oui",
+          "Non"
+        ]
+      }
+    },
+    {
+      "labelFr": "Clôture de la réclamation : Date de clôture",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "DATE"
+    },
+    {
+      "labelFr": "Enregistrement : N° de la réclamation fournisseur",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT"
+    }
+  ]
+}

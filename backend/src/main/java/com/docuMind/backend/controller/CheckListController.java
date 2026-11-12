@@ -5,6 +5,7 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -41,17 +42,17 @@ public class CheckListController{
 
     // there should be an id attached or idk.
     @GetMapping("/inspectionForm/{id}")
-    public ResponseEntity<InspectionFormResponse>getInspectionForm(@PathVariable String id)
+    public ResponseEntity<InspectionFormResponse>getInspectionForm(@PathVariable String id, Authentication authentication)
     {
-        InspectionFormResponse response = checkListService.getInspectionForm(id);
+        InspectionFormResponse response = checkListService.getInspectionForm(id, authentication.getName());
         return ResponseEntity.ok(response);
     }
 
-    // reutrn [{type, title, id}, ...] of all ACTIVE FORM
+    // reutrn [{type, title, id}, ...] of the ACTIVE FORMS the caller's role may fill
     @GetMapping("/options")
-    public ResponseEntity<FormOptionsResponse>getFormOptions()
+    public ResponseEntity<FormOptionsResponse>getFormOptions(Authentication authentication)
     {
-        FormOptionsResponse response = checkListService.getFormOptions();
+        FormOptionsResponse response = checkListService.getFormOptions(authentication.getName());
         return ResponseEntity.ok(response);
     }
 

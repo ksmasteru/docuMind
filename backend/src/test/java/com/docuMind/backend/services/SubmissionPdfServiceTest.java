@@ -14,10 +14,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 
 import javax.imageio.ImageIO;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.rendering.ImageType;
+import org.apache.pdfbox.rendering.PDFRenderer;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.junit.jupiter.api.Test;
 import org.thymeleaf.spring6.SpringTemplateEngine;
@@ -26,6 +29,11 @@ import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 
 import com.docuMind.backend.model.SubmissionReport;
 import com.docuMind.backend.model.SubmissionReport.ReportRow;
+import com.google.zxing.BinaryBitmap;
+import com.google.zxing.DecodeHintType;
+import com.google.zxing.RGBLuminanceSource;
+import com.google.zxing.common.HybridBinarizer;
+import com.google.zxing.qrcode.QRCodeReader;
 
 // Renders the real template with the real fonts, without Spring or a database, so the
 // PDF (fonts, Arabic, record accessors in the template) is checked by `mvn test`.
@@ -112,6 +120,42 @@ class SubmissionPdfServiceTest {
             assertTrue(text.contains("Hicham Essaquy"), "inspector");
             assertTrue(text.contains("Vue de face."), "photo comment");
             assertTrue(text.contains("Photo non disponible"), "unreadable photo note");
+        }
+    }
+
+    // a sent report ends with its verification block, and its QR code scans to the report's URL
+    @Test
+    void printsAQrCodeThatScansToTheVerificationPage() throws Exception
+    {
+        SubmissionReport r = sampleReport();
+        String url = "https://greensense.example/verify/7K3F-9QXM-2B4C-8DHN";
+        SubmissionReport sent = new SubmissionReport(r.title(), r.type(), r.version(), r.instructions(),
+                r.submissionId(), r.equipment(), r.inspectionDate(), r.inspector(), r.submittedAt(), r.status(),
+                r.remarks(), r.answers(), r.extraParts(),
+                new SubmissionReport.Verification("7K3F-9QXM-2B4C-8DHN", url));
+
+        byte[] pdf = service().render(sent);
+        Files.createDirectories(Path.of("target", "pdf-preview"));
+        Files.write(Path.of("target", "pdf-preview", "submission-verified.pdf"), pdf);
+
+        try (PDDocument document = PDDocument.load(pdf)) {
+            String text = new PDFTextStripper().getText(document).replaceAll("\\s+", " ");
+            assertTrue(text.contains("7K3F-9QXM-2B4C-8DHN"), "code printed for typing in");
+            assertTrue(text.contains(url), "url printed");
+
+            // the block is at the end: scan the last page as printed (300 dpi)
+            BufferedImage page = new PDFRenderer(document)
+                    .renderImageWithDPI(document.getNumberOfPages() - 1, 300, ImageType.RGB);
+            ImageIO.write(page, "png", Path.of("target", "pdf-preview", "submission-verified-last-page.png").toFile());
+            int[] pixels = page.getRGB(0, 0, page.getWidth(), page.getHeight(), null, 0, page.getWidth());
+            BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(
+                    new RGBLuminanceSource(page.getWidth(), page.getHeight(), pixels)));
+            assertEquals(url, new QRCodeReader().decode(bitmap, Map.of(DecodeHintType.TRY_HARDER, true)).getText());
+        }
+
+        // a preview not sent has no code: no block
+        try (PDDocument document = PDDocument.load(service().render(r))) {
+            assertFalse(new PDFTextStripper().getText(document).contains("Code de vérification"));
         }
     }
 }

@@ -6,11 +6,13 @@ export const PRIORITY_RANK = { URGENT: 0, HIGH: 1, NORMAL: 2, LOW: 3 };
 
 export const PRIORITY_LABEL = { URGENT: "Urgente", HIGH: "Haute", NORMAL: "Normale", LOW: "Basse" };
 
+// a priority's tint, from the theme's status tokens: the badge (managerUi PriorityBadge) and the
+// selected chip of the assign forms
 export const PRIORITY_STYLE = {
-    URGENT: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
-    HIGH:   "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300",
-    NORMAL: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
-    LOW:    "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
+    URGENT: "bg-crit/10 text-crit",
+    HIGH:   "bg-warn/10 text-warn",
+    NORMAL: "bg-standby/10 text-standby",
+    LOW:    "bg-muted text-muted-foreground",
 };
 
 // TaskType on the backend
@@ -78,10 +80,10 @@ export const buttonBase = "rounded-lg px-3 py-1.5 text-sm font-medium transition
 
 // an active order's status (TaskStatus on the backend); blocked and returned orders stand out
 export const ORDER_STATUS = {
-    ASSIGNED: { label: "Assigné",     style: "text-slate-500 dark:text-slate-400" },
-    STARTED:  { label: "En cours",    style: "text-emerald-700 dark:text-emerald-400" },
-    BLOCKED:  { label: "Bloqué",      style: "font-medium text-orange-700 dark:text-orange-400" },
-    RETURNED: { label: "À corriger",  style: "font-medium text-red-700 dark:text-red-400" },
+    ASSIGNED: { label: "Assigné",     style: "text-muted-foreground" },
+    STARTED:  { label: "En cours",    style: "text-ok" },
+    BLOCKED:  { label: "Bloqué",      style: "font-medium text-warn" },
+    RETURNED: { label: "À corriger",  style: "font-medium text-crit" },
 };
 
 // an active order past its due date (the due date itself is still on time)
@@ -106,11 +108,10 @@ export const plural = (n, singular, pluralForm = `${singular}s`) => (n > 1 ? plu
 // 12900 -> "12,9 k"
 export const compact = (value) => new Intl.NumberFormat("fr-FR", { notation: "compact", maximumFractionDigits: 1 }).format(value);
 
-// The chart colors of the dashboards, light and dark picked separately (dataviz palette checks):
-// the PHOVA blue as the single series, darkened from #5BC6E8 on dark so it stays inside the
-// readable lightness band; recessive gray for the grid and axes.
+// The chart colors of the pages, from the theme's tokens (index.css): the accent as the single
+// series (PHOVA blue on light, cyan on dark), recessive hairline grays for the grid and axes.
 const CHART_COLORS = {
-    light: { series: "#1A75BC", grid: "#e2e8f0", axis: "#cbd5e1", muted: "#64748b", surface: "#ffffff" },
-    dark:  { series: "#2B9BD3", grid: "#334155", axis: "#475569", muted: "#94a3b8", surface: "#1e293b" },
+    light: { series: "#1a75bc", grid: "#eceff2", axis: "#e1e4e8", muted: "#5d6773", surface: "#ffffff" },
+    dark:  { series: "#5bc6e8", grid: "#1d232a", axis: "#262d35", muted: "#9aa4ae", surface: "#11151a" },
 };
 export const chartColors = (isDark) => CHART_COLORS[isDark ? "dark" : "light"];

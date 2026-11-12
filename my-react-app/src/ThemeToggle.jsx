@@ -21,13 +21,14 @@ function MoonIcon() {
   );
 }
 
-export function ThemeToggle() {
+// className: replaces the default look (the dashboard's console header passes its own)
+export function ThemeToggle({ className = "flex items-center justify-center rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100" }) {
   const { isDark, toggle } = useTheme();
   return (
     <button
       onClick={toggle}
       aria-label={isDark ? "Passer en mode clair" : "Passer en mode sombre"}
-      className="flex items-center justify-center rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100"
+      className={className}
     >
       {isDark ? <SunIcon /> : <MoonIcon />}
     </button>

@@ -26,17 +26,40 @@ public record SubmissionReport(
     String status,           // "CONFORME" | "NON_CONFORME"
     String remarks,
     List<ReportRow> answers, // sorted by position
-    List<ExtraPart> extraParts // v2 expertise reports: the parts the technician added; empty otherwise
+    List<ExtraPart> extraParts, // v2 expertise reports: the parts the technician added; empty otherwise
+    Verification verification,  // the code and URL printed with the QR code; null for a preview not sent
+    Paper paper                 // the paper sheet a control sheet replaces (its header); null for the other forms
 )
 {
+    // a report without a paper sheet's header (every form but the control sheets)
+    public SubmissionReport(String title, String type, int version, String instructions, String submissionId,
+                            String equipment, String inspectionDate, String inspector, String submittedAt,
+                            String status, String remarks, List<ReportRow> answers, List<ExtraPart> extraParts,
+                            Verification verification)
+    {
+        this(title, type, version, instructions, submissionId, equipment, inspectionDate, inspector,
+             submittedAt, status, remarks, answers, extraParts, verification, null);
+    }
+
     // a report without added parts (every form but the v2 expertise reports)
     public SubmissionReport(String title, String type, int version, String instructions, String submissionId,
                             String equipment, String inspectionDate, String inspector, String submittedAt,
                             String status, String remarks, List<ReportRow> answers)
     {
         this(title, type, version, instructions, submissionId, equipment, inspectionDate, inspector,
-             submittedAt, status, remarks, answers, List.of());
+             submittedAt, status, remarks, answers, List.of(), null, null);
     }
+
+    // the paper sheet's header: "EN-PFD-MIC-01", edition "2.0", dated "29/03/2024" (CheckListTemplate).
+    // graded: the form has a critical question, so a result (conforme / non conforme) means something;
+    // a complaint or a certificate has none, and shows no result
+    public record Paper(String reference, String edition, String date, boolean graded) {}
+
+    // where the printed report can be checked (ReportVerification)
+    public record Verification(
+        String code,  // "7K3F-9QXM-2B4C-8DHN", as printed
+        String url    // what the QR code holds: https://…/verify/7K3F-9QXM-2B4C-8DHN
+    ) {}
 
     public record ReportRow(
         int position,

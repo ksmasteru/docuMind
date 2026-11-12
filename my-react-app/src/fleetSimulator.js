@@ -9,7 +9,7 @@
 // have to match.
 import { useSyncExternalStore } from "react";
 
-const TICK_MS = 5000;
+export const TICK_MS = 5000; // one reading per pump every 5 s; the dashboard header shows the countdown
 const HISTORY_POINTS = 120; // 10 min of total flow, and of each pump's readings, at one point per tick
 
 // a pump that sent nothing for this long is offline, whatever its last state was

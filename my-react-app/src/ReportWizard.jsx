@@ -9,6 +9,9 @@
 //   draft    ← GET    /api/v1/drafts?templateId&taskId   when the form opens: the report resumes where it stopped
 //            → PUT    /api/v1/drafts                     on every page change, « Enregistrer », the app going to the background
 //            → DELETE /api/v1/drafts                     « Recommencer »; the server deletes it itself once the report is sent
+//   ticket   a control sheet opened outside a task (layout CONTROL_SHEET) is a ticket instead: several may be open
+//            on one form, so it's saved and resumed by its id (« Fiches en cours » on the Formulaires page):
+//            ← GET /api/v1/drafts/{id}   → POST /api/v1/drafts/tickets (first save)   → PUT / DELETE /api/v1/drafts/{id}
 //   preview  → POST   /api/v1/submissions/preview        « Aperçu du PDF »: the PDF as it stands, nothing saved
 //   lists    ← GET    /api/v1/submissions/known-values   the values already written in the Client / dossier fields
 //
@@ -25,14 +28,15 @@ import { apiClient } from "./apiClient";
 import { useAuth } from "./AuthContext";
 import { useVoiceInput } from "./useVoiceInput";
 import { SentReport } from "./InspectionForm";
+import { rememberSave, ticketsChanged } from "./OpenTickets";
 import { shrinkPhoto } from "./photoUtils";
 import { isTypingField } from "./keepFocusVisible";
 import {
-    EXTRA_PART_FINDINGS, EXTRA_PART_RECOMMENDATIONS, INSPECTION_RUBRIQUE, buildPages, dictatedShort, dictationContext, emptyValue, formatOf, groupsOf,
+    EXTRA_PART_FINDINGS, EXTRA_PART_RECOMMENDATIONS, INSPECTION_RUBRIQUE, buildPages, dictatedShort, dictationContext, formatOf, groupsOf,
     isAnswered, isPartFilled, metaQuestion, newExtraPart, newSummaryRow, optionsOf, photoProblems, requestBody, splitLabel, suggestionsOf,
-    summaryRowsFrom, todayLocal, draftPayload, restoreDraft, listOptions, SEARCHABLE_GROUP,
+    summaryRowsFrom, todayLocal, draftPayload, restoreDraft, listOptions, SEARCHABLE_GROUP, startValue, tableResult,
 } from "./reportV2";
-import { ChoiceField, FindingsField, MeasureField, PartsSummaryField, PhotoGallery, SearchField, TextField, WithMic, fieldInput } from "./ReportV2Fields";
+import { ChoiceField, FindingsField, MeasureField, PartsSummaryField, PhotoGallery, SearchField, TableField, TextField, WithMic, fieldInput } from "./ReportV2Fields";
 
 // "2026-11-08T13:32:05Z" → "08/11 14:32", the device's time
 const savedAtText = (iso) => {
@@ -69,7 +73,7 @@ const EXTRA_RECOMMENDATION_OPTIONS = { choices: EXTRA_PART_RECOMMENDATIONS, allo
 // the answers a template starts with: the pump filled in from the task, the report's date today
 const initialAnswers = (template, initialEquipment) => {
     const answers = {};
-    template.questions.forEach((q) => { answers[q.id] = { value: emptyValue(q.answerType), comment: "" }; });
+    template.questions.forEach((q) => { answers[q.id] = { value: startValue(q), comment: "" }; });
     const equipment = metaQuestion(template.questions, "equipment");
     if (equipment && initialEquipment) answers[equipment.id].value = initialEquipment;
     const date = metaQuestion(template.questions, "inspectionDate");
@@ -77,7 +81,16 @@ const initialAnswers = (template, initialEquipment) => {
     return answers;
 };
 
-export default function ReportWizard({ template, taskId = null, initialEquipment = "", onSubmitted }) {
+// a ticket's line in « Fiches en cours »: what it's about and its date, from the form's equipment / date fields
+const ticketLabel = (template, answers) => {
+    const equipment = (answers[metaQuestion(template.questions, "equipment")?.id]?.value ?? "").trim();
+    const date = answers[metaQuestion(template.questions, "inspectionDate")?.id]?.value ?? "";
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(date) ? date.split("-").reverse().join("/") : "";
+    return [equipment, day].filter(Boolean).join(" · ") || null;
+};
+
+// ticketId: the ticket to resume (« Fiches en cours »); null starts a new one. onTicket(id): the ticket was created
+export default function ReportWizard({ template, taskId = null, initialEquipment = "", onSubmitted, ticketId = null, onTicket }) {
     const { user } = useAuth();
     const [answers, setAnswers] = useState(() => initialAnswers(template, initialEquipment));
     const [extraParts, setExtraParts] = useState([]);
@@ -101,6 +114,35 @@ export default function ReportWizard({ template, taskId = null, initialEquipment
     const [known, setKnown] = useState({});
     // the state the background save sends (kept current by an effect: refs aren't read while drawing)
     const latest = useRef(null);
+    // a ticket: its id once the first save created it, and that first save while it runs (a second save
+    // waits for it instead of creating a second ticket)
+    const ticket = template.layout === "CONTROL_SHEET" && !taskId;
+    const ticketRef = useRef(ticketId);
+    const creating = useRef(null);
+
+    // saves the draft, or the ticket: created on its first save, updated after
+    const storeDraft = async (state) => {
+        const payload = draftPayload(state);
+        if (!ticket)
+            return (await apiClient.put("/api/v1/drafts", { templateId: template.id, taskId, payload })).data;
+        const label = ticketLabel(template, state.answers);
+        if (!ticketRef.current && creating.current) await creating.current.catch(() => null);
+        if (ticketRef.current) {
+            const { data } = await apiClient.put(`/api/v1/drafts/${ticketRef.current}`, { payload, label });
+            ticketsChanged();
+            return data;
+        }
+        creating.current = apiClient.post("/api/v1/drafts/tickets", { templateId: template.id, payload, label });
+        try {
+            const { data } = await creating.current;
+            ticketRef.current = data.id;
+            onTicket?.(data.id);
+            ticketsChanged();
+            return data;
+        } finally {
+            creating.current = null;
+        }
+    };
 
     // the photos' local previews, released when the report goes away
     const previews = useRef([]);
@@ -134,7 +176,10 @@ export default function ReportWizard({ template, taskId = null, initialEquipment
         const load = async () => {
             let restored = null, at = null;
             try {
-                const response = await apiClient.get("/api/v1/drafts", { params: { templateId: template.id, ...(taskId ? { taskId } : {}) } });
+                // a new ticket starts empty; a ticket is resumed by its id; any other form by form and task
+                const response = ticket
+                    ? (ticketId ? await apiClient.get(`/api/v1/drafts/${ticketId}`) : { status: 204 })
+                    : await apiClient.get("/api/v1/drafts", { params: { templateId: template.id, ...(taskId ? { taskId } : {}) } });
                 if (response.status === 200 && response.data?.payload) {
                     restored = restoreDraft(response.data.payload, template, initialAnswers(template, initialEquipment));
                     at = response.data.updatedAt;
@@ -160,9 +205,9 @@ export default function ReportWizard({ template, taskId = null, initialEquipment
         };
         load();
         return () => { cancelled = true; };
-        // once per form and task: a later change of the initial equipment mustn't reload the draft
+        // once per form, task and ticket: a later change of the initial equipment mustn't reload the draft
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [template.id, taskId]);
+    }, [template.id, taskId, ticketId]);
 
     // the searchable lists' values, once
     useEffect(() => {
@@ -288,7 +333,7 @@ export default function ReportWizard({ template, taskId = null, initialEquipment
         if (draft.loading || result) return;
         setDraft((d) => ({ ...d, saving: true, error: null }));
         try {
-            const { data } = await apiClient.put("/api/v1/drafts", { templateId: template.id, taskId, payload: draftPayload(state) });
+            const data = await storeDraft(state);
             setDraft((d) => ({ ...d, saving: false, savedAt: data.updatedAt }));
         }
         catch (err) {
@@ -306,13 +351,29 @@ export default function ReportWizard({ template, taskId = null, initialEquipment
     useEffect(() => {
         const onHide = () => {
             if (document.visibilityState !== "hidden" || !latest.current) return;
-            apiClient.put("/api/v1/drafts", { templateId: template.id, taskId, payload: draftPayload(latest.current) })
-                .then(({ data }) => setDraft((d) => ({ ...d, savedAt: data.updatedAt, error: null })))
+            storeDraft(latest.current)
+                .then((data) => setDraft((d) => ({ ...d, savedAt: data.updatedAt, error: null })))
                 .catch((err) => console.log("draft not saved in the background", err));
         };
         document.addEventListener("visibilitychange", onHide);
         return () => document.removeEventListener("visibilitychange", onHide);
+        // storeDraft reads the ticket's id from its ref: no need to listen again when it's created
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [template.id, taskId]);
+
+    // A ticket left for another one (« Nouvelle réclamation », « Fiches en cours ») saves itself as it closes,
+    // so nothing typed since the last page change is lost. Not when nothing was written yet: opening a
+    // form to look at it mustn't leave an empty ticket behind (the date filled in today doesn't count)
+    useEffect(() => () => {
+        const state = latest.current;
+        if (!ticket || !state) return;
+        const dateQ = metaQuestion(template.questions, "inspectionDate");
+        const written = template.questions.some((q) => q.id !== dateQ?.id && isAnswered(q, state.answers[q.id]))
+            || !!state.remarks?.trim() || state.extraParts.length > 0;
+        if (written || ticketRef.current) rememberSave(storeDraft(state));
+        // once, as the sheet closes: storeDraft reads the ticket from its refs
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // every page change saves the draft (form-draft-persistence.md: « on Suivant »), with the page to come back to
     const go = (to) => {
@@ -326,7 +387,11 @@ export default function ReportWizard({ template, taskId = null, initialEquipment
     const discardDraft = async () => {
         if (!window.confirm("Effacer ce brouillon et recommencer le rapport à zéro ?")) return;
         try {
-            await apiClient.delete("/api/v1/drafts", { params: { templateId: template.id, ...(taskId ? { taskId } : {}) } });
+            if (!ticket)
+                await apiClient.delete("/api/v1/drafts", { params: { templateId: template.id, ...(taskId ? { taskId } : {}) } });
+            else if (ticketRef.current)
+                await apiClient.delete(`/api/v1/drafts/${ticketRef.current}`);
+            ticketRef.current = null;
         }
         catch (err) {
             console.log("draft not deleted", err);
@@ -374,9 +439,14 @@ export default function ReportWizard({ template, taskId = null, initialEquipment
         const found = [];
         const dateQ = metaQuestion(template.questions, "inspectionDate");
         if (!(answers[equipmentQ?.id]?.value ?? "").trim())
-            found.push(`Renseignez « ${equipmentQ ? splitLabel(equipmentQ.labelFr).field : "l'équipement"} » (Informations générales).`);
+            found.push(`Renseignez « ${equipmentQ ? splitLabel(equipmentQ.labelFr).field : "l'équipement"} » (${equipmentQ ? splitLabel(equipmentQ.labelFr).rubrique : "Informations générales"}).`);
         if (!answers[dateQ?.id]?.value)
-            found.push(`Renseignez « ${dateQ ? splitLabel(dateQ.labelFr).field : "la date"} » (Informations générales).`);
+            found.push(`Renseignez « ${dateQ ? splitLabel(dateQ.labelFr).field : "la date"} » (${dateQ ? splitLabel(dateQ.labelFr).rubrique : "Informations générales"}).`);
+        // a tolerance written the wrong way round: the server would refuse the sheet
+        template.questions.filter((q) => q.answerType === "TABLE").forEach((q) => {
+            if ((answers[q.id].value.rows ?? []).some((r) => tableResult(optionsOf(q), r) === "invalid"))
+                found.push(`« ${splitLabel(q.labelFr).field} » : une tolérance inférieure est au-dessus de la supérieure (écrivez-les signées : −0,05 / +0,02).`);
+        });
         const { uploading, failed } = photoProblems(answers, extraParts);
         if (uploading) found.push(`${uploading} photo(s) en cours d'envoi : attendez la fin.`);
         if (failed) found.push(`${failed} photo(s) n'ont pas pu être envoyées : supprimez-les ou remplacez-les.`);
@@ -392,7 +462,9 @@ export default function ReportWizard({ template, taskId = null, initialEquipment
 
         setSending(true);
         try {
-            const { data } = await apiClient.post("/api/v1/submissions", requestBody({ template, answers, extraParts, remarks, taskId }));
+            // a ticket names itself: the server deletes it with the report's save
+            const { data } = await apiClient.post("/api/v1/submissions",
+                { ...requestBody({ template, answers, extraParts, remarks, taskId }), ...(ticket && ticketRef.current ? { draftId: ticketRef.current } : {}) });
             setResult(data);
             // the server deleted the draft with the report's save
             setDraft((d) => ({ ...d, savedAt: null, restoredAt: null, error: null }));
@@ -428,7 +500,7 @@ export default function ReportWizard({ template, taskId = null, initialEquipment
     // what the footer says about the draft
     const draftLine = draft.saving ? "Enregistrement…"
         : draft.error ? "Non enregistré"
-        : draft.savedAt ? `Enregistré ${savedAtText(draft.savedAt)}` : "Pas encore enregistré";
+        : draft.savedAt ? `Enregistré ${savedAtText(draft.savedAt)}${ticket ? " · à reprendre dans « Fiches en cours »" : ""}` : "Pas encore enregistré";
 
     return (
     <div ref={top} onKeyDown={closeKeyboardOnLastField} className="mx-auto w-full max-w-4xl scroll-mt-4 space-y-4">
@@ -636,7 +708,8 @@ export default function ReportWizard({ template, taskId = null, initialEquipment
                 </div>
             )}
 
-            {result && <SentReport submissionId={result.id} status={result.status} />}
+            {/* a form without a critical question (a complaint) has no result to show */}
+            {result && <SentReport submissionId={result.id} status={template.questions.some((q) => q.critical) ? result.status : null} />}
         </section>
         )}
     </div>)
@@ -685,6 +758,9 @@ function Question({ q, answer, setAnswer, uploadInto, voiceFor, pageQuestions, l
         case "MEASURE":
             control = <MeasureField value={value} onChange={onChange} options={options} label={field} disabled={locked}
                 mic={(deliver) => voiceFor(`${q.id}:measure`, dictationContext(q, { kind: "measure" }), deliver)} />;
+            break;
+        case "TABLE":
+            control = <TableField value={value} onChange={onChange} options={options} disabled={locked} label={field} />;
             break;
         case "PARTS_SUMMARY":
             control = <PartsSummaryField value={value} onChange={onChange} options={options} onGenerate={onGenerate} disabled={locked} id={q.id}

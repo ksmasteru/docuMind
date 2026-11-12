@@ -17,8 +17,11 @@ import com.docuMind.backend.model.CheckListItem;
 import com.docuMind.backend.model.CheckListTemplate;
 import com.docuMind.backend.model.FormCreationDto;
 import com.docuMind.backend.model.FormCreationDto.FormItem;
+import com.docuMind.backend.model.User;
+import com.docuMind.backend.model.enums.UserRole;
 import com.docuMind.backend.repository.CheckListTemplateRepository;
 import com.docuMind.backend.repository.SubmissionRepository;
+import com.docuMind.backend.repository.UserRepository;
 import com.docuMind.backend.model.FormOptionsResponse;
 import com.docuMind.backend.model.InspectionFormResponse;
 
@@ -31,13 +34,23 @@ public class CheckListTemplateService{
     private final SubmissionRepository submissionRepository;
     // the questions' options (choices, units…) of the v2 expertise reports
     private final StructuredAnswers structuredAnswers;
+    // the caller's role: a form names the roles that may fill it (CheckListTemplate.fillRoles)
+    private final UserRepository userRepository;
 
     public CheckListTemplateService(CheckListTemplateRepository checkListTemplateRepository,
-                                    SubmissionRepository submissionRepository, StructuredAnswers structuredAnswers)
+                                    SubmissionRepository submissionRepository, StructuredAnswers structuredAnswers,
+                                    UserRepository userRepository)
     {
         this.checkListTemplateRepository = checkListTemplateRepository;
         this.submissionRepository = submissionRepository;
         this.structuredAnswers = structuredAnswers;
+        this.userRepository = userRepository;
+    }
+
+    // the role of the user with this email, null if unknown (then only the forms open to every role)
+    private UserRole roleOf(String userId)
+    {
+        return userRepository.findByEmail(userId).map(User::getRole).orElse(null);
     }
 
     // deletes a form (and its questions, via cascade) by id.
@@ -57,10 +70,13 @@ public class CheckListTemplateService{
 
     // gets the an active form with the path variable label.
     // !!!TO IMPLEMENT : The page first shows the list of active forms, and the user picks one, which gives you its id. 
-    public InspectionFormResponse getInspectionForm(String id)
+    // A form the caller's role may not fill is "not found", like an unknown id: the quality control
+    // sheets stay out of the technicians' reach.
+    public InspectionFormResponse getInspectionForm(String id, String userId)
     {
         // if no form has this id, FormNotFoundException → 404 (see GlobalExceptionHandler)
         CheckListTemplate fetchedTemplate = checkListTemplateRepository.findById(id)
+                .filter(t -> t.canFill(roleOf(userId)))
                 .orElseThrow(() -> new FormNotFoundException("no form with id " + id));
 
         // a record is built once, with all its values: build the question list first
@@ -73,7 +89,8 @@ public class CheckListTemplateService{
         }
         return new InspectionFormResponse(fetchedTemplate.getId(), fetchedTemplate.getTitle(),
                     fetchedTemplate.getCheckListType(), fetchedTemplate.getVersion(),
-                    fetchedTemplate.getInstructions(), items);
+                    fetchedTemplate.getInstructions(), items,
+                    fetchedTemplate.getLayout(), fetchedTemplate.getPaperReference());
     }
 
     // input -- > output
@@ -100,6 +117,12 @@ public class CheckListTemplateService{
         template.setTitle(newForm.title());
         template.setCheckListType(newForm.type());
         template.setInstructions(newForm.instructions());
+        template.setLayout(newForm.layout());
+        template.setPaperReference(blankToNull(newForm.paperReference()));
+        template.setPaperEdition(blankToNull(newForm.paperEdition()));
+        template.setPaperDate(blankToNull(newForm.paperDate()));
+        template.setFillRoles(newForm.fillRoles());
+        template.setReadRoles(newForm.readRoles());
 
         // getting the items out of newForm
         List <FormItem> formItems = newForm.items();
@@ -144,15 +167,18 @@ public class CheckListTemplateService{
 
     }
 
-    public FormOptionsResponse getFormOptions()
+    // the active forms the caller's role may fill (a manager assigning a task sees the same list)
+    public FormOptionsResponse getFormOptions(String userId)
     {
-        // db query : get all actif. ?
-        List<CheckListTemplate> forms = checkListTemplateRepository.findByActiveTrue();
+        UserRole role = roleOf(userId);
+        List<CheckListTemplate> forms = checkListTemplateRepository.findByActiveTrue().stream()
+                .filter(t -> t.canFill(role))
+                .toList();
         List<FormOptionsResponse.FormOptionItem> items = new ArrayList<>();
         for (CheckListTemplate form : forms)
         {
             items.add(new FormOptionsResponse.FormOptionItem(form.getCheckListType(), 
-                    form.getTitle(), form.getId()));
+                    form.getTitle(), form.getId(), form.getLayout()));
         }
         FormOptionsResponse response = new FormOptionsResponse(items, items.size());
         return response;
@@ -165,5 +191,10 @@ public class CheckListTemplateService{
             if (t instanceof SQLException sql && "23505".equals(sql.getSQLState()))
                 return true;
         return false;
+    }
+
+    private static String blankToNull(String text)
+    {
+        return text == null || text.isBlank() ? null : text.strip();
     }
 }

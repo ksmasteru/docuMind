@@ -12,9 +12,12 @@ A saved draft, as the app gets it back when a form is opened:
 }
 payload is the form state exactly as the app saved it: the app JSON.parse's it and fills its fields.
 No question types here: the app already has them from the template.
-Not sent on purpose: the id and the user (the draft is found by user + form + task).
+The user isn't sent: it comes from the token. The id is what a ticket is found by
+(the control sheets opened outside a task: several drafts of one form, FormDraftService.tickets).
 */
 public record FormDraftDto(
+    String id,
+
     String templateId,
 
     // null for a standalone checklist
@@ -23,11 +26,14 @@ public record FormDraftDto(
     String payload,
 
     // shown as "Brouillon enregistré à 14:32"
-    Instant updatedAt
+    Instant updatedAt,
+
+    // a ticket's "PHB2-0412 · 06/10/2026"; null for the other drafts
+    String label
 )
 {
     public static FormDraftDto from(FormDraft draft) {
-        return new FormDraftDto(draft.getTemplateId(), draft.getTaskId(),
-                draft.getPayload(), draft.getUpdatedAt());
+        return new FormDraftDto(draft.getId(), draft.getTemplateId(), draft.getTaskId(),
+                draft.getPayload(), draft.getUpdatedAt(), draft.getLabel());
     }
 }
