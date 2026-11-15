@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowUpRight, Bell, CheckCircle2, ClipboardList, MessageSquare, OctagonAlert, RefreshCw, SlidersHorizontal, Wrench } from "lucide-react";
+import { ArrowUpRight, Ban, Bell, CheckCircle2, ClipboardCheck, ClipboardList, Hand, HelpCircle, Megaphone, MessageSquare, OctagonAlert, OctagonX, RefreshCw, Repeat, Search, ShieldAlert, ShieldCheck, SlidersHorizontal, Undo2, Wrench, XCircle } from "lucide-react";
 import { useTheme } from "./ThemeContext";
 import { LIMITS, effectiveState } from "./fleetSimulator";
 import { METRICS } from "./pumpStates";
-import { ALERT_KINDS, ISSUE_STATUS } from "./alertContent";
+import { ALERT_KINDS, CHECK_VERDICT, CLOSE_REASON, FALSE_ALARM_CAUSE, INCONCLUSIVE_REASON, ISSUE_STATUS } from "./alertContent";
 import { Card, ChartTooltip, PriorityBadge, SimulatedBadge } from "./managerUi";
 import { ORDER_STATUS, PRIORITY_LABEL, chartColors, compact, formatDay, humanize, localIso } from "./managerUtils";
 
@@ -132,8 +132,48 @@ export function TrendCard({ pump, issue, now }) {
 
 // one line of the feed: its icon and what it says
 function describe(event, issue) {
-    const by = event.by ? <span className="font-medium text-slate-900 dark:text-slate-100">{event.by}</span> : null;
+    // the person's name, from the server; the email when the account is gone
+    const by = event.by ? <span className="font-medium text-slate-900 dark:text-slate-100">{event.byName ?? event.by}</span> : null;
+    // the other person of a request or an order (an email): his name when the case knows it
+    const nameOf = (email) => issue.requests?.find((r) => r.technicianEmail === email)?.name
+        ?? issue.orders?.find((o) => o.technicianEmail === email)?.technicianName
+        ?? (issue.check?.technicianEmail === email ? issue.check.technicianName : null) ?? email;
     switch (event.type) {
+        case "reported":
+            return { icon: Megaphone, tone: event.severity === "critical" ? "critical" : "warning",
+                text: <>{by} a signalé une panne ({SEVERITY_LABEL[event.severity]}) : {event.text}</>, body: event.message };
+        case "verified":
+            return event.to === "FALSE_ALARM"
+                ? { icon: ShieldCheck, tone: "good", text: <>{by} a vérifié sur place : <span className="font-medium">fausse alerte</span></>, body: event.text }
+                : { icon: ShieldAlert, tone: "critical", text: <>{by} a <span className="font-medium">confirmé l'alerte</span> sur place</>, body: event.text };
+        case "request":
+            return { icon: Hand, tone: "brand", text: <>{by} demande à intervenir</>, body: event.text };
+        // the check (levée de doute)
+        case "check-ordered":
+            return { icon: ClipboardCheck, tone: "brand", text: <>{by} a demandé une levée de doute à {nameOf(event.to)}</> };
+        case "check-started":
+            return { icon: Search, tone: "brand", text: <>{by} fait la levée de doute, à son initiative</> };
+        case "checked": {
+            const verdict = CHECK_VERDICT[event.to];
+            const why = event.to === "FALSE_ALARM" ? FALSE_ALARM_CAUSE[event.from] : event.to === "INCONCLUSIVE" ? INCONCLUSIVE_REASON[event.from] : null;
+            const icon = event.to === "CONFIRMED" ? ShieldAlert : event.to === "FALSE_ALARM" ? ShieldCheck : HelpCircle;
+            const tone = event.to === "CONFIRMED" ? "critical" : event.to === "FALSE_ALARM" ? "good" : "warning";
+            return { icon, tone, text: <>{by} a envoyé son rapport : <span className="font-medium">{verdict?.label.toLowerCase() ?? event.to}</span>{why ? ` (${why.toLowerCase()})` : ""}</>, body: event.text };
+        }
+        case "check-returned":
+            return { icon: Undo2, tone: "warning", text: <>{by} a renvoyé le rapport à {nameOf(event.to)} pour le compléter</>, body: event.text };
+        case "check-canceled":
+            return { icon: Ban, tone: "neutral", text: <>{by} a annulé la levée de doute de {nameOf(event.to)}</> };
+        case "check-declined":
+            return { icon: XCircle, tone: "warning", text: <>{by} a refusé la levée de doute</>, body: event.text };
+        case "urgent-stop":
+            return { icon: OctagonX, tone: "critical", text: <>{by} recommande l'<span className="font-medium">arrêt immédiat</span> de la pompe</> };
+        case "closed":
+            return { icon: CheckCircle2, tone: "good", text: <>{by} a clos l'alerte : <span className="font-medium">{CLOSE_REASON[event.to]?.toLowerCase() ?? event.to}</span></>, body: event.text };
+        case "request-accepted":
+            return { icon: CheckCircle2, tone: "good", text: <>{by} a accepté la demande de {nameOf(event.to)} : tâche « {event.text} »</> };
+        case "request-refused":
+            return { icon: XCircle, tone: "neutral", text: <>{by} a refusé la demande de {nameOf(event.to)}</>, body: event.text };
         case "raised":
             return { icon: Bell, tone: event.severity === "critical" ? "critical" : "warning",
                 text: <>Le digital twin a levé une alerte ({SEVERITY_LABEL[event.severity]}) : {event.message}</> };
@@ -143,6 +183,13 @@ function describe(event, issue) {
             return { icon: CheckCircle2, tone: "good", text: <>Mesure revenue dans les limites</> };
         case "reactivated":
             return { icon: RefreshCw, tone: "warning", text: <>Alerte de nouveau active : {event.message}</> };
+        // the twin raised it again after a false alarm (to: that case's number, text: how many in 30 days)
+        case "recurred":
+            return { icon: Repeat, tone: "warning", text: <>
+                {event.from === "worse" ? "Plus grave que lors de la fausse alerte " : "Revenue après la fausse alerte "}
+                <Link to={`/alerts/${event.to}`} className="font-medium underline">#{event.to}</Link>
+                {Number(event.text) > 1 ? ` (${event.text} fausses alertes en 30 jours)` : ""} : à vérifier de nouveau sur place
+            </> };
         case "status":
             return { icon: SlidersHorizontal, text: <>{by} a passé le statut de {ISSUE_STATUS[event.from].label} à <span className="font-medium">{ISSUE_STATUS[event.to].label}</span></> };
         case "priority":
@@ -150,7 +197,7 @@ function describe(event, issue) {
         case "comment":
             return { icon: MessageSquare, text: <>{by} a commenté</>, body: event.text };
         case "order":
-            return { icon: ClipboardList, tone: "brand", text: <>{by} a créé l'ordre de travail « {event.text} » pour {event.to} sur {issue.pumpId}</> };
+            return { icon: ClipboardList, tone: "brand", text: <>{by} a créé l'ordre de travail « {event.text} » pour {nameOf(event.to)} sur {issue.pumpId}</> };
         case "workshop":
             return { icon: Wrench, tone: "brand", text: <>{by} a envoyé {issue.pumpId} en atelier{event.text ? ` (${event.text})` : ""}</> };
         default:
@@ -264,7 +311,7 @@ export function OrdersTab({ issue, tasks, loadError }) {
                                     <div className="min-w-0">
                                         <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">{order.title}</p>
                                         <p className="text-xs text-slate-500 dark:text-slate-400">
-                                            <span className={state.style}>{state.label}</span> · {order.technicianEmail} · créé le {formatDay(localIso(new Date(order.at)))}
+                                            <span className={state.style}>{state.label}</span> · {order.technicianName ?? order.technicianEmail} · créé le {formatDay(localIso(new Date(order.at)))}
                                         </p>
                                     </div>
                                     {state.task && <PriorityBadge priority={state.task.priority} />}

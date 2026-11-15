@@ -57,13 +57,12 @@ apiClient.interceptors.response.use(
     try {
       if (!refreshPromise) {
         refreshPromise = axios
-          .post(`${baseURL}/auth/refresh`, { refreshToken })
+          .post(`${baseURL ?? ""}/api/auth/refresh`, { refreshToken })
           .finally(() => {
             refreshPromise = null;
           });
       }
       const { data } = await refreshPromise;
-      console.log(`access token is ${data.accessToken}`);
       accessToken = data.accessToken;
       localStorage.setItem("refreshToken", data.refreshToken);
       onAuthChange?.(data.accessToken);

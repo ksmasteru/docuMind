@@ -6,6 +6,7 @@ import java.util.List;
 
 import com.docuMind.backend.model.enums.TaskPriority;
 import com.docuMind.backend.model.enums.TaskStatus;
+import com.docuMind.backend.model.enums.TaskType;
 
 // response for a task list: the technician's (/mine) or the manager's (/assigned)
 public record ActiveTasks(
@@ -26,12 +27,17 @@ public record ActiveTasks(
         String technicianEmail, // who the task is assigned to, for the manager's list
         long workedSeconds,     // time worked in the closed periods
         Instant activeSince,    // start of the period running now, null when not working: the task page's timer
-        String statusComment    // why it's BLOCKED, or what to redo once RETURNED
+        String statusComment,   // why it's BLOCKED, or what to redo once RETURNED
+        TaskType taskType,      // VERIFICATION: a check, whose report is the check report, not a checklist
+        Long alertNumber,       // the alert it comes from, if any
+        boolean selfAssigned,   // a check the technician started himself
+        String managerEmail     // who sent it, or reviews it
     ){
         public static Task from(TaskModel task) {
             return new Task(task.getId(), task.getTitle(), null, task.getEquipmentId(),
                     task.getDueDate(), task.getPriority(), task.getStatus(), task.getInstructions(),
-                    task.getTemplateId(), task.getTechnicianEmail(), task.getWorkedSeconds(), task.getActiveSince(), task.getStatusComment());
+                    task.getTemplateId(), task.getTechnicianEmail(), task.getWorkedSeconds(), task.getActiveSince(), task.getStatusComment(),
+                    task.getTaskType(), task.getAlertNumber(), task.isSelfAssigned(), task.getManagerEmail());
         }
     }
 

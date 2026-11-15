@@ -46,6 +46,7 @@ import com.docuMind.backend.model.enums.WorkshopStep;
 import com.docuMind.backend.repository.CheckListTemplateRepository;
 import com.docuMind.backend.repository.SubmissionRepository;
 import com.docuMind.backend.repository.FormDraftRepository;
+import com.docuMind.backend.repository.TeamRepository;
 import com.docuMind.backend.repository.UserRepository;
 
 import jakarta.transaction.Transactional;
@@ -85,6 +86,9 @@ public class SubmissionService {
     // the code and content fingerprint behind each report's QR code
     private final ReportVerification reportVerification;
 
+    // the manager of the author's team reads his reports (the technician's profile, TeamService)
+    private final TeamRepository teamRepository;
+
     public SubmissionService(SubmissionRepository submissionRepository,
                              CheckListTemplateRepository checkListTemplateRepository,
                              UserRepository userRepository,
@@ -92,9 +96,11 @@ public class SubmissionService {
                             TaskService taskService,
                             StructuredAnswers structuredAnswers,
                             FormDraftRepository formDraftRepository,
-                            ReportVerification reportVerification)
+                            ReportVerification reportVerification,
+                            TeamRepository teamRepository)
     {
         this.reportVerification = reportVerification;
+        this.teamRepository = teamRepository;
         this.structuredAnswers = structuredAnswers;
         this.formDraftRepository = formDraftRepository;
         this.submissionRepository = submissionRepository;
@@ -281,6 +287,9 @@ public class SubmissionService {
             return true;
         // the roles the form lets read every report sent with it (a control sheet: Quality, Sales…)
         if (submission.getTemplate().canReadAll(roleOf(userId)))
+            return true;
+        // the manager of the author's team: all his technician's reports, whoever assigned the task
+        if (teamRepository.isInTeam(userId, submission.getUserId()))
             return true;
         String taskId = submission.getTaskId();
         if (taskId == null)

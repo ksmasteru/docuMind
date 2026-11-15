@@ -11,7 +11,7 @@ import { useAuth } from "./AuthContext";
 import { ThemeToggle } from "./ThemeToggle";
 import phovaLogo from "./assets/phova_logo.png";
 import { TICK_MS, useFleet } from "./fleetSimulator";
-import { syncAlerts } from "./alertStore";
+import { syncAlerts, useAlertIssues } from "./alertStore";
 import { NAV_LINKS, NAV_SECTIONS, homeFor, tabsFor } from "./roleTabs";
 
 const ROLE_LABEL = { MANAGER: "Manager", ADMIN: "Administrateur", USER: "Technicien" };
@@ -157,8 +157,16 @@ export default function AppShell({ active, contentClass, children }) {
   const { alerts, updatedAt, pumps } = useFleet();
   // every page of the frame keeps the alert cases following the twin, so none is missed
   useEffect(() => syncAlerts(alerts, updatedAt), [alerts, updatedAt]);
-  const critical = alerts.filter((a) => a.severity === "critical").length;
-  const alertCount = { value: alerts.length, tone: critical ? "crit" : "warn" };
+  // what waits for the manager: the open alerts nobody checks yet (send a levée de doute), and the
+  // check reports he hasn't acted on (a confirmed alert with no work decided, a false alarm to close,
+  // a check that could not conclude)
+  const issues = useAlertIssues();
+  const open = issues.filter((i) => i.status !== "RESOLVED");
+  const toCheck = open.filter((i) => i.verification === "TO_CHECK");
+  const toDecide = open.filter((i) => ["FALSE_ALARM", "INCONCLUSIVE"].includes(i.verification)
+    || (i.verification === "CONFIRMED" && i.orders.length === 0 && (i.interventions ?? []).length === 0));
+  const critical = [...toCheck, ...toDecide].filter((i) => i.severity === "critical").length;
+  const alertCount = { value: toCheck.length + toDecide.length, tone: critical ? "crit" : "warn" };
   const closeDrawer = () => setDrawerOpen(false);
   const section = NAV_SECTIONS.find((s) => s.pages.includes(active))?.title;
 
@@ -196,13 +204,14 @@ export default function AppShell({ active, contentClass, children }) {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4">
-            <Link to="/dashboard#alerts" aria-label={`${alerts.length} alertes en direct`} title="Alertes en direct"
+            <Link to="/dashboard#alerts" aria-label={`${alertCount.value} alertes à traiter`}
+              title={`${toCheck.length} à vérifier · ${toDecide.length} ${toDecide.length > 1 ? "rapports" : "rapport"} de levée de doute à traiter`}
               className={cn("relative p-1.5", LOOK.icon)}>
               <Bell className="size-4" />
-              {alerts.length > 0 && (
+              {alertCount.value > 0 && (
                 <span className={cn("absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-data text-[10px] font-bold ring-2 ring-background",
                   critical ? "bg-crit text-background" : "bg-warn text-background")}>
-                  {alerts.length}
+                  {alertCount.value}
                 </span>
               )}
             </Link>

@@ -1,171 +1,163 @@
-// The alert cases ("#12 · PHB3-J-07 · Vibrations élevées"): what the manager decides about an alert
-// the twin raised, and what happened to it. Kept in the browser (localStorage) until the backend
-// has its Alert / AlertEvent tables; the functions below are the API those will offer.
+// The alert cases ("#12 · PHB3-J-07 · Vibrations élevées"): what the twin raised or a technician
+// reported, what the manager decided, and what the field said. They live on the server
+// (AlertController, /api/v1/alerts), shared by the manager and the technicians; this module keeps a
+// copy for the pages and the same functions they used when the cases lived in the browser.
 //
-// A case is opened the first time a live alert is seen, and follows it: it records when the alert
-// got worse or went back to normal, the manager's status / priority changes and comments, and the
-// work orders created from it. The live alert itself (severity, message) stays in useFleet().
-//
-//   { number, key: "PHB3-J-07:vibration", pumpId, site, kind, severity, raisedAt,
-//     status, priority, clearedAt, resolvedAt, orders: [{ taskId, title, technicianEmail, at }],
-//     interventions: [{ id, number, at }]   (sent to the workshop; missing on older cases),
-//     events: [{ type, at, by?, from?, to?, text?, severity?, message? }] }
+//   { number, key: "PHB3-J-07:vibration", pumpId, site, kind, source: "TWIN" | "FIELD", severity,
+//     message, raisedAt, status, priority, clearedAt, resolvedAt,
+//     report: { by, byName, equipmentModel, title, description, imageIds } | null   (a FIELD case),
+//     verifications: [{ technicianEmail, name, verdict: "CONFIRMED" | "FALSE_ALARM", comment, at }],
+//     requests: [{ id, technicianEmail, name, message, status: "PENDING" | "ACCEPTED" | "REFUSED",
+//                  at, decidedBy, decidedByName, decidedAt, comment, taskId }],
+//     orders: [{ taskId, title, technicianEmail, technicianName, at }], interventions: [{ id, number, at }],
+//     events: [{ type, at, by, byName, from, to, text, severity, message }],
+//     verification: "TO_CHECK" | "CHECK_ORDERED" | "CONFIRMED" | "FALSE_ALARM" | "INCONCLUSIVE",
+//     check: { taskId, technicianEmail, technicianName, taskStatus, statusComment, selfAssigned, assignedAt,
+//              submittedAt, round, verdict, falseAlarmCause, inconclusiveReason, urgentStop, canHandle,
+//              cannotHandleReason, comment } | null   (the current or last check, levée de doute),
+//     closeReason, closeComment }
+// Times are in milliseconds. The live alert itself (severity, message right now) stays in useFleet().
 import { useSyncExternalStore } from "react";
+import { apiClient, getAccessToken } from "./apiClient";
 
-const STORAGE_KEY = "greensense.alertCases.v1";
-const SEVERITY_RANK = { warning: 1, critical: 2 };
+const REFRESH_MS = 15000;    // what the others did (a technician's verdict, the manager's answer) shows within this
+const RESYNC_MS = 60000;     // the twin's alerts are sent when they change, and at least this often
+const STOP_AFTER_MS = 10000; // between two pages nobody listens for a moment: keep the refresh running
 
-// the default priority of a new case, from its severity (TaskPriority values)
-const PRIORITY_FOR = { critical: "HIGH", warning: "NORMAL" };
+let state = { issues: [], loaded: false, error: null };
+const listeners = new Set();
+let timer = null;
+let stopTimer = null;
+let inflight = null;
+let lastRefresh = 0;
 
-function load() {
-    try {
-        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-        if (saved?.issues) return saved;
-    }
-    catch { /* private window or blocked storage: start empty */ }
-    return { nextNumber: 1, issues: [] };
+function emit(next) {
+    state = next;
+    listeners.forEach((l) => l());
 }
 
-let state = load();
-const listeners = new Set();
+const setIssues = (issues) => emit({ issues, loaded: true, error: null });
 
-function commit(next) {
-    state = next;
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-    catch { /* the cases still live for this tab */ }
-    listeners.forEach((l) => l());
+// one case changed: it keeps its place in the list (a new one goes first)
+function upsert(issue) {
+    const found = state.issues.some((i) => i.number === issue.number);
+    setIssues(found ? state.issues.map((i) => (i.number === issue.number ? issue : i)) : [issue, ...state.issues]);
+    return issue;
+}
+
+export function refreshAlerts() {
+    if (!inflight) {
+        lastRefresh = Date.now();
+        inflight = apiClient.get("/api/v1/alerts")
+            .then(({ data }) => setIssues(data))
+            .catch((error) => emit({ ...state, loaded: true, error }))
+            .finally(() => { inflight = null; });
+    }
+    return inflight;
 }
 
 const subscribe = (listener) => {
     listeners.add(listener);
-    return () => listeners.delete(listener);
+    clearTimeout(stopTimer);
+    if (!timer) {
+        if (Date.now() - lastRefresh > 5000) refreshAlerts();
+        timer = setInterval(refreshAlerts, REFRESH_MS);
+    }
+    return () => {
+        listeners.delete(listener);
+        if (listeners.size === 0) {
+            stopTimer = setTimeout(() => { clearInterval(timer); timer = null; }, STOP_AFTER_MS);
+        }
+    };
 };
 
-// every case, newest first
-export const useAlertIssues = () => useSyncExternalStore(subscribe, () => state).issues;
+const getState = () => state;
 
-// changes one case through fn (which returns the new case)
-const update = (number, fn) =>
-    commit({ ...state, issues: state.issues.map((issue) => (issue.number === number ? fn(issue) : issue)) });
+// every case the user may see, newest first
+export const useAlertIssues = () => useSyncExternalStore(subscribe, getState).issues;
+
+// the same with how loading went: { issues, loaded, error }
+export const useAlertState = () => useSyncExternalStore(subscribe, getState);
+
+// signing in or out: the next user starts from his own cases (AuthContext.jsx)
+export function resetAlerts() {
+    lastSync = { signature: null, at: 0 };
+    lastRefresh = 0;
+    emit({ issues: [], loaded: false, error: null });
+}
 
 const isOpen = (issue) => issue.status !== "RESOLVED";
+
+// the signed-in user's email, from the session's token: after a reload AuthContext only knows the
+// role, and a technician's page needs to know which verdict and request are his
+export function sessionEmail() {
+    const token = getAccessToken();
+    if (!token) return null;
+    try {
+        const payload = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+        return JSON.parse(atob(payload)).sub ?? null;
+    }
+    catch {
+        return null;
+    }
+}
 
 // the open case following a live alert, if any
 export const openIssueFor = (issues, alertKey) => issues.find((i) => i.key === alertKey && isOpen(i));
 
-// ---- following the live alerts (AppShell calls this on every twin tick) ----
+// ---- following the live alerts (the pages running the twin call this on every tick) ----
+
+let lastSync = { signature: null, at: 0 };
 
 export function syncAlerts(alerts, now) {
-    let { nextNumber } = state;
-    let changed = false;
-    const issues = [...state.issues];
-
-    for (const alert of alerts) {
-        const index = issues.findIndex((i) => i.key === alert.id && isOpen(i));
-        if (index === -1) {
-            // a case resolved while its alert was still on covers it until the alert clears
-            if (issues.some((i) => i.key === alert.id && i.resolvedAt >= alert.since)) continue;
-            issues.unshift({
-                number: nextNumber++,
-                key: alert.id,
-                pumpId: alert.pumpId,
-                site: alert.site,
-                kind: alert.id.split(":")[1],
-                severity: alert.severity,
-                raisedAt: alert.since,
-                status: "NEW",
-                priority: PRIORITY_FOR[alert.severity],
-                clearedAt: null,
-                resolvedAt: null,
-                orders: [],
-                events: [{ type: "raised", at: alert.since, severity: alert.severity, message: alert.message }],
-            });
-            changed = true;
-            continue;
-        }
-        const issue = issues[index];
-        const events = [];
-        let { severity, clearedAt } = issue;
-        if (SEVERITY_RANK[alert.severity] > SEVERITY_RANK[severity]) {
-            events.push({ type: "escalated", at: now, from: severity, to: alert.severity, message: alert.message });
-            severity = alert.severity;
-        }
-        if (clearedAt) {
-            events.push({ type: "reactivated", at: now, message: alert.message });
-            clearedAt = null;
-        }
-        if (events.length) {
-            issues[index] = { ...issue, severity, clearedAt, events: [...issue.events, ...events] };
-            changed = true;
-        }
-    }
-
-    // an open case whose alert is gone: the reading is back within limits
-    const live = new Set(alerts.map((a) => a.id));
-    issues.forEach((issue, index) => {
-        if (isOpen(issue) && !issue.clearedAt && !live.has(issue.key)) {
-            issues[index] = { ...issue, clearedAt: now, events: [...issue.events, { type: "cleared", at: now }] };
-            changed = true;
-        }
-    });
-
-    if (changed) commit({ nextNumber, issues });
+    const signature = alerts.map((a) => `${a.id}:${a.severity}`).sort().join("|");
+    if (signature === lastSync.signature && now - lastSync.at < RESYNC_MS) return;
+    lastSync = { signature, at: now };
+    const body = {
+        at: now,
+        alerts: alerts.map(({ id, pumpId, site, severity, message, since }) => ({ id, pumpId, site, severity, message, since })),
+    };
+    apiClient.post("/api/v1/alerts/sync", body)
+        .then(({ data }) => setIssues(data))
+        .catch((err) => {
+            console.log("alerts not synced", err);
+            lastSync = { signature: null, at: 0 }; // try again on the next tick
+        });
 }
 
-// ---- the manager's actions; by: who did it (an email, or the role after a reload) ----
+// ---- actions: each answers with the case as it is now. The server knows who acts (the token) ----
 
-export function setStatus(number, status, by) {
-    update(number, (issue) => issue.status === status ? issue : {
-        ...issue,
-        status,
-        resolvedAt: status === "RESOLVED" ? Date.now() : null,
-        events: [...issue.events, { type: "status", at: Date.now(), by, from: issue.status, to: status }],
-    });
-}
+const act = (request) => request.then(({ data }) => upsert(data));
 
-export function setPriority(number, priority, by) {
-    update(number, (issue) => issue.priority === priority ? issue : {
-        ...issue,
-        priority,
-        events: [...issue.events, { type: "priority", at: Date.now(), by, from: issue.priority, to: priority }],
-    });
-}
+// the manager
+export const setStatus = (number, status) => act(apiClient.post(`/api/v1/alerts/${number}/status`, { status }));
+export const setPriority = (number, priority) => act(apiClient.post(`/api/v1/alerts/${number}/priority`, { priority }));
+export const addComment = (number, text) => act(apiClient.post(`/api/v1/alerts/${number}/comments`, { text }));
 
-export function addComment(number, text, by) {
-    update(number, (issue) => ({ ...issue, events: [...issue.events, { type: "comment", at: Date.now(), by, text }] }));
-}
+// a work order was created from the case (AssignTask.jsx, after the server answered)
+export const linkOrder = (number, order) =>
+    act(apiClient.post(`/api/v1/alerts/${number}/orders`, { taskId: order.taskId, title: order.title, technicianEmail: order.technicianEmail }));
 
-// a work order was created from the case (AssignTask.jsx, after the server answered): the case is
-// now being worked on
-export function linkOrder(number, order, by) {
-    update(number, (issue) => {
-        const at = Date.now();
-        const starts = ["NEW", "ACKNOWLEDGED"].includes(issue.status);
-        const events = [{ type: "order", at, by, text: order.title, to: order.technicianEmail }];
-        if (starts) events.push({ type: "status", at, by, from: issue.status, to: "IN_PROGRESS" });
-        return {
-            ...issue,
-            status: starts ? "IN_PROGRESS" : issue.status,
-            orders: [...issue.orders, { ...order, at }],
-            events: [...issue.events, ...events],
-        };
-    });
-}
+// the pump was sent to the workshop from the case (WorkshopRequest.jsx): intervention is { id, number }
+export const linkIntervention = (number, intervention) =>
+    act(apiClient.post(`/api/v1/alerts/${number}/interventions`, { id: intervention.id, number: intervention.number }));
 
-// the pump was sent to the workshop from the case (WorkshopRequest.jsx, after the server answered):
-// intervention is { id, number }. Cases saved before this existed have no interventions list.
-export function linkIntervention(number, intervention, by) {
-    update(number, (issue) => {
-        const at = Date.now();
-        const starts = ["NEW", "ACKNOWLEDGED"].includes(issue.status);
-        const events = [{ type: "workshop", at, by, text: intervention.number }];
-        if (starts) events.push({ type: "status", at, by, from: issue.status, to: "IN_PROGRESS" });
-        return {
-            ...issue,
-            status: starts ? "IN_PROGRESS" : issue.status,
-            interventions: [...(issue.interventions ?? []), { ...intervention, at }],
-            events: [...issue.events, ...events],
-        };
-    });
-}
+// a technician's request to intervene: accepted with the task to create, or refused with a reason
+export const acceptRequest = (requestId, task) => act(apiClient.post(`/api/v1/alerts/requests/${requestId}/accept`, task));
+export const refuseRequest = (requestId, comment) => act(apiClient.post(`/api/v1/alerts/requests/${requestId}/refuse`, { comment }));
+
+// the alert closed, with its reason (AlertCloseReason) and a comment
+export const closeAlert = (number, reason, comment) => act(apiClient.post(`/api/v1/alerts/${number}/close`, { reason, comment }));
+
+// the check (levée de doute): sent by the manager ({ technicianEmail, points, priority, dueDate, instructions }),
+// canceled, or its report sent back for more details
+export const orderCheck = (number, order) => act(apiClient.post(`/api/v1/alerts/${number}/checks`, order));
+export const cancelCheck = (number) => act(apiClient.post(`/api/v1/alerts/${number}/check/cancel`));
+export const returnCheck = (number, comment) => act(apiClient.post(`/api/v1/alerts/${number}/check/return`, { comment }));
+
+// the field: a technician starts the check himself (answers his check task's id), sends his check
+// report, or reports a fault the twin did not see
+export const selfCheck = (number, points) =>
+    apiClient.post(`/api/v1/alerts/${number}/checks/self`, { points }).then(({ data }) => { upsert(data.alert); return data.taskId; });
+export const submitCheck = (taskId, report) => act(apiClient.post(`/api/v1/checks/${taskId}/report`, report));
+export const reportFault = (report) => act(apiClient.post("/api/v1/alerts/reports", report));

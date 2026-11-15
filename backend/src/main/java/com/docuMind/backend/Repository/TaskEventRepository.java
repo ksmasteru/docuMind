@@ -18,6 +18,9 @@ public interface TaskEventRepository extends JpaRepository<TaskEvent, String>
     // uses idx_task_event_task_occurred
     List<TaskEvent> findByTaskIdOrderByOccurredAtAsc(String taskId);
 
+    // the timelines of several tasks in one query, oldest first: a technician's history (TeamService)
+    List<TaskEvent> findByTaskIdInOrderByOccurredAtAsc(java.util.Collection<String> taskIds);
+
     // the latest event of a task : a new event's occurredAt must not be before it
     Optional<TaskEvent> findFirstByTaskIdOrderByOccurredAtDesc(String taskId);
 

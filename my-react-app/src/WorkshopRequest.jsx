@@ -50,7 +50,8 @@ const WorkshopRequest = () => {
                 navigate(`/atelier/${data.id}`, { state: { notice: `Demande ${data.number ?? ""} créée. Complétez-la puis validez-la pour la transmettre.` } });
             }
             else {
-                linkIntervention(alertNumber, { id: data.id, number: data.number }, user?.email ?? "Manager");
+                linkIntervention(alertNumber, { id: data.id, number: data.number })
+                    .catch((err) => console.log("the intervention was created but not linked to the alert", err));
                 navigate(`/alerts/${alertNumber}`, { state: { notice: `${equipmentId.trim()} a été envoyée en atelier (${data.number ?? "nouvelle intervention"}). La demande attend Sales.` } });
             }
         }

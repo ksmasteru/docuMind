@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -19,9 +20,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.docuMind.backend.model.SubmissionPreview;
 import com.docuMind.backend.model.SubmissionReport;
+import com.docuMind.backend.services.CheckPdfService;
 import com.docuMind.backend.services.ExpertiseDossierService;
 import com.docuMind.backend.services.StructuredAnswers;
 import com.docuMind.backend.services.SubmissionPdfService;
+import com.docuMind.backend.services.ReportVerification;
 import com.docuMind.backend.services.SubmissionService;
 import com.docuMind.backend.services.VerificationService;
 
@@ -31,6 +34,7 @@ import jakarta.servlet.http.HttpServletRequest;
 // /verify/{code} page, which calls this. No login (clients have none): the code printed on the
 // paper is the access. The verdict only returns what the paper shows; the report itself can be
 // previewed and downloaded so it can be compared page by page with the copy in hand.
+// The codes of the check reports (levée de doute) work the same way (CheckPdfService).
 // Each address gets a limited number of calls per minute.
 @RestController
 @RequestMapping("/api/public/verify")
@@ -39,6 +43,7 @@ public class VerificationController {
     private final SubmissionService submissionService;
     private final SubmissionPdfService submissionPdfService;
     private final ExpertiseDossierService expertiseDossierService;
+    private final CheckPdfService checkPdfService;
     private final StringRedisTemplate redis;
     private final int maxPerMinute;
 
@@ -46,6 +51,7 @@ public class VerificationController {
                                   SubmissionService submissionService,
                                   SubmissionPdfService submissionPdfService,
                                   ExpertiseDossierService expertiseDossierService,
+                                  CheckPdfService checkPdfService,
                                   StringRedisTemplate redis,
                                   @Value("${app.verify.max-per-minute:30}") int maxPerMinute)
     {
@@ -53,6 +59,7 @@ public class VerificationController {
         this.submissionService = submissionService;
         this.submissionPdfService = submissionPdfService;
         this.expertiseDossierService = expertiseDossierService;
+        this.checkPdfService = checkPdfService;
         this.redis = redis;
         this.maxPerMinute = maxPerMinute;
     }
@@ -71,17 +78,18 @@ public class VerificationController {
 
     // GET /api/public/verify/{code}/pdf — the report's PDF, as the app downloads it, rebuilt from the
     // saved report (with its QR code). An altered report is still served: the page says not to trust it.
+    // A checklist's code, else a check report's (CheckPdfService)
     @GetMapping("/{code}/pdf")
     public ResponseEntity<?> pdf(@PathVariable String code, HttpServletRequest request)
     {
         if (overLimit(request.getRemoteAddr()))
             return tooMany();
-        return submissionService.getReportByVerificationCode(code)
-                .<ResponseEntity<?>>map(report -> ResponseEntity.ok()
+        return fileOf(code)
+                .<ResponseEntity<?>>map(file -> ResponseEntity.ok()
                         .contentType(MediaType.APPLICATION_PDF)
                         .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
-                                .filename(SubmissionController.fileName(report)).build().toString())
-                        .body(pdfOf(report)))
+                                .filename(file.name()).build().toString())
+                        .body(file.bytes()))
                 .orElseGet(VerificationController::unknown);
     }
 
@@ -92,14 +100,25 @@ public class VerificationController {
     {
         if (overLimit(request.getRemoteAddr()))
             return tooMany();
-        return submissionService.getReportByVerificationCode(code)
-                .<ResponseEntity<?>>map(report -> {
-                    List<String> pages = submissionPdfService.renderPages(pdfOf(report)).stream()
+        return fileOf(code)
+                .<ResponseEntity<?>>map(file -> {
+                    List<String> pages = submissionPdfService.renderPages(file.bytes()).stream()
                             .map(Base64.getEncoder()::encodeToString)
                             .toList();
                     return ResponseEntity.ok(new SubmissionPreview(pages));
                 })
                 .orElseGet(VerificationController::unknown);
+    }
+
+    // the PDF a code was printed on: a checklist's, else a check report's
+    private Optional<CheckPdfService.PdfFile> fileOf(String code)
+    {
+        Optional<CheckPdfService.PdfFile> checklist = submissionService.getReportByVerificationCode(code)
+                .map(report -> new CheckPdfService.PdfFile(SubmissionController.fileName(report), pdfOf(report)));
+        if (checklist.isPresent())
+            return checklist;
+        String normalized = ReportVerification.normalize(code);
+        return normalized == null ? Optional.empty() : checkPdfService.pdfByCode(normalized);
     }
 
     // like SubmissionController.pdfOf: a v2 expertise report also says where it sits in the workshop loop

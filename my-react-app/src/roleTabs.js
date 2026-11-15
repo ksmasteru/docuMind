@@ -5,7 +5,7 @@
 // For most roles this only hides links: a hidden page can still be opened by its URL, so the
 // backend has to refuse what a role may not do. Technicians and the workshop roles (LOCKED_ROLES) are also kept to
 // their own pages: App.jsx's ProtectedRoute sends any other URL back to their home page.
-import { Activity, Bell, ClipboardCheck, ClipboardList, Cpu, FileCheck, FileSearch, FileUp, House, LayoutDashboard, ListChecks, MessageSquareText, ShieldCheck, Users, Wrench } from "lucide-react";
+import { Activity, Bell, ClipboardCheck, Siren, ClipboardList, Cpu, FileCheck, FileSearch, FileUp, House, LayoutDashboard, ListChecks, MessageSquareText, ShieldCheck, Users, Wrench } from "lucide-react";
 
 // keyed by the `active` value each page passes to <Layout>
 // soon: shown in the sidebar as a coming page, not a link
@@ -26,13 +26,16 @@ export const NAV_LINKS = {
   // the quality forms sent, for the roles their forms let read them, and each person's own (ControlSheets.jsx)
   controls:    { to: "/controles",    label: "Fiches qualité",  icon: FileCheck },
   home:        { to: "/accueil",      label: "Accueil",         icon: House },
+  // the technician's alerts: his site's, to check on the spot, and the faults he reports (FieldAlerts.jsx)
+  fieldAlerts: { to: "/terrain",      label: "Alertes",         icon: Siren },
 };
 
 export const ROLE_TABS = {
   MANAGER: ["dashboard", "pumps", "alerts", "technicians", "orders", "review", "forms", "controls", "search", "ask"],
   ADMIN: ["upload", "search", "ask"],
   // technicians fill in forms, follow their tasks and look things up in the manuals
-  USER: ["forms", "tasks", "controls", "ask", "search"],
+  // and check the alerts of their site, or report a fault the twin did not see
+  USER: ["forms", "tasks", "fieldAlerts", "controls", "ask", "search"],
   // the workshop loop (fix_workshop.md): each role works its steps from its queue (Atelier). Every
   // PHOVA role also fills the quality forms (non-conformité, réclamations, dérogation) and finds them,
   // and what their role may read, in Fiches qualité

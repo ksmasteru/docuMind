@@ -22,7 +22,8 @@ export const TASK_TYPES = [
     { value: "CORRECTIVE",  label: "Corrective" },
 ];
 
-export const TASK_TYPE_LABEL = Object.fromEntries(TASK_TYPES.map((t) => [t.value, t.label]));
+// VERIFICATION (a check, levée de doute) is not in TASK_TYPES: it is sent from its alert, not from the assign form
+export const TASK_TYPE_LABEL = { ...Object.fromEntries(TASK_TYPES.map((t) => [t.value, t.label])), VERIFICATION: "Levée de doute" };
 
 // fallback for a value missing from a label map: "IN_PROGRESS" -> "In progress"
 export const humanize = (value) =>

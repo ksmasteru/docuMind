@@ -26,6 +26,8 @@ const REVIEW = {
 };
 
 const STATUS = { CONFORME: "Conforme", NON_CONFORME: "Non conforme" };
+// a check report (levée de doute, kind CHECK): its status is its verdict
+const VERDICT = { CONFIRMED: "Alerte confirmée", FALSE_ALARM: "Fausse alerte", INCONCLUSIVE: "Non concluant" };
 
 // the verdict at the top: the worst thing that applies wins
 function verdictOf(r) {
@@ -237,6 +239,8 @@ export default function VerifyReport() {
   }, [code]);
 
   const r = state?.report;
+  // a check report (levée de doute) reads with its own words: pump, technician, conclusion
+  const check = r?.kind === "CHECK";
 
   return (
     <div className="flex min-h-screen items-start justify-center bg-slate-50 px-4 py-10 dark:bg-slate-900">
@@ -278,12 +282,12 @@ export default function VerifyReport() {
               <Verdict {...verdictOf(r)} />
             </div>
             <dl className="mt-5 text-left">
-              <Row label="Rapport" value={`${r.title} (v${r.version})`} />
-              <Row label="Équipement" value={r.equipment} />
-              <Row label="Date d'inspection" value={r.inspectionDate} />
-              <Row label="Inspecteur" value={r.inspector} />
+              <Row label="Rapport" value={check ? `${r.title}${r.version > 1 ? ` (version ${r.version})` : ""}` : `${r.title} (v${r.version})`} />
+              <Row label={check ? "Pompe" : "Équipement"} value={r.equipment} />
+              <Row label={check ? "Date de la vérification" : "Date d'inspection"} value={r.inspectionDate} />
+              <Row label={check ? "Technicien" : "Inspecteur"} value={r.inspector} />
               <Row label="Envoyé le" value={r.submittedAt} />
-              <Row label="Résultat" value={STATUS[r.status] ?? r.status} />
+              <Row label={check ? "Conclusion" : "Résultat"} value={(check ? VERDICT : STATUS)[r.status] ?? r.status} />
               {r.review && <Row label="Validation" value={REVIEW[r.review] ?? "En cours"} />}
               <Row label="Code" value={<span className="font-mono">{r.code}</span>} />
             </dl>

@@ -2,6 +2,7 @@ package com.docuMind.backend.services;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.Set;
@@ -19,13 +20,16 @@ import com.docuMind.backend.exception.TaskNotFoundException;
 import com.docuMind.backend.model.CheckListTemplate;
 import com.docuMind.backend.model.ReviewTask;
 import com.docuMind.backend.model.TaskCreationDto;
+import com.docuMind.backend.model.TaskDeclinedEvent;
 import com.docuMind.backend.model.TaskEvent;
 import com.docuMind.backend.model.TaskModel;
 import com.docuMind.backend.model.TaskSubmittedEvent;
 import com.docuMind.backend.model.User;
 import java.util.List;
 import com.docuMind.backend.model.enums.StatusReason;
+import com.docuMind.backend.model.enums.TaskPriority;
 import com.docuMind.backend.model.enums.TaskStatus;
+import com.docuMind.backend.model.enums.TaskType;
 import com.docuMind.backend.model.enums.UserRole;
 import com.docuMind.backend.repository.CheckListTemplateRepository;
 import com.docuMind.backend.repository.TaskEventRepository;
@@ -117,6 +121,10 @@ public class TaskService {
         // test if the user actualy exist and is a technician.
         // users are identified by their email (unique, and it's what the JWT holds)
         // getUserByEmail throws UserNotFoundException (404) if the email doesn't exist
+        // a check is sent from its alert (createCheckTask), so it always has one
+        if (task.taskType() == TaskType.VERIFICATION)
+            throw new InvalidTaskException("a check task (VERIFICATION) is sent from its alert");
+
         User technician = userService.getUserByEmail(task.technicianEmail());
         if (technician.getRole() != UserRole.USER)
             throw new InvalidRoleException("user " + task.technicianEmail() + " is not a technician");
@@ -153,6 +161,33 @@ public class TaskService {
         return order.getId();
     }
 
+    // A check task for an alert (CheckService), created like any task: ASSIGNED, with its creation in the
+    // history under the name of whoever sent it. That is the manager, or the technician himself when he
+    // starts the check on site (selfAssigned): the task then names his team's manager, who reviews it.
+    // No checklist: the check report (CheckReport) is its report.
+    @Transactional
+    public TaskModel createCheckTask(String title, String technicianEmail, String managerEmail, String createdBy,
+                                     String equipmentId, String instructions, LocalDate dueDate,
+                                     TaskPriority priority, long alertNumber, boolean selfAssigned)
+    {
+        User technician = userService.getUserByEmail(technicianEmail);
+        if (technician.getRole() != UserRole.USER)
+            throw new InvalidRoleException("user " + technicianEmail + " is not a technician");
+
+        TaskModel task = new TaskModel(title, TaskType.VERIFICATION, technician.getEmail(), managerEmail,
+                equipmentId, instructions, dueDate);
+        task.setStatus(TaskStatus.ASSIGNED);
+        if (priority != null)
+            task.setPriority(priority);
+        task.setAlertNumber(alertNumber);
+        task.setSelfAssigned(selfAssigned);
+        TaskModel saved = taskRepository.save(task);
+
+        taskEventRepository.save(TaskEvent.statusChanged(saved.getId(), saved.getEquipmentId(), createdBy,
+                null, TaskStatus.ASSIGNED, null, null, Instant.now()));
+        return saved;
+    }
+
     // techincian declining a task
     @Transactional
     public String declineTask(String taskId, Authentication technician, StatusReason reason, String comment)
@@ -178,6 +213,8 @@ public class TaskService {
 
         taskRepository.save(task);
         TaskEvent saved = taskEventRepository.save(taskEvent);
+        // a declined check: its alert is back to "À vérifier" (CheckService)
+        events.publishEvent(new TaskDeclinedEvent(taskId, technicianEmail, comment, now));
         return saved.getId();
     }
     // techncian Starting a task
@@ -320,6 +357,9 @@ public class TaskService {
         // a workshop task is reviewed from its intervention's page, not with /approve or /return
         if (task.getInterventionId() != null)
             throw new InvalidTaskException("task " + taskId + " is reviewed from its workshop intervention");
+        // a check task, from its alert: approved when the manager acts on its report (approveCheck)
+        if (task.getTaskType() == TaskType.VERIFICATION)
+            throw new InvalidTaskException("task " + taskId + " is a check: it is reviewed from its alert");
         return approve(task, manager.getName());
     }
 
@@ -331,6 +371,8 @@ public class TaskService {
         TaskModel task = reviewable(taskId, manager.getName());
         if (task.getInterventionId() != null)
             throw new InvalidTaskException("task " + taskId + " is reviewed from its workshop intervention");
+        if (task.getTaskType() == TaskType.VERIFICATION)
+            throw new InvalidTaskException("task " + taskId + " is a check: it is reviewed from its alert");
         return sendBack(task, manager.getName(), reason, comment);
     }
 
@@ -346,6 +388,46 @@ public class TaskService {
     public void returnForIntervention(String taskId, String reviewerEmail, String comment)
     {
         sendBack(findSubmitted(taskId), reviewerEmail, StatusReason.OTHER, comment);
+    }
+
+    // the same, for a check task, from its alert (CheckService): any manager acting on the alert settles
+    // it, since alerts are shared. Approved once the manager acts on its report; returned for more details
+    @Transactional
+    public void approveCheck(String taskId, String reviewerEmail)
+    {
+        approve(findSubmitted(taskId), reviewerEmail);
+    }
+
+    @Transactional
+    public void returnCheck(String taskId, String reviewerEmail, String comment)
+    {
+        sendBack(findSubmitted(taskId), reviewerEmail, StatusReason.MISSING_INFO, comment);
+    }
+
+    // a check nobody needs any more (the manager sends someone else): an open task is CANCELED,
+    // its current work period counted like a block
+    @Transactional
+    public void cancelCheck(String taskId, String managerEmail, String comment)
+    {
+        TaskModel task = taskRepository.findById(taskId).
+            orElseThrow( () -> new TaskNotFoundException("no task found with id :" + taskId));
+        if (!ACTIVE_STATUSES.contains(task.getStatus()))
+            throw new InvalidTaskException("a task in status " + task.getStatus() + " can't be canceled");
+
+        Instant now = Instant.now();
+        if (task.getActiveSince() != null)
+        {
+            task.setWorkedSeconds(task.getWorkedSeconds() + Duration.between(task.getActiveSince(), now).getSeconds());
+            task.setActiveSince(null);
+        }
+        TaskStatus from = task.getStatus();
+        task.setStatus(TaskStatus.CANCELED);
+        task.setStatusReason(StatusReason.OTHER);
+        task.setStatusComment(comment);
+        task.setClosedAt(now);
+        taskRepository.save(task);
+        taskEventRepository.save(TaskEvent.statusChanged(taskId, task.getEquipmentId(), managerEmail,
+                from, TaskStatus.CANCELED, StatusReason.OTHER, comment, now));
     }
 
     private TaskModel reviewable(String taskId, String managerEmail)

@@ -5,5 +5,6 @@ package com.docuMind.backend.model.enums;
 public enum TaskType{
     MAINTENANCE,
     PREVENTIVE,
-    CORRECTIVE
+    CORRECTIVE,
+    VERIFICATION // the check of an alert before acting on it (levée de doute): sent from its alert, never from /task/new
 }

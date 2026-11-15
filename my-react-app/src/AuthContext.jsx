@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { apiClient, setAccessToken, setAuthChangeHandler } from "./apiClient";
+// the alert cases are per user (a technician sees his site's): a new session starts without the last one's
+import { resetAlerts } from "./alertStore";
 
 const AuthContext = createContext(null);
 
@@ -7,10 +9,13 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Let apiClient push state changes back here when it silently refreshes
-  // or gives up and logs the user out from inside a 401 handler.
+  // apiClient calls this from its 401 handler with the new access token after a silent
+  // refresh (same person, same role: the user stays as is), or with null when the refresh
+  // failed: then the session is over.
   useEffect(() => {
-    setAuthChangeHandler((data) => setUser(data)); // ???
+    setAuthChangeHandler((token) => {
+      if (!token) setUser(null);
+    });
   }, []);
 
   // On first load there's no access token in memory (page was refreshed or
@@ -44,17 +49,14 @@ export function AuthProvider({ children }) {
   const login = useCallback(async (email, password) => {
     
     const { data } = await apiClient.post("/api/auth/login", { email, password });
+    resetAlerts();
     
     setAccessToken(data.accessToken);
     
     localStorage.setItem("refreshToken", data.refreshToken);
     
     setUser({ email, role: data.Role });
-    
-    console.log(`data is ${JSON.stringify(data)}`);
-    console.log(`user role is ${data.Role}`);
-    console.log(`data is ${data}`);
-    
+
     return data;
   }, []);
 
@@ -62,6 +64,7 @@ export function AuthProvider({ children }) {
   // same tokens /login returns, so the session that follows is an ordinary one.
   const loginWithLink = useCallback(async (token) => {
     const { data } = await apiClient.post("/api/auth/link", { token });
+    resetAlerts();
     setAccessToken(data.accessToken);
     localStorage.setItem("refreshToken", data.refreshToken);
     setUser({ role: data.Role });
@@ -69,6 +72,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = useCallback(async () => {
+    resetAlerts();
     const refreshToken = localStorage.getItem("refreshToken");
     try {
       if (refreshToken) {

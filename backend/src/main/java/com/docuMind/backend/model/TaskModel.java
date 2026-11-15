@@ -82,6 +82,17 @@ public class TaskModel {
     @Column(length = 32) // its step: DEMONTAGE_EXPERTISE (8) or MONTAGE_ESSAIS (16)
     private WorkshopStep interventionStep;
 
+    // ---------- alerts ----------
+    // the alert it comes from: a check task (VERIFICATION) always has one
+
+    @Column
+    private Long alertNumber;
+
+    // a check the technician started himself on site, rather than one his manager sent him.
+    // Nullable: the column is added to a table that already has rows (read with isSelfAssigned)
+    @Column
+    private Boolean selfAssigned;
+
     // ---------- current state ----------
 
     @Enumerated(EnumType.STRING)
@@ -163,6 +174,10 @@ public class TaskModel {
 
     public String getInterventionId()                   { return interventionId; }
     public WorkshopStep getInterventionStep()           { return interventionStep; }
+    public Long getAlertNumber()                        { return alertNumber; }
+    public void setAlertNumber(Long alertNumber)        { this.alertNumber = alertNumber; }
+    public boolean isSelfAssigned()                     { return Boolean.TRUE.equals(selfAssigned); }
+    public void setSelfAssigned(boolean selfAssigned)   { this.selfAssigned = selfAssigned; }
     // the workshop task's intervention and step, set once at assignment
     public void linkToIntervention(String interventionId, WorkshopStep step)
     {

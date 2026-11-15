@@ -41,6 +41,7 @@ public interface TaskRepository extends JpaRepository<TaskModel, String>
         LEFT JOIN CheckListSubmission s ON s.id = t.latestSubmissionId
         LEFT JOIN s.template tpl
         WHERE t.managerEmail = :managerEmail AND t.status = :status
+          AND t.taskType <> com.docuMind.backend.model.enums.TaskType.VERIFICATION
         ORDER BY t.submittedAt ASC
         """)
     List<ReviewTask> findTasksToReview(@Param("managerEmail") String managerEmail,
@@ -52,4 +53,29 @@ public interface TaskRepository extends JpaRepository<TaskModel, String>
 
     // a workshop intervention's tasks, oldest first. Uses idx_task_intervention
     List<TaskModel> findByInterventionIdOrderByCreatedAtAsc(String interventionId);
+
+    // every task made on a pump, newest first: its history page (AlertService.pumpHistory).
+    // Ignoring case: managers type the pump id by hand ("phb3-j-07")
+    List<TaskModel> findByEquipmentIdIgnoreCaseOrderByCreatedAtDesc(String equipmentId);
+
+    // every task a technician was given, newest first: his profile's history (TeamService)
+    // uses idx_task_technician_status
+    List<TaskModel> findByTechnicianEmailOrderByCreatedAtDesc(String technicianEmail);
+
+    // a technician with a task on an alert (its check, or a work order made from it) may read its
+    // check report (CheckService.readable)
+    boolean existsByTechnicianEmailAndAlertNumber(String technicianEmail, Long alertNumber);
+
+    // the work orders made before they recorded their alert (AlertService.backfillOrderAlerts)
+    List<TaskModel> findByIdInAndAlertNumberIsNull(Collection<String> ids);
+
+    // the team's cards: per technician and status, how many tasks and the last change among them
+    // rows: [technicianEmail (String), status (TaskStatus), count (Long), last updatedAt (Instant)]
+    @Query("""
+        SELECT t.technicianEmail, t.status, COUNT(t), MAX(t.updatedAt)
+        FROM TaskModel t
+        WHERE t.technicianEmail IN :emails
+        GROUP BY t.technicianEmail, t.status
+        """)
+    List<Object[]> countByTechnicianAndStatus(@Param("emails") Collection<String> emails);
 }

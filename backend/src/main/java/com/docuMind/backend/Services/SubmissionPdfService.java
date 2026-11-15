@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.thymeleaf.ITemplateEngine;
 import org.thymeleaf.context.Context;
 
+import com.docuMind.backend.model.CheckReportDocument;
 import com.docuMind.backend.model.ControlSheet;
 import com.docuMind.backend.model.ExpertiseDossier;
 import com.docuMind.backend.model.ExpertiseReport;
@@ -58,6 +59,8 @@ public class SubmissionPdfService {
     private static final String CONTROL_SHEET_TEMPLATE = "control-sheet";
     // an intervention's final file: cover, synthèse, avant / après, devis, both reports, history
     private static final String DOSSIER_TEMPLATE = "expertise-dossier";
+    // a check report (levée de doute): conclusion, readings, points with photos, sections, next step
+    private static final String CHECK_TEMPLATE = "check-report";
 
     // Preview pages for the phone. 110 dpi makes an A4 page ~910×1290 px: sharp at phone
     // width, ~150 KB per page once base64'd.
@@ -138,6 +141,18 @@ public class SubmissionPdfService {
 
     // what templates/verification.html reads
     public record VerificationBlock(String code, String url, String qr) {}
+
+    // a check report (levée de doute, CheckPdfService): templates/check-report.html, with the same
+    // verification block as the other reports. code: formatted ("7K3F-9QXM-…"), null for none
+    public byte[] renderCheck(CheckReportDocument report, String code, String url)
+    {
+        Context context = new Context(Locale.FRENCH);
+        context.setVariable("logo", logoDataUri);
+        context.setVariable("report", report);
+        if (code != null)
+            context.setVariable("verification", new VerificationBlock(code, url, qrDataUri(url)));
+        return toPdf(templateEngine.process(CHECK_TEMPLATE, context));
+    }
 
     // The URL as a QR code PNG, as a data URI like the logos. Drawn from ZXing's matrix here rather
     // than with zxing-javase, which would only add MatrixToImageWriter. Level M survives a creased

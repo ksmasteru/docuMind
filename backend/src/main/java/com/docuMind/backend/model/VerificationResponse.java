@@ -14,7 +14,8 @@ What the public verification page shows for a scanned report (GET /api/public/ve
   "inspector": "Youssef Guettahi",
   "submittedAt": "06/10/2026 14:32",
   "status": "NON_CONFORME",
-  "replacedAt": null
+  "replacedAt": null,
+  "kind": "CHECKLIST"
 }
 Only what the paper already shows: no answers, photos, emails or internal ids. Anyone with the
 code can read it, without logging in.
@@ -34,11 +35,17 @@ public record VerificationResponse(
     String inspector,       // the user's name, "—" when they have none (never their email)
     String submittedAt,     // "06/10/2026 14:32", site time
     String status,          // "CONFORME" | "NON_CONFORME"
-    String replacedAt       // when the newer version was sent, if current is false
+    String replacedAt,      // when the newer version was sent, if current is false
+    Kind kind
 )
 {
     public enum Result {
         AUTHENTIC, // the saved report is unchanged since it was sent
         ALTERED    // its content no longer matches the fingerprint taken when it was sent
     }
+
+    // CHECKLIST: a filled form (status CONFORME / NON_CONFORME, version = the form's).
+    // CHECK: a check report (levée de doute, CheckPdfService): status is its verdict (CONFIRMED,
+    // FALSE_ALARM, INCONCLUSIVE) and version its round.
+    public enum Kind { CHECKLIST, CHECK }
 }

@@ -87,7 +87,8 @@ public class GlobalExceptionHandler {
             LocalDateTime.now(),
             ex.getMessage(),
             request.getDescription(false));
-        return new ResponseEntity<>(errorFormat, HttpStatus.BAD_REQUEST); // should be 401 : unauthorized 
+        // 401, so the web app's apiClient knows to refresh the access token and retry
+        return new ResponseEntity<>(errorFormat, HttpStatus.UNAUTHORIZED);
     }
 
     @ExceptionHandler(NoChunksException.class)
@@ -110,6 +111,39 @@ public class GlobalExceptionHandler {
             ex.getMessage(),
             request.getDescription(false));
         return new ResponseEntity<>(errorFormat, HttpStatus.BAD_GATEWAY);
+    }
+
+    // a team change that conflicts: the technician is in another team, the e-mail is already used
+    @ExceptionHandler(TeamException.class)
+    public ResponseEntity<ErrorFormat> handleTeamException(TeamException ex, WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.CONFLICT);
+    }
+
+    // no such alert case, or one the caller may not see
+    @ExceptionHandler(AlertNotFoundException.class)
+    public ResponseEntity<ErrorFormat> handleAlertNotFoundException(AlertNotFoundException ex, WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.NOT_FOUND);
+    }
+
+    // an alert action that doesn't fit the case as it is now: asking twice, a request already decided
+    @ExceptionHandler(AlertException.class)
+    public ResponseEntity<ErrorFormat> handleAlertException(AlertException ex, WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.CONFLICT);
     }
 
     // a checklist form with this title is already active, or the same title + version was saved concurrently

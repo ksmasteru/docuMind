@@ -29,6 +29,7 @@ public class VerificationService {
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final ReportVerification reportVerification;
+    private final CheckPdfService checkPdfService;
 
     // the same formats as the PDF (SubmissionService), so the page reads like the paper
     private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -38,21 +39,25 @@ public class VerificationService {
     public VerificationService(SubmissionRepository submissionRepository,
                                TaskRepository taskRepository,
                                UserRepository userRepository,
-                               ReportVerification reportVerification)
+                               ReportVerification reportVerification,
+                               CheckPdfService checkPdfService)
     {
         this.submissionRepository = submissionRepository;
         this.taskRepository = taskRepository;
         this.userRepository = userRepository;
         this.reportVerification = reportVerification;
+        this.checkPdfService = checkPdfService;
     }
 
-    // empty for a code that isn't one, or that no report has: the page says "unknown document"
+    // empty for a code that isn't one, or that no report has: the page says "unknown document".
+    // A checklist's code, else a check report's (CheckPdfService)
     public Optional<VerificationResponse> verify(String input)
     {
         String code = ReportVerification.normalize(input);
         if (code == null)
             return Optional.empty();
-        return submissionRepository.findByVerificationCode(code).map(this::toResponse);
+        return submissionRepository.findByVerificationCode(code).map(this::toResponse)
+                .or(() -> checkPdfService.verify(code));
     }
 
     private VerificationResponse toResponse(CheckListSubmission submission)
@@ -87,7 +92,8 @@ public class VerificationService {
                 inspector,
                 submission.getSubmittedAt() == null ? "" : submission.getSubmittedAt().atZone(SITE_ZONE).format(DAY_TIME),
                 submission.getStatus().name(),
-                replacedAt);
+                replacedAt,
+                VerificationResponse.Kind.CHECKLIST);
     }
 
     // Reports sent before verification existed get their code and fingerprint at startup, so

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<!--
+  PDF template for one round of a check report (levée de doute), rendered by Thymeleaf then
+  OpenHTMLtoPDF (SubmissionPdfService.renderCheck). Laid out like the other reports: header, the
+  conclusion first, then the facts, the system's readings against the site's, each point with its
+  photos, the free sections, what comes next, and the verification block.
+
+  Expects "report" (CheckReportDocument, every value already in French) and "logo" (a data URI);
+  "verification" is absent when the report has no code yet.
+  Rules for OpenHTMLtoPDF: well-formed XHTML (every tag closed, &#160; not &nbsp;).
+  Tones: ok · warn · crit · off.
+-->
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <title th:text="${report.heading + ' · alerte #' + report.alertNumber}">Rapport de levée de doute</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 12mm 12mm 16mm 12mm;
+      @bottom-center {
+        content: "Page " counter(page) " / " counter(pages);
+        font-family: "Noto Sans";
+        font-size: 7.5pt;
+        color: #6b6b6b;
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: "Noto Sans";
+      font-size: 8.5pt;
+      line-height: 1.3;
+      color: #1a1a1a;
+      margin: 0;
+    }
+
+    /* a hair under 100 %: at full width the right border of a collapsed table falls outside the page box and is cut */
+    table { width: 99.6%; border-collapse: collapse; }
+    td, th { vertical-align: top; }
+
+    /* ─── Header: logo │ title │ verdict ─── */
+    .header td { border: 0.8pt solid #3a3a3a; padding: 1.5mm 3mm; vertical-align: middle; height: 17mm; }
+    .header .logo { width: 24%; text-align: center; }
+    .header .logo img { height: 10mm; }
+    .header .title { text-align: center; font-size: 13pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.3pt; }
+    .header .title .meta { display: block; margin-top: 1mm; font-size: 8pt; font-weight: normal; text-transform: none; letter-spacing: 0; color: #555555; }
+    .header .badge-cell { width: 24%; text-align: center; }
+
+    .badge { display: inline-block; padding: 0.8mm 2.5mm; border-radius: 2mm; font-size: 8pt; font-weight: bold; }
+    .t-ok   { background: #d9f2e4; color: #11663b; }
+    .t-warn { background: #fff1cc; color: #8a5a00; }
+    .t-crit { background: #fbe0e0; color: #9b1c1c; }
+    .t-off  { background: #eeeeee; color: #555555; }
+
+    h2 {
+      margin: 5mm 0 1.5mm 0;
+      font-size: 8pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.6pt;
+      color: #1A75BC;
+      page-break-after: avoid;
+    }
+
+    /* ─── The conclusion ─── */
+    .verdict { margin-top: 3mm; padding: 2.5mm 3.5mm; border-left: 3pt solid #3a3a3a; page-break-inside: avoid; }
+    .verdict.t-ok   { border-left-color: #11663b; }
+    .verdict.t-warn { border-left-color: #b07800; }
+    .verdict.t-crit { border-left-color: #b42318; }
+    .verdict .label { font-size: 12pt; font-weight: bold; }
+    .verdict .why { font-weight: normal; color: #1a1a1a; }
+    .verdict .urgent { margin-top: 1mm; font-weight: bold; color: #b42318; }
+    .verdict .comment { margin-top: 1.5mm; color: #1a1a1a; white-space: pre-wrap; }
+
+    /* ─── The facts ─── */
+    .facts { margin-top: 3mm; }
+    .facts td { border: 0.6pt solid #b8c4ce; padding: 1.2mm 2.5mm; }
+    .facts .k { width: 17%; font-size: 7.5pt; color: #555555; background: #f4f6f8; }
+    .facts .v { width: 33%; font-weight: bold; }
+
+    /* ─── Tables: readings, points ─── */
+    .grid { -fs-table-paginate: paginate; }
+    .grid thead { display: table-header-group; }
+    .grid tr { page-break-inside: avoid; }
+    .grid th { background: #e9e9e9; border: 0.6pt solid #9aa5ae; font-size: 7.5pt; padding: 1.1mm 1.8mm; text-align: left; }
+    .grid td { border: 0.6pt solid #b8c4ce; padding: 1.1mm 1.8mm; }
+    .grid .num { width: 6%; text-align: center; color: #555555; }
+    .grid .res { width: 14%; }
+    .grid .val { width: 14%; white-space: nowrap; }
+    .grid .small { font-size: 7.5pt; color: #555555; }
+    .row-crit td { background: #fdf1f1; }
+    .row-warn td { background: #fff8e6; }
+
+    /* ─── Photos: three across, never taller than ~ a fifth of the page ─── */
+    .photos { margin-top: 1.5mm; }
+    .photos img { width: 56mm; max-height: 52mm; margin: 0 1.5mm 1.5mm 0; border: 0.6pt solid #b8c4ce; }
+    .photo-row td { padding-top: 0; }
+
+    .section { margin-top: 2.5mm; padding: 2mm 3mm; border: 0.6pt solid #b8c4ce; page-break-inside: avoid; }
+    .section .title { font-weight: bold; }
+    .section .comment { margin-top: 1mm; white-space: pre-wrap; }
+
+    .next { margin-top: 1mm; padding: 2.5mm 3.5mm; border: 0.6pt solid #b8c4ce; background: #f4f6f8; page-break-inside: avoid; }
+    .next .head { font-weight: bold; }
+    .next .line { margin-top: 1mm; }
+    .next .line b { font-weight: bold; }
+
+    .reference { margin-top: 3mm; font-size: 6.5pt; color: #6b6b6b; }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ HEADER ═══ -->
+  <table class="header">
+    <tr>
+      <td class="logo"><img src="../static/phova_logo.png" th:src="${logo}" alt="PHOVA Technology"/></td>
+      <td class="title">
+        <span th:text="${report.heading}">Rapport de levée de doute</span>
+        <span class="meta" th:text="${'Alerte #' + report.alertNumber + ' · ' + report.pumpId + (report.site != null ? ' · ' + report.site : '')}">Alerte #12 · HDX-S-08 · Safi</span>
+      </td>
+      <td class="badge-cell">
+        <span class="badge" th:classappend="${'t-' + report.verdict.tone}" th:text="${report.verdict.label}">Alerte confirmée</span>
+      </td>
+    </tr>
+  </table>
+
+  <!-- ═══ THE CONCLUSION ═══ -->
+  <div class="verdict" th:classappend="${'t-' + report.verdict.tone}">
+    <div class="label">
+      <span th:text="${report.verdict.label}">Alerte confirmée</span>
+      <span class="why" th:if="${report.verdict.why != null}" th:text="${' · ' + report.verdict.why}"> · Capteur défaillant</span>
+    </div>
+    <div class="urgent" th:if="${report.verdict.urgentStop}">Arrêt immédiat recommandé</div>
+    <div class="comment" th:if="${report.verdict.comment != null}" th:text="${report.verdict.comment}">Le palier côté accouplement chauffe.</div>
+  </div>
+
+  <!-- ═══ THE FACTS ═══ -->
+  <table class="facts">
+    <tr>
+      <td class="k">Technicien</td>
+      <td class="v"><span th:text="${report.technician}">Technicien Safi</span><span th:if="${report.selfAssigned}" style="font-weight: normal; color: #555555;"> (à son initiative)</span></td>
+      <td class="k">Envoyé le</td>
+      <td class="v" th:text="${report.sentAt}">12/11/2026 14:32</td>
+    </tr>
+    <tr>
+      <td class="k">Pompe à l'arrivée</td>
+      <td class="v" th:text="${report.arrival != null ? report.arrival : '—'}">En marche</td>
+      <td class="k">Temps sur place</td>
+      <td class="v" th:text="${report.timeOnSite != null ? report.timeOnSite : '—'}">1 h 05</td>
+    </tr>
+    <tr>
+      <td class="k">Alerte</td>
+      <td class="v" th:text="${report.alert != null ? report.alert : '—'}">Température palier élevée</td>
+      <td class="k">Version</td>
+      <td class="v" th:text="${report.round == 1 ? '1' : report.round + ' (la précédente a été renvoyée pour être complétée)'}">1</td>
+    </tr>
+  </table>
+
+  <!-- ═══ THE READINGS: the system against the site ═══ -->
+  <th:block th:if="${!report.measures.isEmpty()}">
+    <h2>Mesures : système et relevé sur place</h2>
+    <table class="grid">
+      <thead>
+        <tr><th>Mesure</th><th class="val">Système</th><th class="val">Sur place</th><th>Seuils</th></tr>
+      </thead>
+      <tbody>
+        <tr th:each="m : ${report.measures}" th:classappend="${'row-' + m.tone}">
+          <td th:text="${m.label}">Température palier</td>
+          <td class="val" th:text="${m.twin}">82 °C</td>
+          <td class="val"><b th:text="${m.site}">84 °C</b></td>
+          <td class="small" th:text="${m.limits != null ? m.limits : '—'}">alerte 70 · critique 85</td>
+        </tr>
+      </tbody>
+    </table>
+  </th:block>
+
+  <!-- ═══ THE POINTS ═══ -->
+  <th:block th:if="${!report.points.isEmpty()}">
+    <h2>Points vérifiés</h2>
+    <table class="grid">
+      <thead>
+        <tr><th class="num">N°</th><th>Point</th><th class="res">Résultat</th><th class="val">Relevé</th><th>Commentaire</th></tr>
+      </thead>
+      <tbody>
+        <th:block th:each="p : ${report.points}">
+          <tr th:classappend="${'row-' + p.tone}">
+            <td class="num" th:text="${p.number}">1</td>
+            <td th:text="${p.label}">Photo d'ensemble de la pompe</td>
+            <td class="res"><span class="badge" th:classappend="${'t-' + p.tone}" th:text="${p.result}">Conforme</span></td>
+            <td class="val" th:text="${p.reading != null ? p.reading : ''}"></td>
+            <td class="small" th:text="${p.comment}"></td>
+          </tr>
+          <tr th:if="${!p.photos.isEmpty()}" class="photo-row">
+            <td></td>
+            <td colspan="4"><div class="photos"><img th:each="src : ${p.photos}" th:src="${src}" src="" alt="Photo"/></div></td>
+          </tr>
+        </th:block>
+      </tbody>
+    </table>
+  </th:block>
+
+  <!-- ═══ THE FREE SECTIONS ═══ -->
+  <th:block th:if="${!report.sections.isEmpty()}">
+    <h2>Constats et photos</h2>
+    <div class="section" th:each="s : ${report.sections}">
+      <div class="title" th:if="${s.title != null}" th:text="${s.title}">Fuite côté accouplement</div>
+      <div class="comment" th:if="${s.comment != null}" th:text="${s.comment}">Traces d'huile sous le palier.</div>
+      <div class="photos" th:if="${!s.photos.isEmpty()}"><img th:each="src : ${s.photos}" th:src="${src}" src="" alt="Photo"/></div>
+    </div>
+  </th:block>
+
+  <!-- ═══ WHAT COMES NEXT ═══ -->
+  <th:block th:if="${report.next != null}">
+    <h2>La suite</h2>
+    <div class="next">
+      <th:block th:if="${report.next.canHandle}">
+        <div class="head">Le technicien peut s'en charger.</div>
+        <div class="line" th:if="${report.next.estimate != null}"><b>Durée estimée :</b> <span th:text="${report.next.estimate}">3 h</span></div>
+        <div class="line" th:if="${report.next.parts != null}"><b>Pièces et outillage :</b> <span th:text="${report.next.parts}">joint 45×62</span></div>
+        <div class="line" th:if="${report.next.message != null}"><b>Message :</b> <span th:text="${report.next.message}">je peux le faire demain matin.</span></div>
+      </th:block>
+      <th:block th:unless="${report.next.canHandle}">
+        <div class="head">Le technicien ne peut pas s'en charger.</div>
+        <div class="line"><b>Pourquoi :</b> <span th:text="${report.next.reason}">La pompe doit partir en atelier</span></div>
+        <div class="line" th:if="${report.next.reasonComment != null}" th:text="${report.next.reasonComment}">il faut un électricien.</div>
+      </th:block>
+    </div>
+  </th:block>
+
+  <p class="reference">
+    Rapport envoyé via GreenSense 4.0 le <span th:text="${report.sentAt}">12/11/2026 14:32</span>
+    · réf. <span th:text="${report.reference}">8e8c5c3e-…</span>
+    <th:block th:if="${report.missingPhotos > 0}">
+      · <span th:text="${report.missingPhotos + (report.missingPhotos == 1 ? ' photo n’a pas pu être imprimée (format non lu) : elle reste visible dans l’application.' : ' photos n’ont pas pu être imprimées (format non lu) : elles restent visibles dans l’application.')}"></span>
+    </th:block>
+  </p>
+
+  <table th:replace="~{verification :: block}"></table>
+
+</body>
+</html>

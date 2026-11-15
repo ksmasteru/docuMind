@@ -17,6 +17,9 @@ import Tasks from "./Tasks";
 import TaskScreen from "./TaskScreen";
 import DataVisualisor from "./DataVisualisor";
 import Technicians from "./Technicians";
+import TechnicianProfile, { TechnicianReport } from "./TechnicianProfile";
+import FieldAlerts, { FieldAlertDetail, FieldReportForm } from "./FieldAlerts";
+import PumpHistoryPage from "./PumpHistoryPage";
 import AssignTask from "./AssignTask";
 import Orders from "./Orders";
 import Review from "./Review";
@@ -24,6 +27,7 @@ import ReviewReport from "./ReviewReport";
 import Dashboard from "./Dashboard";
 import Pumps from "./Pumps";
 import AlertDetail, { AlertsIndex } from "./AlertDetail";
+import CheckOrder from "./CheckOrder";
 import Workshop from "./Workshop";
 import WorkshopRequest from "./WorkshopRequest";
 import WorkshopIntervention from "./WorkshopIntervention";
@@ -88,9 +92,14 @@ export default function App() {
               the backend refuses other roles */}
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard/></ProtectedRoute>}/>
           <Route path="/pumps" element={<ProtectedRoute><Pumps/></ProtectedRoute>}/>
+          <Route path="/pumps/:pumpId/historique" element={<ProtectedRoute><PumpHistoryPage/></ProtectedRoute>}/>
           <Route path="/alerts" element={<ProtectedRoute><AlertsIndex/></ProtectedRoute>}/>
           <Route path="/alerts/:number" element={<ProtectedRoute><AlertDetail/></ProtectedRoute>}/>
+          {/* the manager sends the check of an alert (levée de doute) to a technician */}
+          <Route path="/alerts/:number/verification" element={<ProtectedRoute><CheckOrder/></ProtectedRoute>}/>
           <Route path="/technicians" element={<ProtectedRoute><Technicians/></ProtectedRoute>}/>
+          <Route path="/technicians/:id" element={<ProtectedRoute><TechnicianProfile/></ProtectedRoute>}/>
+          <Route path="/technicians/:id/rapport/:submissionId" element={<ProtectedRoute><TechnicianReport/></ProtectedRoute>}/>
           <Route path="/assign/:email" element={<ProtectedRoute><AssignTask/></ProtectedRoute>}/>
           <Route path="/orders" element={<ProtectedRoute><Orders/></ProtectedRoute>}/>
           <Route path="/review" element={<ProtectedRoute><Review/></ProtectedRoute>}/>
@@ -111,6 +120,9 @@ export default function App() {
           {/* the placeholder home page of the workshop roles whose step isn't built yet */}
           <Route path="/accueil" element={<ProtectedRoute><RoleHome/></ProtectedRoute>}/>
           <Route path="/controles" element={<ProtectedRoute><ControlSheets/></ProtectedRoute>}/>
+          <Route path="/terrain" element={<ProtectedRoute><FieldAlerts/></ProtectedRoute>}/>
+          <Route path="/terrain/signaler" element={<ProtectedRoute><FieldReportForm/></ProtectedRoute>}/>
+          <Route path="/terrain/:number" element={<ProtectedRoute><FieldAlertDetail/></ProtectedRoute>}/>
           <Route path="*" element={<HomeRedirect />} />
         </Routes>
       </BrowserRouter>

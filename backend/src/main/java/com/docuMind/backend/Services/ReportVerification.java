@@ -6,12 +6,15 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Comparator;
 import java.util.HexFormat;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.docuMind.backend.model.CheckListAnswer;
 import com.docuMind.backend.model.CheckListSubmission;
+import com.docuMind.backend.model.CheckPoint;
+import com.docuMind.backend.model.CheckReport;
 
 // What makes a printed report checkable:
 //   - a random code per report, printed with a QR code of its verification URL
@@ -94,12 +97,67 @@ public class ReportVerification {
                     field(text, a.getValue());
                     field(text, a.getComment());
                 });
+        return sha256(text.toString());
+    }
+
+    // The same for a check report (levée de doute): what its PDF prints, the points' twin readings and
+    // limits included (they live on its points, which never change once the check is sent).
+    // "c1|" so a check's text can never be read as a checklist's.
+    public String fingerprint(CheckReport report, Map<String, CheckPoint> points)
+    {
+        StringBuilder text = new StringBuilder("c1|");
+        field(text, report.getTaskId());
+        field(text, String.valueOf(report.getAlertNumber()));
+        field(text, report.getTechnicianEmail());
+        field(text, String.valueOf(report.getRound()));
+        field(text, String.valueOf(report.getSubmittedAt().getEpochSecond()));
+        field(text, name(report.getArrivalState()));
+        field(text, name(report.getVerdict()));
+        field(text, name(report.getFalseAlarmCause()));
+        field(text, name(report.getInconclusiveReason()));
+        field(text, String.valueOf(report.isUrgentStop()));
+        field(text, report.getComment());
+        field(text, report.getCanHandle() == null ? null : report.getCanHandle().toString());
+        field(text, report.getHandleMessage());
+        field(text, report.getEstimatedHours() == null ? null : report.getEstimatedHours().toString());
+        field(text, report.getPartsNeeded());
+        field(text, name(report.getCannotHandleReason()));
+        field(text, report.getCannotHandleComment());
+        for (CheckReport.Result r : report.getResults()) {
+            CheckPoint point = points.get(r.getPointId());
+            field(text, r.getPointId());
+            field(text, r.getLabel());
+            field(text, name(r.getKind()));
+            field(text, r.getUnit());
+            field(text, name(r.getResult()));
+            field(text, r.getReading() == null ? null : r.getReading().toString());
+            field(text, r.getComment());
+            field(text, String.join(",", r.getPhotos()));
+            field(text, point == null || point.getTwinValue() == null ? null : point.getTwinValue().toString());
+            field(text, point == null || point.getWarnLimit() == null ? null : point.getWarnLimit().toString());
+            field(text, point == null || point.getCritLimit() == null ? null : point.getCritLimit().toString());
+        }
+        for (CheckReport.Section section : report.getSections()) {
+            field(text, section.getTitle());
+            field(text, section.getComment());
+            field(text, String.join(",", section.getPhotos()));
+        }
+        return sha256(text.toString());
+    }
+
+    private static String sha256(String text)
+    {
         try {
-            byte[] hash = MessageDigest.getInstance("SHA-256").digest(text.toString().getBytes(StandardCharsets.UTF_8));
+            byte[] hash = MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(hash);
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 is missing from this JVM", e);
         }
+    }
+
+    private static String name(Enum<?> value)
+    {
+        return value == null ? null : value.name();
     }
 
     private static void field(StringBuilder text, String value)

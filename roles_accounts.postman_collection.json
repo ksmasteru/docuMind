@@ -1,0 +1,433 @@
+{
+  "info": {
+    "name": "PHOVA role accounts",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Creates one account per workshop role on the server. Fill adminEmail, adminPassword, accountPassword (and adminKey if you run 0a), then Run collection. All nine accounts get accountPassword."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "0a. Register admin (only if the server has no admin yet)",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/auth/register-admin",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"admin_key\": \"{{adminKey}}\",\n  \"name\": \"Admin\",\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('admin created', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "0b. Login as admin (saves the token)",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('logged in', () => pm.response.to.have.status(200));",
+              "pm.test('is admin', () => pm.expect(pm.response.json().Role).to.eql('ADMIN'));",
+              "pm.collectionVariables.set('token', pm.response.json().accessToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Create sales@phova.com (SALES)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/auth/register_manager",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Sales\",\n  \"email\": \"sales@phova.com\",\n  \"password\": \"{{accountPassword}}\",\n  \"role\": \"SALES\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('created', () => pm.response.to.have.status(200));",
+              "pm.test('role is SALES', () => pm.expect(pm.response.json().users[0].role).to.eql('SALES'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Create business_ops@phova.com (BUSINESS_OPS)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/auth/register_manager",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Business Ops\",\n  \"email\": \"business_ops@phova.com\",\n  \"password\": \"{{accountPassword}}\",\n  \"role\": \"BUSINESS_OPS\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('created', () => pm.response.to.have.status(200));",
+              "pm.test('role is BUSINESS_OPS', () => pm.expect(pm.response.json().users[0].role).to.eql('BUSINESS_OPS'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Create contract_admin@phova.com (CONTRACT_ADMIN)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/auth/register_manager",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Contract Admin\",\n  \"email\": \"contract_admin@phova.com\",\n  \"password\": \"{{accountPassword}}\",\n  \"role\": \"CONTRACT_ADMIN\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('created', () => pm.response.to.have.status(200));",
+              "pm.test('role is CONTRACT_ADMIN', () => pm.expect(pm.response.json().users[0].role).to.eql('CONTRACT_ADMIN'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Create project_lead@phova.com (PROJECT_LEAD)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/auth/register_manager",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Project Lead\",\n  \"email\": \"project_lead@phova.com\",\n  \"password\": \"{{accountPassword}}\",\n  \"role\": \"PROJECT_LEAD\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('created', () => pm.response.to.have.status(200));",
+              "pm.test('role is PROJECT_LEAD', () => pm.expect(pm.response.json().users[0].role).to.eql('PROJECT_LEAD'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Create workshop_lead@phova.com (WORKSHOP_LEAD)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/auth/register_manager",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Workshop Lead\",\n  \"email\": \"workshop_lead@phova.com\",\n  \"password\": \"{{accountPassword}}\",\n  \"role\": \"WORKSHOP_LEAD\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('created', () => pm.response.to.have.status(200));",
+              "pm.test('role is WORKSHOP_LEAD', () => pm.expect(pm.response.json().users[0].role).to.eql('WORKSHOP_LEAD'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Create hse@phova.com (HSE)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/auth/register_manager",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"HSE\",\n  \"email\": \"hse@phova.com\",\n  \"password\": \"{{accountPassword}}\",\n  \"role\": \"HSE\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('created', () => pm.response.to.have.status(200));",
+              "pm.test('role is HSE', () => pm.expect(pm.response.json().users[0].role).to.eql('HSE'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Create storekeeper@phova.com (STOREKEEPER)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/auth/register_manager",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Storekeeper\",\n  \"email\": \"storekeeper@phova.com\",\n  \"password\": \"{{accountPassword}}\",\n  \"role\": \"STOREKEEPER\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('created', () => pm.response.to.have.status(200));",
+              "pm.test('role is STOREKEEPER', () => pm.expect(pm.response.json().users[0].role).to.eql('STOREKEEPER'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Create quality@phova.com (QUALITY)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/auth/register_manager",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Quality\",\n  \"email\": \"quality@phova.com\",\n  \"password\": \"{{accountPassword}}\",\n  \"role\": \"QUALITY\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('created', () => pm.response.to.have.status(200));",
+              "pm.test('role is QUALITY', () => pm.expect(pm.response.json().users[0].role).to.eql('QUALITY'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Create billing@phova.com (BILLING)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/auth/register_manager",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Billing\",\n  \"email\": \"billing@phova.com\",\n  \"password\": \"{{accountPassword}}\",\n  \"role\": \"BILLING\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('created', () => pm.response.to.have.status(200));",
+              "pm.test('role is BILLING', () => pm.expect(pm.response.json().users[0].role).to.eql('BILLING'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Check: list all users",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/v1/users"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://2-31-83-75.sslip.io"
+    },
+    {
+      "key": "adminKey",
+      "value": ""
+    },
+    {
+      "key": "adminEmail",
+      "value": ""
+    },
+    {
+      "key": "adminPassword",
+      "value": ""
+    },
+    {
+      "key": "accountPassword",
+      "value": ""
+    },
+    {
+      "key": "token",
+      "value": ""
+    }
+  ]
+}

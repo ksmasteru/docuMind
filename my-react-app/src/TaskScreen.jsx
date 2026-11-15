@@ -6,8 +6,10 @@
 //   accept  → POST /api/v1/task/:id/start          (ASSIGNED → STARTED)
 //   decline → POST /api/v1/task/:id/decline        ({ reason, comment })
 //   resume  → POST /api/v1/task/:id/start          (BLOCKED / RETURNED → STARTED: back to work, or to correct the report)
-//   report  → ReportForm with taskId               (POST /api/v1/submissions marks the task SUBMITTED)
+//   report  → ReportForm with taskId               (POST /api/v1/submissions marks the task SUBMITTED);
+//             a check (taskType VERIFICATION, levée de doute) → CheckReportForm (POST /api/v1/checks/:id/report)
 //   ask     → AskChat                              (not linked to the task yet, no sources yet)
+//   check   ← RepairCheckCard                      (a work order made from an alert: what its check found)
 //
 // The three tabs stay mounted: switching tabs keeps the conversation and the report's answers.
 // While a phone's keyboard is open the bottom bar steps aside and the field typed in stays in view
@@ -18,6 +20,8 @@ import { ChevronLeft, ClipboardCheck, Info, MessageSquareText, Timer, Wrench } f
 import { TopBar } from "./Layout";
 import AskChat from "./AskChat";
 import ReportForm from "./ReportForm";
+import CheckReportForm from "./CheckReportForm";
+import RepairCheckCard from "./RepairCheckCard";
 import { apiClient } from "./apiClient";
 import { ErrorBanner, ListSkeleton, PriorityBadge } from "./managerUi";
 import { buttonBase, formatDay, serverMessage } from "./managerUtils";
@@ -247,9 +251,20 @@ const DetailsTab = ({ task, onAccepted, onDeclined, onOpenReport }) => (
             </p>
         </div>
 
+        {/* a work order made from an alert: what its check on site found */}
+        {task.taskType !== "VERIFICATION" && task.alertNumber && <RepairCheckCard taskId={task.id} />}
+
         {task.status === "ASSIGNED" && <AssignedActions task={task} onAccepted={onAccepted} onDeclined={onDeclined} />}
 
-        {task.status === "STARTED" && task.templateId && (
+        {task.taskType === "VERIFICATION" && task.alertNumber && (
+            <Link to={`/terrain/${task.alertNumber}`}
+                className="block rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+                <span className="font-medium">Levée de doute{task.selfAssigned ? " · à votre initiative" : ""}</span> · vérifiez l'alerte #{task.alertNumber} sur place, puis dites ce que vous avez constaté.
+                <span className="ml-1 font-medium text-[#1A75BC] dark:text-[#5BC6E8]">Voir l'alerte →</span>
+            </Link>
+        )}
+
+        {task.status === "STARTED" && (task.templateId || task.taskType === "VERIFICATION") && (
             <button type="button" onClick={onOpenReport}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1A75BC] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#0F2A49]">
                 <ClipboardCheck className="h-4 w-4" aria-hidden="true" /> Remplir le rapport
@@ -386,6 +401,10 @@ const AssignedActions = ({ task, onAccepted, onDeclined }) => {
 // The task's form. The server only takes the report of a started task, so it opens once the
 // task is accepted, and stays on screen (with its PDF) once sent.
 const ReportTab = ({ task, onSubmitted, onAccept }) => {
+    // a check: its own report, which says itself when the task must be accepted or resumed first
+    if (task.taskType === "VERIFICATION")
+        return <CheckReportForm taskId={task.id} status={task.status} statusComment={task.statusComment} onSubmitted={onSubmitted} />;
+
     // SUBMITTED: sent from this page, the form stays with its PDF
     const opened = task.status === "STARTED" || task.status === "SUBMITTED";
 

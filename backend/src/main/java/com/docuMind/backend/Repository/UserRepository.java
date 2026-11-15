@@ -14,6 +14,8 @@ import com.docuMind.backend.model.User;
 public interface UserRepository extends JpaRepository<User, String> {
     
     Optional <User> findByEmail(String email);
+    // the names behind a list of emails (who moved each task, in a technician's history)
+    List<User> findByEmailIn(java.util.Collection<String> emails);
 
     Optional<User> findByName(String name);
 

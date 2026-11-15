@@ -9,8 +9,7 @@ import Layout from "./Layout";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { apiClient } from "./apiClient";
-import { useAuth } from "./AuthContext";
-import { linkOrder } from "./alertStore";
+import { acceptRequest, linkOrder } from "./alertStore";
 import { PRIORITY_LABEL, PRIORITY_STYLE, TASK_TYPES, localIso, serverMessage } from "./managerUtils";
 
 // TaskPriority on the backend, NORMAL being its default
@@ -30,10 +29,17 @@ const AssignTask = () => {
     const [searchParams] = useSearchParams();
     const name = searchParams.get("name");
     const alertNumber = Number(searchParams.get("alerte")) || null;
-    const { user } = useAuth();
+    // ?retour=/technicians/<id>: opened from a technician's page (TechnicianProfile.jsx), the way back
+    // goes there. Only that form of path is followed, so the link can't send the manager elsewhere.
+    // From an alert (?alerte=), the way back is the alert
+    const back = alertNumber ? `/alerts/${alertNumber}`
+        : /^\/technicians\/[\w-]+$/.test(searchParams.get("retour") ?? "") ? searchParams.get("retour") : "/technicians";
+    // ?demande=<id>: the manager accepts a technician's request to intervene on an alert (AlertDetail.jsx).
+    // Sending the form accepts it: the server creates the task for him and links it to the alert
+    const requestId = searchParams.get("demande");
     const navigate = useNavigate();
 
-    const [title, setTitle] = useState("");
+    const [title, setTitle] = useState(searchParams.get("titre") ?? "");
     const [taskType, setTaskType] = useState(null);
     const [priority, setPriority] = useState("NORMAL");
     const [templates, setTemplates] = useState(null); // null while loading
@@ -42,7 +48,7 @@ const AssignTask = () => {
     const [templateId, setTemplateId] = useState(null);
     const [equipmentId, setEquipmentId] = useState(searchParams.get("equipement") ?? "");
     const [dueDate, setDueDate] = useState(""); // "YYYY-MM-DD", or "" for no deadline
-    const [instructions, setInstructions] = useState("");
+    const [instructions, setInstructions] = useState(searchParams.get("consignes") ?? "");
     const [sending, setSending] = useState(false);
     const [errors, setErrors] = useState([]);
 
@@ -78,7 +84,7 @@ const AssignTask = () => {
         setSending(true);
         setErrors([]);
         try {
-            const { data } = await apiClient.post("/api/v1/task/new", {
+            const task = {
                 title: title.trim(),
                 taskType,
                 priority,
@@ -87,13 +93,21 @@ const AssignTask = () => {
                 equipmentId: equipmentId.trim(),
                 instructions: instructions.trim() || null,
                 dueDate: dueDate || null,
-            });
+            };
+            if (requestId) {
+                await acceptRequest(requestId, task);
+                const notice = `Demande acceptée : « ${title.trim()} » a été envoyée à ${name || technicianEmail}.`;
+                navigate(back, { state: { notice } });
+                return;
+            }
+            const { data } = await apiClient.post("/api/v1/task/new", task);
             const notice = `« ${title.trim()} » a été envoyée à ${name || technicianEmail}.`;
             if (alertNumber) {
-                linkOrder(alertNumber, { taskId: data?.id, title: title.trim(), technicianEmail }, user?.email ?? "Manager");
+                linkOrder(alertNumber, { taskId: data?.id, title: title.trim(), technicianEmail })
+                    .catch((err) => console.log("the order was created but not linked to the alert", err));
                 navigate(`/alerts/${alertNumber}?vue=ordres`, { state: { notice } });
             }
-            else navigate("/technicians", { state: { notice } });
+            else navigate(back, { state: { notice } });
         }
         catch (err) {
             console.log("Error while creating task", err);
@@ -105,8 +119,9 @@ const AssignTask = () => {
 
     return (
     <Layout active="technicians">
-        <Link to="/technicians" className="text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100">
-            ← Techniciens
+        <Link to={back} className="text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100">
+            {alertNumber ? `← Alerte #${alertNumber}`
+                : back === "/technicians" ? "← Techniciens" : `← ${name ? `Fiche de ${name}` : "Fiche du technicien"}`}
         </Link>
 
         <header className="mt-4">
