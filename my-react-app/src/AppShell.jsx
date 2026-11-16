@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Bell, LogOut, Menu, X } from "lucide-react";
+import { useTaskCounts } from "./taskCounts";
 import { cn } from "@/lib/utils";
 import { useAuth } from "./AuthContext";
 import { ThemeToggle } from "./ThemeToggle";
@@ -76,7 +77,8 @@ function TwinStatus({ pumps }) {
   );
 }
 
-function Sidebar({ active, alertCount, pumps, onNavigate, onClose }) {
+// counts: page → { value, tone }, the numbers shown at the end of the links
+function Sidebar({ active, counts, pumps, onNavigate, onClose }) {
   const { user } = useAuth();
   const tabs = tabsFor(user?.role);
   return (
@@ -110,7 +112,7 @@ function Sidebar({ active, alertCount, pumps, onNavigate, onClose }) {
               <ul className="space-y-px">
                 {shown.map((page) => (
                   <NavItem key={page} page={page} active={active} onNavigate={onNavigate}
-                    count={page === "alerts" ? alertCount : undefined} />
+                    count={counts[page]} />
                 ))}
               </ul>
             </div>
@@ -134,16 +136,20 @@ function AccountMenu() {
   const initial = (user?.email?.[0] ?? ROLE_LABEL[user?.role]?.[0] ?? "?").toUpperCase();
   return (
     <div className="flex items-center gap-3">
-      <span className="flex size-8 items-center justify-center rounded-sm bg-primary/15 font-data text-sm font-semibold text-primary ring-1 ring-inset ring-primary/30" aria-hidden="true">
-        {initial}
-      </span>
-      <div className="hidden text-right leading-tight sm:block">
-        {/* after a page reload the session only knows the role, not the email */}
-        {user?.email && <p className="text-sm font-medium text-foreground">{user.email}</p>}
-        <p className={user?.email ? "font-data text-[10px] uppercase tracking-[0.14em] text-subtle" : "text-sm font-medium text-foreground"}>
-          {ROLE_LABEL[user?.role] ?? user?.role}
-        </p>
-      </div>
+      {/* "Mon compte": his identity and his password (Account.jsx) */}
+      <Link to="/compte" title="Mon compte" aria-label="Mon compte"
+        className="flex items-center gap-3 rounded-sm outline-none hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring">
+        <span className="flex size-8 items-center justify-center rounded-sm bg-primary/15 font-data text-sm font-semibold text-primary ring-1 ring-inset ring-primary/30" aria-hidden="true">
+          {initial}
+        </span>
+        <span className="hidden text-right leading-tight sm:block">
+          {/* after a page reload the session only knows the role, not the email */}
+          {user?.email && <span className="block text-sm font-medium text-foreground">{user.email}</span>}
+          <span className={cn("block", user?.email ? "font-data text-[10px] uppercase tracking-[0.14em] text-subtle" : "text-sm font-medium text-foreground")}>
+            {ROLE_LABEL[user?.role] ?? user?.role}
+          </span>
+        </span>
+      </Link>
       <button type="button" onClick={() => logout().then(() => navigate("/login"))} aria-label="Se déconnecter" title="Se déconnecter"
         className={cn("p-1.5", LOOK.icon)}>
         <LogOut className="size-4" />
@@ -167,6 +173,13 @@ export default function AppShell({ active, contentClass, children }) {
     || (i.verification === "CONFIRMED" && i.orders.length === 0 && (i.interventions ?? []).length === 0));
   const critical = [...toCheck, ...toDecide].filter((i) => i.severity === "critical").length;
   const alertCount = { value: toCheck.length + toDecide.length, tone: critical ? "crit" : "warn" };
+  // the reports waiting for his review, and his tasks a technician declined (taskCounts.js)
+  const tasks = useTaskCounts();
+  const navCounts = {
+    alerts: alertCount,
+    review: { value: tasks.toReview ?? 0, tone: "warn" },
+    orders: { value: tasks.declined ?? 0, tone: "warn" },
+  };
   const closeDrawer = () => setDrawerOpen(false);
   const section = NAV_SECTIONS.find((s) => s.pages.includes(active))?.title;
 
@@ -174,7 +187,7 @@ export default function AppShell({ active, contentClass, children }) {
     <div lang="fr" className="min-h-screen bg-background font-ui text-foreground">
       {/* fixed sidebar on large screens */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 lg:block">
-        <Sidebar active={active} alertCount={alertCount} pumps={pumps.length} />
+        <Sidebar active={active} counts={navCounts} pumps={pumps.length} />
       </aside>
 
       {/* drawer on small screens */}
@@ -182,7 +195,7 @@ export default function AppShell({ active, contentClass, children }) {
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={closeDrawer} aria-hidden="true" />
           <aside className="absolute inset-y-0 left-0 w-64 shadow-2xl">
-            <Sidebar active={active} alertCount={alertCount} pumps={pumps.length} onNavigate={closeDrawer} onClose={closeDrawer} />
+            <Sidebar active={active} counts={navCounts} pumps={pumps.length} onNavigate={closeDrawer} onClose={closeDrawer} />
           </aside>
         </div>
       )}

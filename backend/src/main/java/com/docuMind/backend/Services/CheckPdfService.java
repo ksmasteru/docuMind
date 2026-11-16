@@ -24,6 +24,8 @@ import com.docuMind.backend.model.AlertCase;
 import com.docuMind.backend.model.CheckPoint;
 import com.docuMind.backend.model.CheckReport;
 import com.docuMind.backend.model.CheckReportDocument;
+import com.docuMind.backend.model.SubmissionReport;
+import com.docuMind.backend.model.TaskEvent;
 import com.docuMind.backend.model.TaskModel;
 import com.docuMind.backend.model.User;
 import com.docuMind.backend.model.VerificationResponse;
@@ -35,6 +37,7 @@ import com.docuMind.backend.model.enums.CheckVerdict;
 import com.docuMind.backend.model.enums.FalseAlarmCause;
 import com.docuMind.backend.model.enums.InconclusiveReason;
 import com.docuMind.backend.model.enums.PumpArrivalState;
+import com.docuMind.backend.model.enums.TaskStatus;
 import com.docuMind.backend.repository.AlertCaseRepository;
 import com.docuMind.backend.repository.CheckPointRepository;
 import com.docuMind.backend.repository.CheckReportRepository;
@@ -63,12 +66,15 @@ public class CheckPdfService {
     private final ImageService imageService;
     private final ReportVerification reportVerification;
     private final SubmissionPdfService pdfService;
+    private final TaskService taskService;
 
     public CheckPdfService(CheckService checkService, CheckReportRepository reportRepository,
                            CheckPointRepository pointRepository, TaskRepository taskRepository,
                            AlertCaseRepository caseRepository, UserRepository userRepository, ImageService imageService,
-                           ReportVerification reportVerification, SubmissionPdfService pdfService)
+                           ReportVerification reportVerification, SubmissionPdfService pdfService,
+                           TaskService taskService)
     {
+        this.taskService = taskService;
         this.checkService = checkService;
         this.reportRepository = reportRepository;
         this.pointRepository = pointRepository;
@@ -111,6 +117,9 @@ public class CheckPdfService {
             Optional<CheckReport> newer = reportRepository.findByTaskIdOrderByRoundDesc(report.getTaskId()).stream()
                 .filter(r -> r.getRound() > report.getRound()).findFirst();
             AlertCase alertCase = caseRepository.findById(report.getAlertNumber()).orElse(null);
+            // the manager acted on this very round: the check was approved
+            TaskEvent approval = TaskService.decisionOn(taskService.historyOf(report.getTaskId()), report.getSubmittedAt())
+                .filter(d -> d.getToStatus() == TaskStatus.APPROVED).orElse(null);
             return new VerificationResponse(
                 unchanged ? VerificationResponse.Result.AUTHENTIC : VerificationResponse.Result.ALTERED,
                 newer.isEmpty(),
@@ -124,7 +133,9 @@ public class CheckPdfService {
                 dayTime(report.getSubmittedAt()),
                 report.getVerdict().name(),
                 newer.map(r -> dayTime(r.getSubmittedAt())).orElse(null),
-                VerificationResponse.Kind.CHECK);
+                VerificationResponse.Kind.CHECK,
+                approval == null ? null : nameOf(approval.getActorEmail()).orElse("—"),
+                approval == null ? null : dayTime(approval.getOccurredAt()));
         });
     }
 
@@ -213,7 +224,7 @@ public class CheckPdfService {
 
         String code = report.getVerificationCode();
         byte[] bytes = pdfService.renderCheck(document, code == null ? null : ReportVerification.format(code),
-            code == null ? null : reportVerification.urlFor(code));
+            code == null ? null : reportVerification.urlFor(code), reviewOf(report));
         String pump = task.getEquipmentId() == null ? "pompe" : task.getEquipmentId().replaceAll("[^A-Za-z0-9_-]+", "-");
         return new PdfFile("levee-de-doute-" + pump + "-" + day(report.getSubmittedAt()).replace('/', '-') + ".pdf", bytes);
     }
@@ -235,6 +246,17 @@ public class CheckPdfService {
         if (title.endsWith(suffix))
             title = title.substring(0, title.length() - suffix.length());
         return title.isBlank() ? null : title;
+    }
+
+    // What became of this round: the manager acted on it (the check is approved), sent it back for more
+    // details, or hasn't decided yet
+    private SubmissionReport.Review reviewOf(CheckReport report)
+    {
+        List<TaskEvent> history = taskService.historyOf(report.getTaskId());
+        return TaskService.decisionOn(history, report.getSubmittedAt())
+            .map(d -> new SubmissionReport.Review(d.getToStatus().name(), nameOf(d.getActorEmail()).orElse(d.getActorEmail()),
+                dayTime(d.getOccurredAt()), d.getToStatus() == TaskStatus.RETURNED ? d.getComment() : null, List.of()))
+            .orElseGet(() -> new SubmissionReport.Review("PENDING", null, null, null, List.of()));
     }
 
     // a fault report ("Signaler une panne") has no check points: it is the technician's own finding

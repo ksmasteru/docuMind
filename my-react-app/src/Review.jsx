@@ -1,15 +1,17 @@
 // Reports waiting for the signed-in manager's review: their tasks a technician has submitted.
 // The mobile app's Revue tab.
 //
-//   list ← GET /api/v1/task/review   ({ tasks: [...], tasksCount }, ReviewTasks in the backend's
-//                                     API.md: each task joined to its latest report)
+//   list ← GET /api/v1/task/review              ({ tasks: [...], tasksCount }: each task joined to its latest report)
+//        ← GET /api/v1/task/review?scope=all    « Tous les rapports »: every manager's, each with whose task it
+//                                               is. Any manager may validate one when its sender is away; the
+//                                               validation is recorded under his own name
 //
 // An opened card leads to the report page (ReviewReport.jsx), where the manager reads the
 // answers and approves or returns the task. A decided task is no longer SUBMITTED, so it's
 // gone when this page loads again.
 import Layout from "./Layout";
 import { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { apiClient } from "./apiClient";
 import { EmptyState, ErrorBanner, ExpandableCard, GroupHeading, ListSkeleton, Notice, PageHeader, PriorityBadge, SectionLabel } from "./managerUi";
 import { TASK_TYPE_LABEL, formatDateTime, formatDay, formatWorked, localIso, serverMessage } from "./managerUtils";
@@ -30,13 +32,17 @@ const Review = () => {
     const [loadError, setLoadError] = useState(null);
     const [openId, setOpenId] = useState(null);
     const notice = useLocation().state?.notice;
+    // ?vue=tous: every manager's waiting reports
+    const [params, setParams] = useSearchParams();
+    const all = params.get("vue") === "tous";
+    const show = (everyone) => { setReviews(null); setParams(everyone ? { vue: "tous" } : {}, { replace: true }); };
 
     // the server already sorts them oldest submission first, the order to review them in
     // attempt: bumped by Retry to run this again
     useEffect(() => {
         const loadReviews = async () => {
             try {
-                const { data } = await apiClient.get("/api/v1/task/review");
+                const { data } = await apiClient.get("/api/v1/task/review", { params: all ? { scope: "all" } : {} });
                 setLoadError(null);
                 setReviews(data.tasks ?? []);
             }
@@ -47,7 +53,7 @@ const Review = () => {
             }
         };
         loadReviews();
-    }, [attempt]);
+    }, [attempt, all]);
 
     const onRetry = () => {
         setReviews(null);
@@ -60,9 +66,21 @@ const Review = () => {
 
     return (
     <Layout active="review">
-        <PageHeader title="Rapports à valider" subtitle="Les tâches terminées par vos techniciens." />
+        <PageHeader title="Rapports à valider" subtitle={all
+            ? "Les rapports en attente de tous les managers. Vous pouvez en valider un quand son manager est absent : la validation est enregistrée à votre nom."
+            : "Les tâches terminées par vos techniciens."} />
 
         {notice && <Notice>{notice}</Notice>}
+
+        <div className="mt-4 inline-flex rounded-lg border border-slate-200 p-0.5 text-sm dark:border-slate-700" role="group" aria-label="Rapports affichés">
+            {[[false, "Mes rapports"], [true, "Tous les rapports"]].map(([everyone, label]) => (
+                <button key={label} type="button" onClick={() => show(everyone)} aria-pressed={all === everyone}
+                    className={`rounded-md px-3 py-1.5 font-medium transition ${all === everyone
+                        ? "bg-[#1A75BC] text-white" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"}`}>
+                    {label}
+                </button>
+            ))}
+        </div>
 
         <div className="mt-6">
             {loading && <ListSkeleton />}
@@ -71,7 +89,7 @@ const Review = () => {
 
             {!loading && !loadError && reviews.length === 0 && (
                 <EmptyState icon="✅" title="Aucun rapport à valider"
-                    hint="Les rapports envoyés par vos techniciens apparaissent ici." />
+                    hint={all ? "Aucun rapport n'attend de validation." : "Les rapports envoyés par vos techniciens apparaissent ici."} />
             )}
 
             {!loading && reviews.length > 0 && (
@@ -94,7 +112,8 @@ const Review = () => {
                         </div>
                         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500 dark:text-slate-400">
                             <span className={conformity?.style}>{conformity?.label ?? "Rapport introuvable"}</span>
-                            <span>Technicien : {task.technicianEmail ?? "—"}</span>
+                            <span>Technicien : {task.technicianName ?? task.technicianEmail ?? "—"}</span>
+                            {all && <span>Tâche de : {task.managerName ?? task.managerEmail ?? "—"}</span>}
                             <span>Équipement : {task.equipmentId}</span>
                             <span className={late ? "text-orange-700 dark:text-orange-400" : ""}>
                                 Envoyé : {formatDateTime(task.submittedAt)}

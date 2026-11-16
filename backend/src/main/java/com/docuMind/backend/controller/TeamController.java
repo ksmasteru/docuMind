@@ -39,8 +39,8 @@ public class TeamController {
         return ResponseEntity.ok(teamService.getTeam(manager.getName()));
     }
 
-    // POST /api/v1/team/technicians {name, email, password, worksite?}: a new technician account
-    // in his team. 409 when the e-mail is already used
+    // POST /api/v1/team/technicians {firstName, lastName, worksite, email, password}: a new technician
+    // account in his team, under the name his reports will be signed with. 409 when the e-mail is used
     @PostMapping("/technicians")
     public ResponseEntity<TeamResponse> createTechnician(@Valid @RequestBody TeamTechnicianForm form, Authentication manager)
     {
@@ -53,6 +53,25 @@ public class TeamController {
     public ResponseEntity<TeamResponse> addTechnician(@PathVariable String id, Authentication manager)
     {
         return ResponseEntity.ok(teamService.addTechnician(manager.getName(), id));
+    }
+
+    // PUT /api/v1/team/technicians/{id}/account {firstName, lastName, worksite}: his manager corrects
+    // his name or his site. 403 when he isn't in the team. (PUT, not PATCH: the CORS rules allow
+    // GET, POST, PUT and DELETE only.)
+    @PutMapping("/technicians/{id}/account")
+    public ResponseEntity<TeamResponse> correctTechnician(@PathVariable String id,
+        @Valid @RequestBody TeamTechnicianForm.Correction form, Authentication manager)
+    {
+        return ResponseEntity.ok(teamService.correctTechnician(manager.getName(), id, form));
+    }
+
+    // POST /api/v1/team/technicians/{id}/password {password}: his manager gives him a new password
+    @PostMapping("/technicians/{id}/password")
+    public ResponseEntity<Void> resetPassword(@PathVariable String id,
+        @Valid @RequestBody TeamTechnicianForm.NewPassword form, Authentication manager)
+    {
+        teamService.resetPassword(manager.getName(), id, form.password());
+        return ResponseEntity.noContent().build();
     }
 
     // DELETE /api/v1/team/technicians/{id}: he leaves the team (his account and tasks stay)

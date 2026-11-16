@@ -106,6 +106,11 @@ public class TaskModel {
     @Column(columnDefinition = "TEXT")
     private String statusComment;
 
+    // what the reviewer asked to redo when he sent the report back. statusComment is cleared when the
+    // technician resumes; this one stays above his form while he corrects, until the task is closed
+    @Column(columnDefinition = "TEXT")
+    private String returnComment;
+
     // history of this task : stored in TaskEvent (taskId), read with TaskEventRepository
 
     // ---------- time ----------
@@ -190,6 +195,8 @@ public class TaskModel {
     public void setStatusReason(StatusReason statusReason) { this.statusReason = statusReason; }
     public String getStatusComment()                    { return statusComment; }
     public void setStatusComment(String statusComment)  { this.statusComment = statusComment; }
+    public String getReturnComment()                    { return returnComment; }
+    public void setReturnComment(String returnComment)  { this.returnComment = returnComment; }
     public Instant getCreatedAt()                       { return createdAt; }
     public void setCreatedAt(Instant createdAt)         { this.createdAt = createdAt; }
     public Instant getFirstStartedAt()                  { return firstStartedAt; }

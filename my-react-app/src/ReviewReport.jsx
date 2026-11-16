@@ -4,11 +4,14 @@
 //   report  ← GET  /api/v1/submissions/{id}          (SubmissionReport, the PDF's data)
 //   pdf     ← GET  /api/v1/submissions/{id}/preview  (one base64 PNG per page)
 //           ← GET  /api/v1/submissions/{id}/pdf      (the file, for the download button)
-//   approve → POST /api/v1/task/{taskId}/approve     (SUBMITTED -> APPROVED)
+//   approve → POST /api/v1/task/{taskId}/approve     (SUBMITTED -> APPROVED; { comment }: what is done about
+//                                                     a non-conforming report, « Suite donnée », required for one)
 //   return  → POST /api/v1/task/{taskId}/return      (SUBMITTED -> RETURNED, with a comment)
 //
 // Laid out like the sheet the technician filled, but nothing here can be changed. After a
 // decision the page goes back to the Review list, where the task is gone.
+// report.review says what became of it (validated by whom and when, sent back, still waiting) and
+// holds the task's history: both are shown to whoever reads the report, the technician included.
 import Layout from "./Layout";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -38,7 +41,7 @@ const ReviewReport = () => {
 
     // the manager's decision, on the task (SUBMITTED -> APPROVED / RETURNED)
     const send = async (action, comment) => {
-        await apiClient.post(`/api/v1/task/${taskId}/${action}`, action === "return" ? { comment } : undefined);
+        await apiClient.post(`/api/v1/task/${taskId}/${action}`, comment ? { comment } : undefined);
         navigate("/review", { state: { notice: `${action === "approve" ? "Rapport approuvé" : "Rapport renvoyé"} : « ${title} ».` } });
     };
 
@@ -50,8 +53,9 @@ const ReviewReport = () => {
 
         <div className="mt-4">
             <ReportView submissionId={id}>
-                {(report) => taskId && (
-                    <ReviewDecision send={send}
+                {/* decided on only while it waits: another manager may have validated it meanwhile */}
+                {(report) => taskId && (!report.review || report.review.state === "PENDING") && (
+                    <ReviewDecision send={send} followUpRequired={report.status === "NON_CONFORME"}
                         confirmText={`Approuver le rapport ? La tâche « ${title || report.title} » sera clôturée.`} />
                 )}
             </ReportView>
@@ -119,6 +123,8 @@ export const ReportView = ({ submissionId, children }) => {
             </p>
         )}
 
+        <ReviewState review={report.review} />
+
         {(report.answers ?? []).map((row) => <AnswerRow key={row.position} row={row} />)}
 
         {/* v2: the parts the technician added (« + Ajouter une pièce ») */}
@@ -143,8 +149,61 @@ export const ReportView = ({ submissionId, children }) => {
 
         <ReportPdf submissionId={submissionId} />
 
+        <Trail review={report.review} />
+
         {children?.(report)}
     </div>)
+};
+
+// what became of the report: validated (by whom, when, what is done about a non-conformity), sent back
+// (what to redo), or still waiting. Nothing for a report that answers no task
+const REVIEW_STATE = {
+    APPROVED: "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200",
+    PENDING:  "border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200",
+    RETURNED: "border-orange-200 bg-orange-50 text-orange-900 dark:border-orange-900 dark:bg-orange-950 dark:text-orange-200",
+    REJECTED: "border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200",
+};
+
+const ReviewState = ({ review }) => {
+    if (!review?.state || !REVIEW_STATE[review.state]) return null;
+    const by = review.reviewer ? `par ${review.reviewer} le ${review.reviewedAt}` : "";
+    return (
+        <div className={`rounded-2xl border px-4 py-2.5 text-sm ${REVIEW_STATE[review.state]}`} role="status">
+            <p className="font-semibold">
+                {review.state === "APPROVED" && `Validé ${by}`}
+                {review.state === "PENDING" && "En attente de validation"}
+                {review.state === "RETURNED" && `Renvoyé pour correction ${by}`}
+                {review.state === "REJECTED" && `Rejeté ${by}`}
+            </p>
+            {review.comment && (
+                <p className="mt-1 whitespace-pre-line">
+                    <span className="font-medium">{review.state === "APPROVED" ? "Suite donnée : " : "Demande : "}</span>{review.comment}
+                </p>
+            )}
+            {review.state === "RETURNED" && <p className="mt-1 text-xs opacity-80">Cette version a été remplacée, ou le sera, par un rapport corrigé.</p>}
+        </div>
+    );
+};
+
+// the task's history: sent, accepted, report sent, sent back (with the comment), sent again, validated
+const Trail = ({ review }) => {
+    if (!review?.trail?.length) return null;
+    return (
+        <div className={cardClass}>
+            <SectionLabel>Historique</SectionLabel>
+            <ol className="mt-2 space-y-2">
+                {review.trail.map((step, i) => (
+                    <li key={i} className="border-l-2 border-slate-200 pl-3 text-sm dark:border-slate-600">
+                        <p className="text-slate-800 dark:text-slate-100">
+                            <span className="font-medium">{step.what}</span>
+                            <span className="text-slate-500 dark:text-slate-400"> · {step.by} · {step.at}</span>
+                        </p>
+                        {step.comment && <p className="mt-0.5 whitespace-pre-line text-slate-600 dark:text-slate-300">« {step.comment} »</p>}
+                    </li>
+                ))}
+            </ol>
+        </div>
+    );
 };
 
 const Fact = ({ label, value }) => (
@@ -363,8 +422,12 @@ const ReportPdf = ({ submissionId }) => {
 // Approve, or send back with what to redo. send(action, comment): "approve" | "return", resolves
 // once done (the caller navigates away), throws to show the server's refusal here.
 // confirmText: asked before approving, which closes the task for good.
-export const ReviewDecision = ({ send, confirmText, approveLabel = "Approuver" }) => {
+// followUpRequired: the report is non-conforming, so validating it asks what is done about it
+// (« Suite donnée »), kept with the validation and printed on the report
+export const ReviewDecision = ({ send, confirmText, approveLabel = "Approuver", followUpRequired = false }) => {
     const [returning, setReturning] = useState(false);
+    const [following, setFollowing] = useState(false);
+    const [followUp, setFollowUp] = useState("");
     const [comment, setComment] = useState("");
     const [sending, setSending] = useState(null); // 'approve' | 'return' | null
     const [error, setError] = useState("");
@@ -373,7 +436,7 @@ export const ReviewDecision = ({ send, confirmText, approveLabel = "Approuver" }
         setSending(action);
         setError("");
         try {
-            await send(action, action === "return" ? comment.trim() : null);
+            await send(action, action === "return" ? comment.trim() : followUp.trim() || null);
         }
         catch (err) {
             console.log(`Error while trying to ${action} the report`, err);
@@ -383,7 +446,8 @@ export const ReviewDecision = ({ send, confirmText, approveLabel = "Approuver" }
     };
 
     const approve = () => {
-        if (window.confirm(confirmText)) run("approve");
+        if (followUpRequired) setFollowing(true);
+        else if (window.confirm(confirmText)) run("approve");
     };
 
     const busy = sending !== null;
@@ -392,7 +456,27 @@ export const ReviewDecision = ({ send, confirmText, approveLabel = "Approuver" }
     <div className={cardClass}>
         <SectionLabel>Décision</SectionLabel>
 
-        {!returning ? (
+        {following ? (
+        <div className="mt-3 space-y-2">
+            <label className="block text-sm text-slate-600 dark:text-slate-300">
+                Ce rapport est non conforme. Suite donnée <span className="text-red-600 dark:text-red-400">*</span>
+                <textarea value={followUp} onChange={(e) => setFollowUp(e.target.value)} disabled={busy} rows={3}
+                    placeholder="Ex. : ordre de travail créé pour remplacer le câble ; équipement consigné en attendant."
+                    className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100" />
+            </label>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Enregistrée avec votre validation et imprimée sur le rapport.</p>
+            <div className="flex justify-end gap-2">
+                <button type="button" disabled={busy} onClick={() => setFollowing(false)}
+                    className={`${buttonBase} text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700`}>
+                    Annuler
+                </button>
+                <button type="button" disabled={busy || !followUp.trim()} onClick={() => run("approve")}
+                    className={`${buttonBase} bg-emerald-600 text-white hover:bg-emerald-700`}>
+                    {sending === "approve" ? "Envoi…" : approveLabel}
+                </button>
+            </div>
+        </div>
+        ) : !returning ? (
         <div className="mt-3 flex justify-end gap-2">
             <button type="button" disabled={busy} onClick={() => setReturning(true)}
                 className={`${buttonBase} border border-red-300 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950`}>

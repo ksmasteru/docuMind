@@ -127,6 +127,64 @@ cd /opt/documind && git pull && ./scripts/init-server.sh
 This rebuilds and restarts the stack and re-runs the database check. It also adds any account
 newly listed in `roles_accounts.txt` and any new form in `forms/quality/`.
 
+### Reports and accounts (since 2026-11-15)
+
+Nothing to run by hand: `./scripts/init-server.sh` covers it, and the backend adds the new columns.
+What changes on the server ([plan_reports_validation.md](plan_reports_validation.md)):
+
+- **Technician accounts are created by their manager** (Techniciens page: first name, last name,
+  site, e-mail, password). The public sign-up page is closed. To reopen it (a demo), add
+  `ALLOW_SELF_REGISTRATION=true` to `.env` and restart the backend.
+- **Everyone can change their password** from "Mon compte" (the person icon in the header). The
+  role accounts created by step 6 share one password: ask each person to change theirs, since a
+  validation is recorded under the account that made it.
+- **Step 9 schedules the nightly backup** (below).
+
+## Backups
+
+Everything the app keeps is in the database: the reports, their photos, the uploaded documents, the
+accounts, the alerts. One dump is a full backup.
+
+- **Every night at 02:30**, `scripts/backup-db.sh` writes `backups/documind-<date>.dump` and removes
+  the dumps older than 14 days. `init-server.sh` (step 9) installs the job and takes a first dump.
+  `crontab -l` shows the job; `backups/backup.log` has one line per run.
+- **Run one now:** `./scripts/backup-db.sh`
+- **Check that the latest dump restores:** `./scripts/restore-check.sh`. It restores into a scratch
+  database, compares the row counts with the live one, and drops the scratch database. Run it after
+  the first backup, and once a month.
+- **Copy the dumps off the server.** They sit on the same disk as the database: a lost disk loses
+  both. From another machine, for example every night:
+
+  ```sh
+  rsync -a --delete root@SERVER_IP:/opt/documind/backups/ ~/documind-backups/
+  ```
+
+- **Restore for real** (this replaces the live data with the dump's):
+
+  ```sh
+  cd /opt/documind
+  docker compose -f docker-compose.server.yml stop backend
+  docker compose -f docker-compose.server.yml exec -T postgres sh -c \
+    'dropdb -U "$POSTGRES_USER" "$POSTGRES_DB" && createdb -U "$POSTGRES_USER" -T template0 "$POSTGRES_DB"'
+  docker compose -f docker-compose.server.yml exec -T postgres sh -c \
+    'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --exit-on-error' < backups/documind-<date>.dump
+  docker compose -f docker-compose.server.yml start backend
+  ```
+
+- Settings: `BACKUP_DIR` (default `./backups`) and `BACKUP_KEEP_DAYS` (default 14), as environment
+  variables of the job.
+
+## Testing the report flow
+
+`scripts/e2e-reports.mjs` walks the whole flow through the API (accounts, fill, save, send, send
+back, correct, validate, cancel, reassign) and checks every refusal. **It writes test data** (a
+technician account, tasks, reports): run it against a test server or a copy of the database, not
+the production one.
+
+```sh
+BASE_URL=http://localhost:8080 MANAGER_EMAIL=manager@phova.com MANAGER_PASSWORD=… node scripts/e2e-reports.mjs
+```
+
 ### Alerts on the server (since 2026-11-12)
 
 The alert cases now live in the database (`alert_case`, `alert_event`, `alert_request`…), so

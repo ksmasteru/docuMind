@@ -1,5 +1,6 @@
 package com.docuMind.backend.model;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 
@@ -33,6 +34,22 @@ public class User implements UserDetails {
     // the site the user works on
     @Column
     private String worksite;
+
+    // name is what is shown and signed ("Prénom Nom"). The accounts a manager creates also keep the
+    // two parts; older accounts have the name only
+    @Column
+    private String firstName;
+
+    @Column
+    private String lastName;
+
+    // who set the current password and when: the user himself (his own e-mail), or the manager or
+    // admin who created the account or reset it. null for the passwords set before this was kept
+    @Column
+    private String passwordSetBy;
+
+    @Column
+    private Instant passwordSetAt;
 
     @ManyToOne(fetch= FetchType.LAZY)
     @JoinColumn(name = "manager_id")
@@ -73,4 +90,22 @@ public class User implements UserDetails {
     }
     public String getWorksite() { return worksite; }
     public void setWorksite(String worksite) { this.worksite = worksite; }
+    public String getFirstName() { return firstName; }
+    public String getLastName()  { return lastName; }
+    public String getPasswordSetBy()  { return passwordSetBy; }
+    public Instant getPasswordSetAt() { return passwordSetAt; }
+
+    // "Prénom Nom", which becomes the name shown and signed
+    public void setNames(String firstName, String lastName) {
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.name = firstName + " " + lastName;
+    }
+
+    // hash: already encoded; by: the e-mail of who set it
+    public void setPassword(String hash, String by, Instant at) {
+        this.password = hash;
+        this.passwordSetBy = by;
+        this.passwordSetAt = at;
+    }
 }

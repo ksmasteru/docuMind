@@ -85,6 +85,7 @@ export const ORDER_STATUS = {
     STARTED:  { label: "En cours",    style: "text-ok" },
     BLOCKED:  { label: "Bloqué",      style: "font-medium text-warn" },
     RETURNED: { label: "À corriger",  style: "font-medium text-crit" },
+    DECLINED: { label: "Refusé par le technicien", style: "font-medium text-warn" },
 };
 
 // an active order past its due date (the due date itself is still on time)

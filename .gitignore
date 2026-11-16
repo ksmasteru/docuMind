@@ -1,3 +1,5 @@
 .env
 .env.local
  application.properties
+# database dumps (scripts/backup-db.sh): they hold everything
+backups/

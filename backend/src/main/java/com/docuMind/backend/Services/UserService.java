@@ -1,5 +1,6 @@
 package com.docuMind.backend.services;
 
+import java.time.Instant;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -36,6 +37,13 @@ public class UserService {
     // Business Action: Register a new user but check for duplicates first
     @Transactional
     public User registerUser(User user) {
+        return registerUser(user, null);
+    }
+
+    // setBy: the e-mail of who chose the password (the manager who creates the account); null when
+    // the user registered himself
+    @Transactional
+    public User registerUser(User user, String setBy) {
         // Business Rule: Check if email is already taken
         boolean emailExists = userRepository.findByEmail(user.getEmail()).isPresent();
         if (emailExists) {
@@ -44,9 +52,28 @@ public class UserService {
         // Save and return the fresh user record
         // we should have the pasword before registering the user.
         String encryptedPassword = passwordEncoder.encode(user.getPassword());
-        user.setPassword(encryptedPassword);
+        user.setPassword(encryptedPassword, setBy == null ? user.getEmail() : setBy, Instant.now());
         user.setRole(UserRole.USER);
         return userRepository.save(user);
+    }
+
+    // a new password for this account, set by `by` (himself, or the manager who resets it)
+    @Transactional
+    public void setPassword(User user, String password, String by) {
+        user.setPassword(passwordEncoder.encode(password), by, Instant.now());
+        userRepository.save(user);
+    }
+
+    // "Changer mon mot de passe": the current one is asked, so a phone left unlocked isn't enough
+    @Transactional
+    public void changeOwnPassword(String email, String currentPassword, String newPassword) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+        if (currentPassword == null || !passwordEncoder.matches(currentPassword, user.getPassword()))
+            throw new IllegalArgumentException("Le mot de passe actuel n'est pas le bon.");
+        if (passwordEncoder.matches(newPassword, user.getPassword()))
+            throw new IllegalArgumentException("Le nouveau mot de passe doit être différent de l'actuel.");
+        setPassword(user, newPassword, email);
     }
 
     // used by POST /api/auth/register-admin, which is protected by the admin key

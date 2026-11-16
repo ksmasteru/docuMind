@@ -31,13 +31,15 @@ public record ActiveTasks(
         TaskType taskType,      // VERIFICATION: a check, whose report is the check report, not a checklist
         Long alertNumber,       // the alert it comes from, if any
         boolean selfAssigned,   // a check the technician started himself
-        String managerEmail     // who sent it, or reviews it
+        String managerEmail,    // who sent it, or reviews it
+        String returnComment    // what to redo, kept while he corrects a report sent back (null otherwise)
     ){
         public static Task from(TaskModel task) {
             return new Task(task.getId(), task.getTitle(), null, task.getEquipmentId(),
                     task.getDueDate(), task.getPriority(), task.getStatus(), task.getInstructions(),
                     task.getTemplateId(), task.getTechnicianEmail(), task.getWorkedSeconds(), task.getActiveSince(), task.getStatusComment(),
-                    task.getTaskType(), task.getAlertNumber(), task.isSelfAssigned(), task.getManagerEmail());
+                    task.getTaskType(), task.getAlertNumber(), task.isSelfAssigned(), task.getManagerEmail(),
+                    task.getReturnComment());
         }
     }
 

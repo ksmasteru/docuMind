@@ -4,9 +4,10 @@ import { useAuth } from "./AuthContext";
 import { ThemeToggle } from "./Layout";
 import PhovaLogo from "./PhovaLogo";
 import { homeFor } from "./roleTabs";
+import { useSelfRegistration } from "./authOptions";
 
 export default function LoginPage() {
-  const { login, isAdmin, isLoading } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -14,7 +15,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+  const selfRegistration = useSelfRegistration();
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -103,12 +104,19 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          Need a workspace?{" "}
-          <Link to="/register" className="font-medium text-primary hover:underline">
-            Create one
-          </Link>
-        </p>
+        {/* accounts are created by a manager (Techniciens page); the public sign-up only when the server opens it */}
+        {selfRegistration ? (
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            Need a workspace?{" "}
+            <Link to="/register" className="font-medium text-primary hover:underline">
+              Create one
+            </Link>
+          </p>
+        ) : (
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            Pas encore de compte ? Votre manager le crée pour vous.
+          </p>
+        )}
       </div>
     </div>
   );

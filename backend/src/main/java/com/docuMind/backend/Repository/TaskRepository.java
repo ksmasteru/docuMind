@@ -36,16 +36,41 @@ public interface TaskRepository extends JpaRepository<TaskModel, String>
             t.id, t.title, t.taskType, t.priority, t.equipmentId, t.technicianEmail,
             t.instructions, t.dueDate, t.createdAt, t.submittedAt, t.workedSeconds,
             s.id, s.status, s.inspectionDate,
-            t.templateId, tpl.title)
+            t.templateId, tpl.title, t.managerEmail, m.name, tech.name)
         FROM TaskModel t
         LEFT JOIN CheckListSubmission s ON s.id = t.latestSubmissionId
         LEFT JOIN s.template tpl
+        LEFT JOIN User m ON m.email = t.managerEmail
+        LEFT JOIN User tech ON tech.email = t.technicianEmail
         WHERE t.managerEmail = :managerEmail AND t.status = :status
           AND t.taskType <> com.docuMind.backend.model.enums.TaskType.VERIFICATION
         ORDER BY t.submittedAt ASC
         """)
     List<ReviewTask> findTasksToReview(@Param("managerEmail") String managerEmail,
                                        @Param("status") TaskStatus status);
+
+    // every manager's reports waiting for a review (« Tous les rapports »: the sender is away).
+    // Not the checks (settled from their alert) nor the workshop's tasks (reviewed from their intervention)
+    @Query("""
+        SELECT new com.docuMind.backend.model.ReviewTask(
+            t.id, t.title, t.taskType, t.priority, t.equipmentId, t.technicianEmail,
+            t.instructions, t.dueDate, t.createdAt, t.submittedAt, t.workedSeconds,
+            s.id, s.status, s.inspectionDate,
+            t.templateId, tpl.title, t.managerEmail, m.name, tech.name)
+        FROM TaskModel t
+        LEFT JOIN CheckListSubmission s ON s.id = t.latestSubmissionId
+        LEFT JOIN s.template tpl
+        LEFT JOIN User m ON m.email = t.managerEmail
+        LEFT JOIN User tech ON tech.email = t.technicianEmail
+        WHERE t.status = :status
+          AND t.taskType <> com.docuMind.backend.model.enums.TaskType.VERIFICATION
+          AND t.interventionId IS NULL
+        ORDER BY t.submittedAt ASC
+        """)
+    List<ReviewTask> findAllTasksToReview(@Param("status") TaskStatus status);
+
+    // a technician's reports sent or validated, the latest first (« Envoyés »)
+    List<TaskModel> findTop60ByTechnicianEmailAndStatusInOrderBySubmittedAtDesc(String technicianEmail, Collection<TaskStatus> statuses);
 
     // pump history, newest first, one page at a time
     // uses idx_task_equipment_created
@@ -63,8 +88,9 @@ public interface TaskRepository extends JpaRepository<TaskModel, String>
     List<TaskModel> findByTechnicianEmailOrderByCreatedAtDesc(String technicianEmail);
 
     // a technician with a task on an alert (its check, or a work order made from it) may read its
-    // check report (CheckService.readable)
-    boolean existsByTechnicianEmailAndAlertNumber(String technicianEmail, Long alertNumber);
+    // check report (CheckService.readable): not one he declined or that was canceled
+    boolean existsByTechnicianEmailAndAlertNumberAndStatusNotIn(String technicianEmail, Long alertNumber,
+                                                                Collection<TaskStatus> statuses);
 
     // the work orders made before they recorded their alert (AlertService.backfillOrderAlerts)
     List<TaskModel> findByIdInAndAlertNumberIsNull(Collection<String> ids);

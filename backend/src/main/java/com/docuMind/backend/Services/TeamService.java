@@ -111,13 +111,43 @@ public class TeamService {
         String email = form.email().strip();
         if (userRepository.findByEmail(email).isPresent())
             throw new TeamException("Un compte existe déjà avec l'e-mail " + email + ".");
-        User account = new User(form.name().strip(), email, form.password(), UserRole.USER);
-        if (form.worksite() != null && !form.worksite().isBlank())
-            account.setWorksite(form.worksite().strip());
-        User technician = userService.registerUser(account); // hashes the password
+        User account = new User(null, email, form.password(), UserRole.USER);
+        account.setNames(form.firstName().strip(), form.lastName().strip());
+        account.setWorksite(form.worksite().strip());
+        User technician = userService.registerUser(account, managerEmail); // hashes the password
         Team team = teamOf(managerEmail);
         team.addTechnician(technician);
         return response(new ArrayList<>(teamRepository.save(team).getTechnicians()));
+    }
+
+    // his manager corrects his name or his site: the name is the one his reports are signed with
+    @PreAuthorize("hasRole('MANAGER')")
+    @Transactional
+    public TeamResponse correctTechnician(String managerEmail, String technicianId, TeamTechnicianForm.Correction form)
+    {
+        User technician = mine(managerEmail, technicianId);
+        technician.setNames(form.firstName().strip(), form.lastName().strip());
+        technician.setWorksite(form.worksite().strip());
+        userRepository.save(technician);
+        return getTeam(managerEmail);
+    }
+
+    // his manager gives him a new password (he forgot it): recorded as set by the manager
+    @PreAuthorize("hasRole('MANAGER')")
+    @Transactional
+    public void resetPassword(String managerEmail, String technicianId, String password)
+    {
+        userService.setPassword(mine(managerEmail, technicianId), password, managerEmail);
+    }
+
+    // a technician of the caller's team; 403 for anyone else's
+    private User mine(String managerEmail, String technicianId)
+    {
+        User technician = technicianById(technicianId);
+        teamRepository.findByManager_Email(managerEmail)
+            .filter(t -> t.hasTechnician(technicianId))
+            .orElseThrow(() -> new AccessDeniedException("Ce technicien ne fait pas partie de votre équipe."));
+        return technician;
     }
 
     // he leaves the team; his account and his tasks stay as they are

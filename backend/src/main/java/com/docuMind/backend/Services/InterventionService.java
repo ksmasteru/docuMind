@@ -27,6 +27,7 @@ import com.docuMind.backend.model.InterventionEvent;
 import com.docuMind.backend.model.InterventionFollowUp;
 import com.docuMind.backend.model.InterventionRequestDto;
 import com.docuMind.backend.model.TaskCreationDto;
+import com.docuMind.backend.model.TaskDeclinedEvent;
 import com.docuMind.backend.model.TaskModel;
 import com.docuMind.backend.model.TaskSubmittedEvent;
 import com.docuMind.backend.model.enums.InterventionAction;
@@ -302,6 +303,30 @@ public class InterventionService {
                 interventionRepository.save(intervention);
                 interventionEventRepository.save(new InterventionEvent(intervention.getId(), step, InterventionAction.VALIDATE,
                         submitted.technicianEmail(), fromStatus, StepStatus.VALIDE, "Rapport envoyé", submitted.submittedAt()));
+            });
+    }
+
+    // The technician declined the task of step 8 / 16 (TaskService.declineTask, same transaction): the
+    // intervention goes back to the step before (7 Affecter équipe / 15 Autoriser montage), « À corriger »
+    // in the Workshop Lead's queue, who takes it and assigns someone else. The history says who declined
+    // and why. A manager's task has no intervention and nothing happens.
+    @EventListener
+    public void onTaskDeclined(TaskDeclinedEvent declined)
+    {
+        interventionRepository.findByTaskId(declined.taskId())
+            .filter(i -> i.getStatus() == InterventionStatus.EN_COURS && i.getCurrentStep().isTask())
+            .ifPresent(intervention -> {
+                WorkshopStep step = intervention.getCurrentStep();
+                StepStatus fromStatus = intervention.getStepStatus();
+                intervention.setCurrentStep(WorkshopStep.values()[step.ordinal() - 1]);
+                intervention.setStepStatus(StepStatus.A_CORRIGER);
+                intervention.setStepAssignee(null);
+                interventionRepository.save(intervention);
+                String why = declined.comment() == null || declined.comment().isBlank()
+                    ? "Tâche refusée par le technicien"
+                    : "Tâche refusée par le technicien : " + declined.comment().strip();
+                interventionEventRepository.save(new InterventionEvent(intervention.getId(), step, InterventionAction.RETURN,
+                        declined.technicianEmail(), fromStatus, StepStatus.A_CORRIGER, why, declined.at()));
             });
     }
 

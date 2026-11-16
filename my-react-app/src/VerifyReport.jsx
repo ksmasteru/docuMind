@@ -288,7 +288,7 @@ export default function VerifyReport() {
               <Row label={check ? "Technicien" : "Inspecteur"} value={r.inspector} />
               <Row label="Envoyé le" value={r.submittedAt} />
               <Row label={check ? "Conclusion" : "Résultat"} value={(check ? VERDICT : STATUS)[r.status] ?? r.status} />
-              {r.review && <Row label="Validation" value={REVIEW[r.review] ?? "En cours"} />}
+              {r.review && <Row label="Validation" value={r.reviewedBy ? `Validé par ${r.reviewedBy} le ${r.reviewedAt}` : REVIEW[r.review] ?? "En cours"} />}
               <Row label="Code" value={<span className="font-mono">{r.code}</span>} />
             </dl>
             <DocumentCopy code={code} altered={r.result === "ALTERED"} />

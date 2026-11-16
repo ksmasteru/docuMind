@@ -271,7 +271,7 @@
     </tr>
     <tr>
       <td class="band visa">Visa</td>
-      <td class="visa"></td>
+      <td class="visa" th:text="${review != null and review.state == 'APPROVED' ? 'Validé électroniquement par ' + review.reviewer + ' le ' + review.reviewedAt : ''}"></td>
     </tr>
   </table>
 
@@ -290,6 +290,8 @@
     <span th:text="${report.submittedAt}">06/10/2026 14:32</span>
     · réf. <span th:text="${report.submissionId}">8e8c5c3e-…</span>
   </p>
+
+  <table th:replace="~{verification :: approval}"></table>
 
   <table th:replace="~{verification :: block}"></table>
 

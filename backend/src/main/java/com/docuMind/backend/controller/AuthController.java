@@ -12,6 +12,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -39,6 +40,11 @@ import jakarta.validation.Valid;
 public class AuthController {
     @Value("${app.security.admin-key}")
     private String adminSecretKey;
+
+    // Technician accounts are created by their manager (TeamController), under the name their reports
+    // are signed with. ALLOW_SELF_REGISTRATION=true reopens the public sign-up (a demo, a first install)
+    @Value("${app.auth.self-registration:false}")
+    private boolean selfRegistration;
 
     private final RefreshTokenRepository refreshTokenRepository;
     private final UserService userService;
@@ -103,10 +109,23 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    // cananyone be registered as a technician ? or you should be given ann count by an admin ?
+    // GET /api/auth/options: what the login page may offer. selfRegistration: the public sign-up is open
+    @GetMapping("/options")
+    public ResponseEntity<?> options()
+    {
+        return ResponseEntity.ok(Map.of("selfRegistration", selfRegistration));
+    }
+
+    // Closed unless ALLOW_SELF_REGISTRATION=true: technician accounts are created by their manager
+    // (Techniciens page), under the name their reports are signed with
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody  Map<String, String> request) {
-        
+
+        if (!selfRegistration)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                "error", "self-registration is closed",
+                "message", "Les comptes sont créés par votre manager : demandez-lui le vôtre."));
+
         System.out.println("received a new register request for " + request.get("email"));
         
         try {

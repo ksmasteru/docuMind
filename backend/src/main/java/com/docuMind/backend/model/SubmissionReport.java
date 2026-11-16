@@ -28,9 +28,37 @@ public record SubmissionReport(
     List<ReportRow> answers, // sorted by position
     List<ExtraPart> extraParts, // v2 expertise reports: the parts the technician added; empty otherwise
     Verification verification,  // the code and URL printed with the QR code; null for a preview not sent
-    Paper paper                 // the paper sheet a control sheet replaces (its header); null for the other forms
+    Paper paper,                // the paper sheet a control sheet replaces (its header); null for the other forms
+    Review review               // what became of it, for a task's report; null for a standalone one or a preview
 )
 {
+    // a report whose review isn't known (a preview, a test): everything else as given
+    public SubmissionReport(String title, String type, int version, String instructions, String submissionId,
+                            String equipment, String inspectionDate, String inspector, String submittedAt,
+                            String status, String remarks, List<ReportRow> answers, List<ExtraPart> extraParts,
+                            Verification verification, Paper paper)
+    {
+        this(title, type, version, instructions, submissionId, equipment, inspectionDate, inspector,
+             submittedAt, status, remarks, answers, extraParts, verification, paper, null);
+    }
+
+    public SubmissionReport withReview(Review review)
+    {
+        return new SubmissionReport(title, type, version, instructions, submissionId, equipment, inspectionDate,
+            inspector, submittedAt, status, remarks, answers, extraParts, verification, paper, review);
+    }
+
+    // What became of a task's report, printed on it (« Validé par … le … ») and shown on its page.
+    //   state     PENDING: sent, it waits for its review · APPROVED: validated · RETURNED: sent back to be
+    //             corrected (a later version replaces it) · REJECTED
+    //   reviewer  who decided, by name; reviewedAt "06/10/2026 14:32", site time; both null while PENDING
+    //   comment   what to redo (RETURNED), or what is done about a non-conforming report (APPROVED, « Suite donnée »)
+    //   trail     the task's history, oldest first
+    public record Review(String state, String reviewer, String reviewedAt, String comment, List<Step> trail) {}
+
+    // one step of the task: "06/10/2026 14:32", who (by name), what ("Rapport envoyé"), the comment given
+    public record Step(String at, String by, String what, String comment) {}
+
     // a report without a paper sheet's header (every form but the control sheets)
     public SubmissionReport(String title, String type, int version, String instructions, String submissionId,
                             String equipment, String inspectionDate, String inspector, String submittedAt,

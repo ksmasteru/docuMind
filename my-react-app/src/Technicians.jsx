@@ -3,7 +3,8 @@
 //   team    ← GET  /api/v1/team                  { members: [{ id, name, email, worksite, activeTasks,
 //                                                  toReview, approved, totalTasks, lastActivityAt }],
 //                                                  available: [{ id, name, email, worksite }] }
-//   create  → POST /api/v1/team/technicians      { name, email, password, worksite? }: a new account
+//   create  → POST /api/v1/team/technicians      { firstName, lastName, worksite, email, password }: a new
+//                                                  account, under the name his reports are signed with
 //   add     → PUT  /api/v1/team/technicians/{id} an existing technician in no team yet
 //   (every change answers with the whole team; removing someone is on his page)
 //
@@ -131,23 +132,28 @@ function AddPanel({ available, onAdd, onCreate }) {
     );
 }
 
-const EMPTY_FORM = { name: "", email: "", password: "", worksite: "" };
+const EMPTY_FORM = { firstName: "", lastName: "", worksite: "", email: "", password: "" };
+export const MIN_PASSWORD = 8;
 
 function validate(form) {
     const errors = {};
-    if (!form.name.trim()) errors.name = "Le nom est obligatoire.";
+    if (!form.firstName.trim()) errors.firstName = "Le prénom est obligatoire.";
+    if (!form.lastName.trim()) errors.lastName = "Le nom est obligatoire.";
+    if (!form.worksite) errors.worksite = "Choisissez son site.";
     if (!form.email.trim()) errors.email = "L'e-mail est obligatoire.";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) errors.email = "Cet e-mail n'est pas valide.";
-    if (form.password.length < 6) errors.password = "6 caractères minimum.";
+    if (form.password.length < MIN_PASSWORD) errors.password = `${MIN_PASSWORD} caractères minimum.`;
     return errors;
 }
 
-// a new technician account, which joins the team
+// A new technician account, which joins the team. His first and last name are what his reports are
+// signed with, and his site decides which alerts he sees: all three are required.
 function CreatePanel({ onCreated }) {
     const [form, setForm] = useState(EMPTY_FORM);
     const [errors, setErrors] = useState({});
     const [formError, setFormError] = useState(null);
     const [sending, setSending] = useState(false);
+    const [shown, setShown] = useState(false);
     const set = (key) => (event) => setForm((f) => ({ ...f, [key]: event.target.value }));
 
     const submit = async (event) => {
@@ -158,9 +164,10 @@ function CreatePanel({ onCreated }) {
         if (Object.keys(found).length) return;
         setSending(true);
         try {
-            const body = { name: form.name.trim(), email: form.email.trim(), password: form.password, worksite: form.worksite || null };
+            const body = { firstName: form.firstName.trim(), lastName: form.lastName.trim(), worksite: form.worksite,
+                email: form.email.trim(), password: form.password };
             const { data } = await apiClient.post("/api/v1/team/technicians", body);
-            onCreated(data, body);
+            onCreated(data, { ...body, name: `${body.firstName} ${body.lastName}` });
             setForm(EMPTY_FORM);
         }
         catch (err) {
@@ -186,17 +193,27 @@ function CreatePanel({ onCreated }) {
 
     return (
         <form onSubmit={submit} noValidate className="space-y-4 px-4">
-            {field("name", "Nom complet", <input {...described("name")} className={inputClass} value={form.name} onChange={set("name")} autoComplete="off" placeholder="Prénom Nom" />)}
-            {field("email", "E-mail", <input {...described("email")} type="email" className={inputClass} value={form.email} onChange={set("email")} autoComplete="off" placeholder="prenom.nom@phova.com" />,
-                "Il se connectera avec cet e-mail.")}
-            {field("password", "Mot de passe", <input {...described("password")} type="password" className={inputClass} value={form.password} onChange={set("password")} autoComplete="new-password" />,
-                "6 caractères minimum. Communiquez-le-lui : il pourra se connecter tout de suite.")}
+            <div className="grid grid-cols-2 gap-3">
+                {field("firstName", "Prénom", <input {...described("firstName")} className={inputClass} value={form.firstName} onChange={set("firstName")} autoComplete="off" />)}
+                {field("lastName", "Nom", <input {...described("lastName")} className={inputClass} value={form.lastName} onChange={set("lastName")} autoComplete="off" />)}
+            </div>
+            <p className="-mt-2 text-xs text-muted-foreground">Ses rapports seront signés de ce nom.</p>
             {field("worksite", "Site", (
                 <select {...described("worksite")} className={inputClass} value={form.worksite} onChange={set("worksite")}>
-                    <option value="">Non précisé</option>
+                    <option value="">Choisir…</option>
                     {WORKSITES.map((site) => <option key={site} value={site}>{site}</option>)}
                 </select>
-            ))}
+            ), "Il verra les alertes de ce site.")}
+            {field("email", "E-mail", <input {...described("email")} type="email" className={inputClass} value={form.email} onChange={set("email")} autoComplete="off" placeholder="prenom.nom@phova.com" />,
+                "Il se connectera avec cet e-mail.")}
+            {field("password", "Mot de passe", (
+                <div className="flex gap-2">
+                    <input {...described("password")} type={shown ? "text" : "password"} className={inputClass} value={form.password} onChange={set("password")} autoComplete="new-password" />
+                    <Button type="button" variant="outline" size="sm" className="h-9 shrink-0" onClick={() => setShown((v) => !v)} aria-pressed={shown}>
+                        {shown ? "Masquer" : "Afficher"}
+                    </Button>
+                </div>
+            ), `${MIN_PASSWORD} caractères minimum. Communiquez-le-lui : il pourra le changer depuis « Mon compte ».`)}
             {formError && <p role="alert" className="rounded-sm border border-crit/30 bg-crit/10 px-3 py-2 text-sm text-crit">{formError}</p>}
             <Button type="submit" className="w-full" disabled={sending}>
                 {sending ? "Création…" : "Créer le compte"}

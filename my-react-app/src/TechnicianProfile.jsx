@@ -3,13 +3,16 @@
 //
 //   profile ← GET    /api/v1/team/technicians/{id}  { technician, managerName, performance,
 //                                                     tasks: [{ …, returns, reports: [], events: [] }] }
+//   correct → PUT    /api/v1/team/technicians/{id}/account   { firstName, lastName, worksite }: the name his
+//                                                            reports are signed with, and his site
+//   reset   → POST   /api/v1/team/technicians/{id}/password  { password }: he forgot his password
 //   remove  → DELETE /api/v1/team/technicians/{id}
 //   a report: /technicians/:id/rapport/:submissionId (TechnicianReport below), the read-only
 //   ReportView of the Review page. The backend lets a team's manager read all his technicians' reports.
 import Layout from "./Layout";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, ChevronDown, ClipboardPlus, FileText, Mail, MessageSquareText, UserMinus } from "lucide-react";
+import { ArrowLeft, ChevronDown, ClipboardPlus, FileText, KeyRound, Mail, MessageSquareText, Pencil, UserMinus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -19,7 +22,7 @@ import { TASK_TYPE_LABEL, formatDateTime, formatDay, formatWorked, localIso, plu
 import { MicroLabel, Panel, PanelEmpty, PanelError, PanelSkeleton } from "./dashboard/primitives";
 import { TONE } from "./dashboard/tokens";
 import { ReportView } from "./ReviewReport";
-import { Avatar } from "./Technicians";
+import { Avatar, MIN_PASSWORD } from "./Technicians";
 import { HISTORY_FILTERS, REASON_LABEL, REPORT_STATUS, TASK_STATE, eventLabel, orderQuery, percent } from "./teamUtils";
 
 const dayOf = (instant) => (instant ? formatDay(localIso(new Date(instant))) : "—");
@@ -304,6 +307,122 @@ function History({ tasks, technician }) {
     );
 }
 
+// ---- his account: the name he signs with, his site, his password ----
+
+const fieldClass = "h-9 w-full rounded-sm border border-input bg-background px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30";
+const WORKSITES = ["Jorf", "Safi"];
+
+// an account made before names were asked in two parts: the first word, then the rest
+const splitName = (technician) => {
+    if (technician.firstName || technician.lastName) return [technician.firstName ?? "", technician.lastName ?? ""];
+    const [first, ...rest] = (technician.name ?? "").trim().split(/\s+/);
+    return [first ?? "", rest.join(" ")];
+};
+
+function Account({ technician, onChanged }) {
+    const [first, last] = splitName(technician);
+    const [editing, setEditing] = useState(null); // "identity" | "password" | null
+    const [form, setForm] = useState({ firstName: first, lastName: last, worksite: technician.worksite ?? "" });
+    const [password, setPassword] = useState("");
+    const [shown, setShown] = useState(false);
+    const [sending, setSending] = useState(false);
+    const [error, setError] = useState(null);
+    const [done, setDone] = useState(null);
+    const set = (key) => (event) => setForm((f) => ({ ...f, [key]: event.target.value }));
+    const open = (what) => { setEditing(what); setError(null); setDone(null); };
+
+    const send = async (request, message) => {
+        setSending(true);
+        setError(null);
+        try {
+            await request();
+            setEditing(null);
+            setPassword("");
+            setDone(message);
+            onChanged();
+        }
+        catch (err) {
+            const fields = err.response?.data?.errors;
+            setError(fields && Object.keys(fields).length ? Object.values(fields).join(" ") : serverMessage(err, "La modification n'a pas pu être enregistrée. Réessayez."));
+        }
+        finally {
+            setSending(false);
+        }
+    };
+    const saveIdentity = (event) => {
+        event.preventDefault();
+        if (!form.firstName.trim() || !form.lastName.trim() || !form.worksite) { setError("Le prénom, le nom et le site sont obligatoires."); return; }
+        send(() => apiClient.put(`/api/v1/team/technicians/${technician.id}/account`,
+            { firstName: form.firstName.trim(), lastName: form.lastName.trim(), worksite: form.worksite }), "Le compte est à jour.");
+    };
+    const savePassword = (event) => {
+        event.preventDefault();
+        if (password.length < MIN_PASSWORD) { setError(`Le mot de passe doit faire au moins ${MIN_PASSWORD} caractères.`); return; }
+        send(() => apiClient.post(`/api/v1/team/technicians/${technician.id}/password`, { password }),
+            "Le mot de passe est changé : communiquez-le-lui.");
+    };
+
+    const passwordLine = technician.passwordSetBySelf == null ? "Mot de passe défini avant le suivi des changements."
+        : technician.passwordSetBySelf ? `Il a choisi lui-même son mot de passe le ${dayOf(technician.passwordSetAt)}.`
+        : `Mot de passe défini par un manager le ${dayOf(technician.passwordSetAt)} : il peut le changer depuis « Mon compte ».`;
+
+    return (
+        <section className="mt-6 rounded-md border border-border bg-card px-4 py-4" aria-labelledby="account-title">
+            <MicroLabel>Compte</MicroLabel>
+            <h2 id="account-title" className="mt-1 text-sm font-semibold text-foreground">Identité et accès</h2>
+            <p className="mt-1 text-xs text-muted-foreground">Ses rapports sont signés « {technician.name} ». {passwordLine}</p>
+            {done && <p role="status" className="mt-2 text-sm text-ok">{done}</p>}
+
+            {editing === null && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                    <Button variant="outline" size="sm" onClick={() => open("identity")}><Pencil aria-hidden="true" /> Corriger le nom ou le site</Button>
+                    <Button variant="outline" size="sm" onClick={() => open("password")}><KeyRound aria-hidden="true" /> Changer son mot de passe</Button>
+                </div>
+            )}
+
+            {editing === "identity" && (
+                <form onSubmit={saveIdentity} noValidate className="mt-3 grid max-w-xl gap-3 sm:grid-cols-3">
+                    <label className="text-sm font-medium text-foreground">Prénom
+                        <input className={cn(fieldClass, "mt-1.5")} value={form.firstName} onChange={set("firstName")} autoComplete="off" />
+                    </label>
+                    <label className="text-sm font-medium text-foreground">Nom
+                        <input className={cn(fieldClass, "mt-1.5")} value={form.lastName} onChange={set("lastName")} autoComplete="off" />
+                    </label>
+                    <label className="text-sm font-medium text-foreground">Site
+                        <select className={cn(fieldClass, "mt-1.5")} value={form.worksite} onChange={set("worksite")}>
+                            <option value="">Choisir…</option>
+                            {WORKSITES.map((site) => <option key={site} value={site}>{site}</option>)}
+                        </select>
+                    </label>
+                    <p className="text-xs text-muted-foreground sm:col-span-3">Le nouveau nom s'affichera aussi sur ses rapports déjà envoyés.</p>
+                    {error && <p role="alert" className="text-sm text-crit sm:col-span-3">{error}</p>}
+                    <div className="flex gap-2 sm:col-span-3">
+                        <Button type="submit" size="sm" disabled={sending}>{sending ? "Enregistrement…" : "Enregistrer"}</Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(null)} disabled={sending}>Annuler</Button>
+                    </div>
+                </form>
+            )}
+
+            {editing === "password" && (
+                <form onSubmit={savePassword} noValidate className="mt-3 max-w-sm space-y-3">
+                    <label className="block text-sm font-medium text-foreground">Nouveau mot de passe
+                        <span className="mt-1.5 flex gap-2">
+                            <input type={shown ? "text" : "password"} className={fieldClass} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+                            <Button type="button" variant="outline" size="sm" className="h-9 shrink-0" onClick={() => setShown((v) => !v)} aria-pressed={shown}>{shown ? "Masquer" : "Afficher"}</Button>
+                        </span>
+                    </label>
+                    <p className="text-xs text-muted-foreground">{MIN_PASSWORD} caractères minimum. L'ancien ne fonctionnera plus.</p>
+                    {error && <p role="alert" className="text-sm text-crit">{error}</p>}
+                    <div className="flex gap-2">
+                        <Button type="submit" size="sm" disabled={sending}>{sending ? "Changement…" : "Changer le mot de passe"}</Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(null)} disabled={sending}>Annuler</Button>
+                    </div>
+                </form>
+            )}
+        </section>
+    );
+}
+
 // ---- leaving the team ----
 
 function RemoveFromTeam({ technician, onRemoved }) {
@@ -416,6 +535,7 @@ const TechnicianProfile = () => {
                     <ProfileHeader technician={technician} managerName={profile.managerName} onAssign={assign} />
                     <PerformanceTiles performance={profile.performance} tasks={profile.tasks} />
                     <History tasks={profile.tasks} technician={technician} />
+                    <Account key={`${technician.name}-${technician.worksite}`} technician={technician} onChanged={() => setAttempt((n) => n + 1)} />
                     <RemoveFromTeam technician={technician}
                         onRemoved={() => navigate("/technicians", { state: { notice: `${technician.name} ne fait plus partie de votre équipe.` } })} />
                 </>

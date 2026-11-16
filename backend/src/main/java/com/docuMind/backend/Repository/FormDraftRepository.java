@@ -30,4 +30,7 @@ public interface FormDraftRepository extends JpaRepository<FormDraft, String>
     // once the submission is sent, its draft goes. Must run inside a transaction
     // (SubmissionService is @Transactional)
     void deleteByUserIdAndTemplateIdAndTaskId(String userId, String templateId, String taskId);
+
+    // a task's drafts, whoever wrote them: deleted when the task is closed or given to someone else
+    void deleteByTaskId(String taskId);
 }

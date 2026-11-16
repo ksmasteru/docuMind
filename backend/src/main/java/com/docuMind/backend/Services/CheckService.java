@@ -264,13 +264,14 @@ public class CheckService {
     }
 
     // a check task the caller may read (its view, its PDF): a manager, its technician, or a technician
-    // with another task on the same alert
+    // with another task on the same alert (one he declined, or that was canceled, doesn't count)
     public TaskModel readable(String taskId, Authentication auth)
     {
         TaskModel task = checkTask(taskId);
         String me = auth.getName();
         if (isTechnician(auth) && !task.getTechnicianEmail().equals(me)
-                && !taskRepository.existsByTechnicianEmailAndAlertNumber(me, task.getAlertNumber()))
+                && !taskRepository.existsByTechnicianEmailAndAlertNumberAndStatusNotIn(me, task.getAlertNumber(),
+                        EnumSet.of(TaskStatus.DECLINED, TaskStatus.CANCELED)))
             throw new AccessDeniedException("this technician has no task on alert " + task.getAlertNumber());
         return task;
     }

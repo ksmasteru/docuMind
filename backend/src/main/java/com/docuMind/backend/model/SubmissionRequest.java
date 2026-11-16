@@ -53,7 +53,10 @@ public record SubmissionRequest(
 
     // optional: the ticket this report was filled in (a control sheet saved to finish later,
     // FormDraftService.tickets). Deleted with the report's save, like a draft
-    String draftId
+    String draftId,
+    // optional: the form's state as the app keeps it (what a draft holds). For a task's report it is
+    // kept as the task's draft, so that a report sent back reopens as it was sent, photos included
+    String draftPayload
 )
 {
     public record ExtraPart(

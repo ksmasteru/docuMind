@@ -9,6 +9,8 @@
 //   draft    ← GET    /api/v1/drafts?templateId&taskId   when the form opens: the report resumes where it stopped
 //            → PUT    /api/v1/drafts                     on every page change, « Enregistrer », the app going to the background
 //            → DELETE /api/v1/drafts                     « Recommencer »; the server deletes it itself once the report is sent
+//            a task's report: its state goes with the send (draftPayload) and the server keeps it as the task's
+//            draft until the task is closed, so a report sent back reopens as it was sent
 //   ticket   a control sheet opened outside a task (layout CONTROL_SHEET) is a ticket instead: several may be open
 //            on one form, so it's saved and resumed by its id (« Fiches en cours » on the Formulaires page):
 //            ← GET /api/v1/drafts/{id}   → POST /api/v1/drafts/tickets (first save)   → PUT / DELETE /api/v1/drafts/{id}
@@ -464,9 +466,12 @@ export default function ReportWizard({ template, taskId = null, initialEquipment
         try {
             // a ticket names itself: the server deletes it with the report's save
             const { data } = await apiClient.post("/api/v1/submissions",
-                { ...requestBody({ template, answers, extraParts, remarks, taskId }), ...(ticket && ticketRef.current ? { draftId: ticketRef.current } : {}) });
+                { ...requestBody({ template, answers, extraParts, remarks, taskId }), ...(ticket && ticketRef.current ? { draftId: ticketRef.current } : {}),
+                  // a task's report may come back to be corrected: its state goes with it, and the server keeps
+                  // it as the task's draft, so the form reopens as it was sent, photos included
+                  ...(taskId ? { draftPayload: draftPayload({ answers, extraParts, remarks, index }) } : {}) });
             setResult(data);
-            // the server deleted the draft with the report's save
+            // the server deleted the draft with the report's save (a task's: kept in case it is sent back)
             setDraft((d) => ({ ...d, savedAt: null, restoredAt: null, error: null }));
             onSubmitted?.(data);
         }

@@ -231,7 +231,7 @@ export default function CheckReportForm({ taskId, status, statusComment, onSubmi
 
     return (
     <div className="mx-auto max-w-2xl space-y-4">
-        {status === "RETURNED" && statusComment && (
+        {(status === "RETURNED" || status === "STARTED") && statusComment && (
             <p className="rounded-sm border border-warn/30 bg-warn/10 px-3 py-2 text-sm text-foreground">
                 <span className="font-medium">Votre manager vous renvoie le rapport :</span> {statusComment}
             </p>

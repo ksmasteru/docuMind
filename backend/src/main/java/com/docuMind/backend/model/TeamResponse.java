@@ -22,10 +22,16 @@ public record TeamResponse(
         Instant lastActivityAt   // the last change on one of his tasks, null if he has none
     ) {}
 
-    public record Technician(String id, String name, String email, String worksite)
+    // firstName / lastName: null for an account made before names were asked in two parts.
+    // passwordSetBySelf: he chose his password himself (false: a manager set it; null: not known)
+    public record Technician(String id, String name, String email, String worksite,
+                             String firstName, String lastName, Boolean passwordSetBySelf, Instant passwordSetAt)
     {
         public static Technician from(User user) {
-            return new Technician(user.getId(), user.getName(), user.getEmail(), user.getWorksite());
+            return new Technician(user.getId(), user.getName(), user.getEmail(), user.getWorksite(),
+                user.getFirstName(), user.getLastName(),
+                user.getPasswordSetBy() == null ? null : user.getPasswordSetBy().equals(user.getEmail()),
+                user.getPasswordSetAt());
         }
     }
 }

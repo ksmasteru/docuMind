@@ -13,7 +13,8 @@ import SearchContent from "./SearchContent";
 import Ask from "./Ask";
 import Forms from "./Forms";
 import LinkLogin from "./LinkLogin";
-import Tasks from "./Tasks";
+import Account from "./Account";
+import Tasks, { MySentReport } from "./Tasks";
 import TaskScreen from "./TaskScreen";
 import DataVisualisor from "./DataVisualisor";
 import Technicians from "./Technicians";
@@ -86,7 +87,9 @@ export default function App() {
           <Route path="/ask" element={<ProtectedRoute><Ask /></ProtectedRoute>}/>
           <Route path="/forms" element={<ProtectedRoute><Forms/></ProtectedRoute>}/>
           <Route path="/data-visualisor" element={<ProtectedRoute><DataVisualisor /></ProtectedRoute>} />
+          <Route path="/compte" element={<ProtectedRoute><Account/></ProtectedRoute>}/>
           <Route path="/tasks" element={<ProtectedRoute><Tasks/></ProtectedRoute>}/>
+          <Route path="/tasks/rapport/:submissionId" element={<ProtectedRoute><MySentReport/></ProtectedRoute>}/>
           <Route path="/tasks/:id" element={<ProtectedRoute><TaskScreen/></ProtectedRoute>}/>
           {/* manager pages: the dashboard (their home page), then the mobile app's Tâche / Ordres / Revue tabs;
               the backend refuses other roles */}

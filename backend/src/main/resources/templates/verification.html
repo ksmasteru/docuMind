@@ -10,8 +10,39 @@
   would otherwise draw a grid inside the block.
 -->
 <body>
+  <!--
+    The validation, printed above the verification block: who validated the report and when, what is
+    done about a non-conformity (« Suite donnée »), or that it waits, or that it was sent back. Reads
+    "review" (SubmissionReport.Review), absent for a report that answers no task and on a preview.
+  -->
+  <table th:fragment="approval" th:if="${review != null and review.state != null}"
+         style="width: 99.6%; margin-top: 4mm; border: 0.6pt solid #b8c4ce; border-collapse: collapse; page-break-inside: avoid;">
+    <tr>
+      <td style="width: 30mm; padding: 2mm 3mm; border: none; vertical-align: top; font-size: 7.5pt; color: #555555; background: #f4f6f8;">Validation</td>
+      <td style="padding: 2mm 3mm; border: none; vertical-align: top; font-size: 8.5pt; color: #1a1a1a;">
+        <div th:if="${review.state == 'APPROVED'}" style="font-weight: bold; color: #11663b;">
+          Validé par <span th:text="${review.reviewer}">Manager</span> le <span th:text="${review.reviewedAt}">06/10/2026 14:32</span>
+        </div>
+        <div th:if="${review.state == 'APPROVED' and review.comment != null}" style="margin-top: 1mm;">
+          <b>Suite donnée :</b> <span th:text="${review.comment}">Roulement commandé.</span>
+        </div>
+        <div th:if="${review.state == 'PENDING'}" style="color: #8a5a00;">En attente de validation</div>
+        <div th:if="${review.state == 'RETURNED'}" style="font-weight: bold; color: #9b1c1c;">
+          Renvoyé pour correction par <span th:text="${review.reviewer}">Manager</span> le <span th:text="${review.reviewedAt}">06/10/2026 14:32</span> : une version corrigée le remplace
+        </div>
+        <div th:if="${review.state == 'REJECTED'}" style="font-weight: bold; color: #9b1c1c;">
+          Rejeté par <span th:text="${review.reviewer}">Manager</span> le <span th:text="${review.reviewedAt}">06/10/2026 14:32</span>
+        </div>
+        <div th:if="${review.state != 'APPROVED' and review.state != 'PENDING' and review.comment != null}" style="margin-top: 1mm;">
+          <b>Demande :</b> <span th:text="${review.comment}">Ajoutez la mesure côté moteur.</span>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- a hair under 100 %: at full width the right border of a collapsed table falls outside the page box -->
   <table th:fragment="block" th:if="${verification != null}"
-         style="width: 100%; margin-top: 5mm; border: 0.6pt solid #b8c4ce; border-collapse: collapse; page-break-inside: avoid;">
+         style="width: 99.6%; margin-top: 5mm; border: 0.6pt solid #b8c4ce; border-collapse: collapse; page-break-inside: avoid;">
     <tr>
       <td style="width: 30mm; padding: 2mm; border: none; vertical-align: middle;">
         <img th:src="${verification.qr}" src="" alt="QR" style="width: 26mm; height: 26mm;"/>

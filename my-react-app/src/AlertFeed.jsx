@@ -198,6 +198,11 @@ function describe(event, issue) {
             return { icon: MessageSquare, text: <>{by} a commenté</>, body: event.text };
         case "order":
             return { icon: ClipboardList, tone: "brand", text: <>{by} a créé l'ordre de travail « {event.text} » pour {nameOf(event.to)} sur {issue.pumpId}</> };
+        // the work order made from the case went to another technician, or was canceled (TaskService)
+        case "order-reassigned":
+            return { icon: ClipboardList, tone: "brand", text: <>{by} a confié l'ordre de travail « {event.text} » à {nameOf(event.to)}</> };
+        case "order-canceled":
+            return { icon: Ban, tone: "neutral", text: <>{by} a annulé l'ordre de travail « {event.text} »</>, body: event.message };
         case "workshop":
             return { icon: Wrench, tone: "brand", text: <>{by} a envoyé {issue.pumpId} en atelier{event.text ? ` (${event.text})` : ""}</> };
         default:

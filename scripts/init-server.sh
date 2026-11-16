@@ -15,6 +15,7 @@
 #   7. creates the quality forms in forms/quality/*.json
 #   8. gives the manager his team: the technicians in no team join it (scripts/team_seed.sql),
 #      only the first time, so a technician he removed later is not put back
+#   9. schedules the nightly backup (scripts/backup-db.sh, 02:30, 14 days kept) and takes one now
 #
 # It asks for the passwords. To run it without questions, set ADMIN_EMAIL, ADMIN_PASSWORD
 # and ACCOUNTS_PASSWORD (the one password all the role accounts get).
@@ -255,6 +256,30 @@ else
   skip "the postgres container is not reachable from here"
 fi
 
+step "9. Nightly backup (scripts/backup-db.sh)"
+# everything the app keeps is in the database (reports, photos, documents): one dump a night, 14 days kept
+BACKUP_JOB="30 2 * * * cd $(pwd) && ./scripts/backup-db.sh >> backups/backup.log 2>&1"
+if ! command -v crontab >/dev/null 2>&1; then
+  skip "no crontab on this machine: schedule ./scripts/backup-db.sh yourself (SERVER_SETUP.md, Backups)"
+elif crontab -l 2>/dev/null | grep -qF "scripts/backup-db.sh"; then
+  skip "the nightly backup is already scheduled"
+else
+  mkdir -p backups
+  if { crontab -l 2>/dev/null; echo "$BACKUP_JOB"; } | crontab - 2>"$TMP/cron"; then
+    ok "scheduled every night at 02:30 (crontab -l shows it); dumps go to ./backups"
+  else
+    fail "could not schedule the backup: $(cat "$TMP/cron")"
+  fi
+fi
+if $COMPOSE exec -T postgres true >/dev/null 2>&1; then
+  if ./scripts/backup-db.sh > "$TMP/backup" 2>&1; then
+    ok "$(tail -1 "$TMP/backup")"
+  else
+    fail "the backup did not run: $(tail -2 "$TMP/backup")"
+  fi
+else
+  skip "the postgres container is not reachable from here: no backup taken now"
+fi
 
 if [ "$FAILED" -gt 0 ]; then
   printf '\n%s step(s) failed, see FAIL above. Fix them and run the script again.\n' "$FAILED"

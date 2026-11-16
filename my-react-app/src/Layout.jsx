@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
-import { LogOut } from "lucide-react";
+import { LogOut, UserRound } from "lucide-react";
+import { useTaskCounts } from "./taskCounts";
 import { useAuth } from "./AuthContext";
 import PhovaLogo from "./PhovaLogo";
 import AppShell from "./AppShell";
@@ -14,6 +15,7 @@ export { ThemeToggle };
 // the accent), the theme toggle and logout. active: the current page's key in NAV_LINKS.
 export function TopBar({ active }) {
   const { user, logout } = useAuth();
+  const counts = useTaskCounts();
   const navigate = useNavigate();
   // set this variable to true to uncover visualize and user tab
   const showVisualize = false;
@@ -40,6 +42,12 @@ export function TopBar({ active }) {
         {tabsFor(user?.role).filter((page) => NAV_LINKS[page].to).map((page) => (
           <Link key={page} to={NAV_LINKS[page].to} aria-current={active === page ? "page" : undefined} className={linkClass(page)}>
             {NAV_LINKS[page].label}
+            {/* a technician's tasks to accept and reports sent back to him */}
+            {page === "tasks" && counts.toDo > 0 && (
+              <span className="ml-1.5 rounded-full bg-warn/15 px-1.5 py-0.5 font-data text-[10px] font-semibold text-warn">
+                {counts.toDo}<span className="sr-only"> à traiter</span>
+              </span>
+            )}
           </Link>
         ))}
         {showVisualize && <>
@@ -48,6 +56,9 @@ export function TopBar({ active }) {
         <Link to="/users"  className={linkClass("users")}>Members</Link></>
         }
         <span className="flex items-center gap-1 py-2">
+          <Link to="/compte" aria-label="Mon compte" title="Mon compte" aria-current={active === "account" ? "page" : undefined} className={iconButton}>
+            <UserRound className="size-4" />
+          </Link>
           <ThemeToggle className={iconButton} />
           <button type="button" onClick={() => logout().then(() => navigate("/login"))} aria-label="Se déconnecter" title="Se déconnecter"
             className={iconButton}>

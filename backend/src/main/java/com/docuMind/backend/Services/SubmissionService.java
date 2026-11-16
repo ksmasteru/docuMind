@@ -37,6 +37,9 @@ import com.docuMind.backend.model.SubmissionReport;
 import com.docuMind.backend.model.SubmissionRequest;
 import com.docuMind.backend.model.SubmissionRequest.AnswerItem;
 import com.docuMind.backend.model.SubmissionResponse;
+import com.docuMind.backend.model.TaskEvent;
+import com.docuMind.backend.model.FormDraft;
+import com.docuMind.backend.model.enums.TaskStatus;
 import com.docuMind.backend.model.User;
 import com.docuMind.backend.model.enums.AnswerType;
 import com.docuMind.backend.model.enums.FormLayout;
@@ -172,6 +175,59 @@ public class SubmissionService {
     // a submission, saved or not (previewReport), as the PDF reads it; id: the reference printed on it
     private SubmissionReport toReport(CheckListSubmission submission, String id)
     {
+        return build(submission, id).withReview(reviewOf(submission));
+    }
+
+    // What became of a task's report: validated (by whom, when, what is done about a non-conformity),
+    // sent back (what to redo) or still waiting, and the task's history. null for a standalone report.
+    private SubmissionReport.Review reviewOf(CheckListSubmission submission)
+    {
+        if (submission.getTaskId() == null || submission.getSubmittedAt() == null)
+            return null;
+        List<TaskEvent> history = taskService.historyOf(submission.getTaskId());
+        if (history.isEmpty())
+            return null;
+        Set<String> emails = new HashSet<>();
+        history.forEach(e -> { emails.add(e.getActorEmail()); if (e.getNewTechnicianEmail() != null) emails.add(e.getNewTechnicianEmail()); });
+        Map<String, String> names = new HashMap<>();
+        userRepository.findByEmailIn(emails).forEach(u -> names.putIfAbsent(u.getEmail(), u.getName()));
+        java.util.function.Function<String, String> nameOf = email -> {
+            String name = names.get(email);
+            return name == null || name.isBlank() ? email : name;
+        };
+
+        List<SubmissionReport.Step> trail = history.stream().map(e -> new SubmissionReport.Step(
+                e.getOccurredAt().atZone(SITE_ZONE).format(DAY_TIME), nameOf.apply(e.getActorEmail()),
+                stepLabel(e, nameOf), e.getComment())).toList();
+        return TaskService.decisionOn(history, submission.getSubmittedAt())
+            .map(d -> new SubmissionReport.Review(d.getToStatus().name(), nameOf.apply(d.getActorEmail()),
+                d.getOccurredAt().atZone(SITE_ZONE).format(DAY_TIME), d.getComment(), trail))
+            .orElseGet(() -> new SubmissionReport.Review("PENDING", null, null, null, trail));
+    }
+
+    // one step of a task, in the words of the report's page
+    private static String stepLabel(TaskEvent e, java.util.function.Function<String, String> nameOf)
+    {
+        if (e.getNewTechnicianEmail() != null)
+            return "Tâche confiée à " + nameOf.apply(e.getNewTechnicianEmail());
+        if (e.getFromStatus() == null)
+            return "Tâche envoyée";
+        return switch (e.getToStatus()) {
+            case STARTED -> e.getFromStatus() == TaskStatus.RETURNED ? "Reprise pour correction"
+                : e.getFromStatus() == TaskStatus.BLOCKED ? "Reprise" : "Tâche acceptée";
+            case BLOCKED -> "Mise en attente";
+            case DECLINED -> "Refusée par le technicien";
+            case SUBMITTED -> "Rapport envoyé";
+            case APPROVED -> "Rapport validé";
+            case RETURNED -> "Rapport renvoyé pour correction";
+            case REJECTED -> "Rapport rejeté";
+            case CANCELED -> "Tâche annulée";
+            default -> e.getToStatus().name();
+        };
+    }
+
+    private SubmissionReport build(CheckListSubmission submission, String id)
+    {
         CheckListTemplate template = submission.getTemplate();
 
         // the template expects the rows in sheet order
@@ -295,6 +351,11 @@ public class SubmissionService {
         if (taskId == null)
             return false;
         if (taskService.isTaskManager(taskId, userId))
+            return true;
+        // any manager: a report waiting for its review can be validated by another one when its
+        // sender is away (TaskService.approveTask)
+        UserRole role = roleOf(userId);
+        if (role == UserRole.MANAGER || role == UserRole.ADMIN)
             return true;
         return taskService.isWorkshopTask(taskId)
             && userRepository.findByEmail(userId)
@@ -482,6 +543,12 @@ public class SubmissionService {
         List<ImageEntity> images = new ArrayList<>();
         // catches the same image sent for two questions (reportId is still null for both)
         Set<String> usedImageIds = new HashSet<>();
+        // a report sent back and sent again keeps its photos: the ones of his earlier reports of this task
+        String ofTask = (request.taskId() == null || request.taskId().isBlank()) ? null : request.taskId().trim();
+        Set<String> earlierReports = ofTask == null ? Set.of()
+            : submissionRepository.findByTaskIdInOrderBySubmittedAtAsc(List.of(ofTask)).stream()
+                .filter(s -> s.getUserId().equals(userId))
+                .map(CheckListSubmission::getId).collect(Collectors.toSet());
 
         for (AnswerItem answer : answers)
         {
@@ -503,7 +570,7 @@ public class SubmissionService {
                 // Photos: "id1,id2" on the old forms (up to 4), [{ imageId, title, comment }] on v2
                 StructuredAnswers.Normalized normalized = structuredAnswers.normalize(item, answer.value(), v2Answers);
                 for (StructuredAnswers.PhotoRef photo : normalized.photos())
-                    images.add(ownImage(photo.imageId(), "question " + item.getPosition(), userId, usedImageIds));
+                    images.add(ownImage(photo.imageId(), "question " + item.getPosition(), userId, usedImageIds, earlierReports));
                 checkAnswer.setValue(normalized.value());
             }
             else
@@ -523,7 +590,7 @@ public class SubmissionService {
             for (SubmissionRequest.ExtraPart part : request.extraParts())
                 if (part.photos() != null)
                     for (SubmissionRequest.PhotoItem photo : part.photos())
-                        images.add(ownImage(photo.imageId().strip(), "added part « " + part.name().strip() + " »", userId, usedImageIds));
+                        images.add(ownImage(photo.imageId().strip(), "added part « " + part.name().strip() + " »", userId, usedImageIds, earlierReports));
         }
 
         String taskId = (request.taskId() == null || request.taskId().isBlank()) ? null : request.taskId().trim();
@@ -543,8 +610,26 @@ public class SubmissionService {
                     .filter(d -> d.getUserId().equals(userId))
                     .ifPresent(formDraftRepository::delete);
         else if (!FormDraftService.isTicket(template, taskId))
-            formDraftRepository.findFirstByUserIdAndTemplateIdAndTaskIdOrderByUpdatedAtDesc(userId, templateId, taskId)
-                    .ifPresent(formDraftRepository::delete);
+        {
+            var draft = formDraftRepository.findFirstByUserIdAndTemplateIdAndTaskIdOrderByUpdatedAtDesc(userId, templateId, taskId);
+            String state = request.draftPayload();
+            if (taskId != null && state != null && !state.isBlank() && state.length() <= FormDraftService.MAX_PAYLOAD)
+            {
+                // a task's report may come back to be corrected: the form's state is kept, so it reopens
+                // as it was sent. It goes when the task is closed (TaskService.approve, cancelTask)
+                FormDraft kept = draft.orElseGet(() -> {
+                    FormDraft fresh = new FormDraft();
+                    fresh.setUserId(userId);
+                    fresh.setTemplateId(templateId);
+                    fresh.setTaskId(taskId);
+                    return fresh;
+                });
+                kept.setPayload(state);
+                formDraftRepository.save(kept);
+            }
+            else
+                draft.ifPresent(formDraftRepository::delete);
+        }
 
         // a report for a task: check the task and move it to SUBMITTED. After the save because
         // the task keeps the submission's id; a refused task still undoes the save, since both
@@ -554,8 +639,10 @@ public class SubmissionService {
 
         // the id exists only after save. The images are managed entities,
         // so the transaction writes reportId without an explicit save
+        // (a photo kept from an earlier round stays with the report it was first sent in)
         for (ImageEntity image : images)
-            image.setReportId(checkListSubmission.getId());
+            if (image.getReportId() == null)
+                image.setReportId(checkListSubmission.getId());
 
         return new SubmissionResponse(checkListSubmission.getId(), status);
     }
@@ -632,7 +719,9 @@ public class SubmissionService {
 
     // an uploaded photo used by this report: it exists, the caller uploaded it, and no report (nor
     // another answer of this one) uses it yet. where: for the error message
-    private ImageEntity ownImage(String imageId, String where, String userId, Set<String> usedImageIds)
+    // earlierReports: his earlier reports of the same task, whose photos may be sent again
+    private ImageEntity ownImage(String imageId, String where, String userId, Set<String> usedImageIds,
+                                 Set<String> earlierReports)
     {
         // a wrong id is a bad request body, not a missing resource
         ImageEntity imageEntity;
@@ -644,7 +733,8 @@ public class SubmissionService {
         // only the technician who uploaded the photo can use it
         if (!imageEntity.getUploadedBy().equals(userId))
             throw new AccessDeniedException("image " + imageId + " does not belong to you");
-        if (imageEntity.getReportId() != null || !usedImageIds.add(imageId))
+        boolean elsewhere = imageEntity.getReportId() != null && !earlierReports.contains(imageEntity.getReportId());
+        if (elsewhere || !usedImageIds.add(imageId))
             throw new ImageAlreadyAttachedException("image " + imageId + " is already attached to a report");
         return imageEntity;
     }

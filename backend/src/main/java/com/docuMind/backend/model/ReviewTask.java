@@ -37,6 +37,10 @@ public record ReviewTask(
 
     // ---- form ----
     String templateId,
-    String templateTitle
+    String templateTitle,
+    // ---- who sent the task: any manager may review it (« Tous les rapports ») ----
+    String managerEmail,
+    String managerName,         // null when that account is gone
+    String technicianName       // null when that account is gone
 )
 {}

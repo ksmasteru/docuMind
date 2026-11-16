@@ -2,10 +2,10 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiClient } from "./apiClient";
 import {useAuth} from "./AuthContext";
-import Layout from "./Layout";
 import { ThemeToggle } from "./Layout";
 import PhovaLogo from "./PhovaLogo";
 import { homeFor } from "./roleTabs";
+import { useSelfRegistration } from "./authOptions";
 
 export default function SignupPage() {
   
@@ -16,6 +16,8 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // accounts are created by a manager; this page only works when the server opens the public sign-up
+  const open = useSelfRegistration();
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -35,12 +37,29 @@ export default function SignupPage() {
     }
      catch (err) {
       // AuthController.register() returns { error: "<message>" } on failure
-      setError(err.response?.data?.error || "Couldn't create that account. Try again.");
+      setError(err.response?.data?.message || err.response?.data?.error || "Couldn't create that account. Try again.");
       console.log(err.getMessage());
     }
     finally {
       setIsSubmitting(false);
     }
+  }
+
+  if (open === false) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4 font-ui text-foreground">
+        <div className="fixed right-4 top-4"><ThemeToggle /></div>
+        <div className="w-full max-w-sm text-center">
+          <PhovaLogo className="mx-auto mb-4 h-14" />
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">GreenSense 4.0</h1>
+          <p className="mt-4 rounded-md border border-border bg-card p-6 text-sm text-foreground">
+            Les comptes sont créés par votre manager : il vous donne votre e-mail et votre mot de passe.
+            Vous pourrez changer le mot de passe depuis « Mon compte ».
+          </p>
+          <Link to="/login" className="mt-6 inline-block text-sm font-medium text-primary hover:underline">Se connecter</Link>
+        </div>
+      </div>
+    );
   }
 
   return (

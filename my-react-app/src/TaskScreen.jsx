@@ -8,6 +8,7 @@
 //   resume  → POST /api/v1/task/:id/start          (BLOCKED / RETURNED → STARTED: back to work, or to correct the report)
 //   report  → ReportForm with taskId               (POST /api/v1/submissions marks the task SUBMITTED);
 //             a check (taskType VERIFICATION, levée de doute) → CheckReportForm (POST /api/v1/checks/:id/report)
+//   returned  task.returnComment: what the reviewer asked to redo, kept above the form while it is corrected
 //   ask     → AskChat                              (not linked to the task yet, no sources yet)
 //   check   ← RepairCheckCard                      (a work order made from an alert: what its check found)
 //
@@ -403,7 +404,7 @@ const AssignedActions = ({ task, onAccepted, onDeclined }) => {
 const ReportTab = ({ task, onSubmitted, onAccept }) => {
     // a check: its own report, which says itself when the task must be accepted or resumed first
     if (task.taskType === "VERIFICATION")
-        return <CheckReportForm taskId={task.id} status={task.status} statusComment={task.statusComment} onSubmitted={onSubmitted} />;
+        return <CheckReportForm taskId={task.id} status={task.status} statusComment={task.statusComment ?? task.returnComment} onSubmitted={onSubmitted} />;
 
     // SUBMITTED: sent from this page, the form stays with its PDF
     const opened = task.status === "STARTED" || task.status === "SUBMITTED";
@@ -421,7 +422,20 @@ const ReportTab = ({ task, onSubmitted, onAccept }) => {
                 <button type="button" onClick={onAccept} className="font-medium text-[#1A75BC] underline dark:text-[#5BC6E8]">Voir les détails</button></>}
         </Message>);
 
-    return <ReportForm id={task.templateId} taskId={task.id} initialEquipment={task.equipmentId ?? ""} onSubmitted={onSubmitted} />;
+    return (
+        <>
+            {/* a report sent back: what to redo stays above the form while he corrects it. The form reopens
+                as it was sent (the server kept its state), photos included */}
+            {task.returnComment && task.status === "STARTED" && (
+                <div className="mx-auto mb-4 max-w-2xl rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 dark:border-orange-900 dark:bg-orange-950" role="status">
+                    <p className="text-sm font-medium text-orange-800 dark:text-orange-300">Rapport renvoyé pour correction</p>
+                    <p className="mt-1 whitespace-pre-line text-sm text-slate-700 dark:text-slate-200">« {task.returnComment} »</p>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Vos réponses et vos photos sont reprises : corrigez ce qui est demandé, puis renvoyez le rapport.</p>
+                </div>
+            )}
+            <ReportForm id={task.templateId} taskId={task.id} initialEquipment={task.equipmentId ?? ""} onSubmitted={onSubmitted} />
+        </>
+    );
 };
 
 const Message = ({ children }) => (

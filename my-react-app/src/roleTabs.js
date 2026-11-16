@@ -73,9 +73,10 @@ export const tabsFor = (role) => ROLE_TABS[role] ?? ROLE_TABS.USER;
 // roles that may only open their own pages (an old bookmark to /documents goes home instead)
 export const LOCKED_ROLES = ["USER", ...WORKSHOP_ROLES];
 
-// whether `role` may be on `path`: one of its links, or a page under one ("/forms/…")
+// whether `role` may be on `path`: one of its links, or a page under one ("/forms/…").
+// "Mon compte" (/compte) is everyone's: it has no link in the tabs, only the header's icon
 export const canOpen = (role, path) =>
-  !LOCKED_ROLES.includes(role) ||
+  !LOCKED_ROLES.includes(role) || path === "/compte" ||
   tabsFor(role).some((page) => {
     const to = NAV_LINKS[page].to;
     return to && (path === to || path.startsWith(`${to}/`));

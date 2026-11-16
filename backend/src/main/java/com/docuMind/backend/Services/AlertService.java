@@ -34,8 +34,10 @@ import com.docuMind.backend.model.AlertRequest;
 import com.docuMind.backend.model.CheckListSubmission;
 import com.docuMind.backend.model.CheckReport;
 import com.docuMind.backend.model.PumpHistoryView;
+import com.docuMind.backend.model.TaskCanceledEvent;
 import com.docuMind.backend.model.TaskCreationDto;
 import com.docuMind.backend.model.TaskModel;
+import com.docuMind.backend.model.TaskReassignedEvent;
 import com.docuMind.backend.model.User;
 import com.docuMind.backend.model.enums.AlertCloseReason;
 import com.docuMind.backend.model.enums.AlertRequestStatus;
@@ -474,6 +476,42 @@ public class AlertService {
         }).toList();
 
         return new PumpHistoryView(id, views(cases), lines, checks);
+    }
+
+    // ---------- a work order made from a case changes hands or stops (TaskService) ----------
+
+    // the order went to another technician: the case names him, and its activity says so
+    @EventListener
+    @Transactional
+    public void onTaskReassigned(TaskReassignedEvent moved)
+    {
+        if (moved.alertNumber() == null)
+            return;
+        caseRepository.findById(moved.alertNumber()).ifPresent(alertCase -> {
+            List<AlertCase.LinkedOrder> orders = alertCase.getOrders();
+            for (int i = 0; i < orders.size(); i++) {
+                AlertCase.LinkedOrder order = orders.get(i);
+                if (!order.getTaskId().equals(moved.taskId()))
+                    continue;
+                orders.set(i, new AlertCase.LinkedOrder(order.getTaskId(), order.getTitle(), moved.newTechnicianEmail(), order.getAt()));
+                alertCase.log(AlertEvent.of("order-reassigned", moved.at(), moved.byEmail())
+                    .text(order.getTitle()).to(moved.newTechnicianEmail()));
+            }
+        });
+    }
+
+    // the order was canceled: the case's activity says why (the case itself stays as it is, confirmed:
+    // the manager sends another order, the workshop, or closes it)
+    @EventListener
+    @Transactional
+    public void onTaskCanceled(TaskCanceledEvent canceled)
+    {
+        if (canceled.alertNumber() == null)
+            return;
+        caseRepository.findById(canceled.alertNumber())
+            .filter(alertCase -> alertCase.getOrders().stream().anyMatch(o -> o.getTaskId().equals(canceled.taskId())))
+            .ifPresent(alertCase -> alertCase.log(AlertEvent.of("order-canceled", canceled.at(), canceled.byEmail())
+                .text(canceled.title()).message(canceled.comment())));
     }
 
     // ---------- at startup ----------

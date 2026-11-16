@@ -5,6 +5,10 @@
 //   answers    ← local state, keyed by question id: { [questionId]: { value, comment } }
 //   photos     → POST /api/v1/images                      (each photo as soon as it's picked → { imageId })
 //   submit     → POST /api/v1/submissions                 (SubmissionRequest → { id, status })
+//   draft      ← GET  /api/v1/drafts?templateId&taskId    when the sheet opens: it resumes where it stopped
+//              → PUT  /api/v1/drafts                      a moment after each change (the photos by their id)
+//              a task's report: its state goes with the send (draftPayload) and the server keeps it until the
+//              task is closed, so a report sent back reopens as it was sent, photos included
 //   pdf        ← GET  /api/v1/submissions/{id}/preview + /pdf   (SentReport, once the sheet is sent)
 //
 // The server re-checks everything (all questions answered, critical MAUVAIS has a comment,
@@ -137,6 +141,33 @@ const CHECK_EACH_CARD = false;
 const inputClass =
   "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#1A75BC] focus:ring-2 focus:ring-[#1A75BC]/20 disabled:bg-slate-50";
 
+// ---- the draft: the sheet's state as the server keeps it (FormDraftService), photos by their id only ----
+const DRAFT_KIND = "checklist-1";
+
+const toDraft = ({ answers, equipment, inspectionDate, remarks, step }) => JSON.stringify({
+  kind: DRAFT_KIND, equipment, inspectionDate, remarks, step,
+  answers: Object.fromEntries(Object.entries(answers).map(([id, a]) => [id, a?.photos
+    ? { ...a, photos: a.photos.filter((p) => p.status === "done").map((p) => ({ key: p.key, imageId: p.imageId })) }
+    : a])),
+});
+
+// the state back from a draft, or null when it isn't one of this sheet's (another form's shape, unreadable)
+const fromDraft = (payload) => {
+  try {
+    const draft = JSON.parse(payload);
+    if (draft?.kind !== DRAFT_KIND || typeof draft.answers !== "object") return null;
+    const answers = Object.fromEntries(Object.entries(draft.answers).map(([id, a]) => {
+      if (!a?.photos) return [id, a];
+      // uploaded already; the previews are fetched again (url null until then)
+      const photos = a.photos.map((p) => ({ key: p.key, file: null, url: null, status: "done", imageId: p.imageId, error: null }));
+      return [id, { ...a, photos, value: photoValue(photos) }];
+    }));
+    return { answers, equipment: draft.equipment ?? "", inspectionDate: draft.inspectionDate, remarks: draft.remarks ?? "", step: draft.step ?? 0 };
+  } catch {
+    return null;
+  }
+};
+
 // taskId: the task this report is sent for (the task page's Rapport tab), so the server marks it
 // submitted; initialEquipment pre-fills the pump; onSubmitted(SubmissionResponse) once it's sent
 export default function InspectionForm({ id, taskId = null, initialEquipment = "", onSubmitted }) {
@@ -181,6 +212,69 @@ export default function InspectionForm({ id, taskId = null, initialEquipment = "
     };
     fetchForm();
   }, [id]);
+
+  // ---- the draft: resumed when the sheet opens, saved a moment after each change ----
+  // loading until the server has answered: the sheet waits, so nothing typed is overwritten
+  const [draft, setDraft] = useState({ loading: true, savedAt: null, restored: false, failed: false });
+  const lastSaved = useRef(null);            // the payload the server has (or the sheet as it opened)
+  const saving = useRef(Promise.resolve());  // the save in flight: sending waits for it
+  const saveTimer = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiClient.get("/api/v1/drafts", { params: { templateId: id, ...(taskId ? { taskId } : {}) } })
+      .then(({ data, status }) => {
+        if (cancelled) return;
+        const state = status === 200 && data?.payload ? fromDraft(data.payload) : null;
+        if (state) {
+          setAnswers(state.answers);
+          if (state.equipment) setEquipment(state.equipment);
+          if (state.inspectionDate) setInspectionDate(state.inspectionDate);
+          setRemarks(state.remarks);
+          setStep(state.step);
+        }
+        setDraft((d) => ({ ...d, loading: false, restored: Boolean(state) }));
+      })
+      // no draft could be read (offline…): the sheet opens blank rather than not at all
+      .catch(() => !cancelled && setDraft((d) => ({ ...d, loading: false })));
+    return () => { cancelled = true; };
+  }, [id, taskId]);
+
+  // the previews of a resumed draft's photos, fetched once each
+  const previewsAsked = useRef(new Set());
+  useEffect(() => {
+    if (draft.loading) return;
+    Object.entries(answers).forEach(([questionId, a]) => (a?.photos ?? [])
+      .filter((p) => p.status === "done" && !p.url && !previewsAsked.current.has(p.key))
+      .forEach((photo) => {
+        previewsAsked.current.add(photo.key);
+        apiClient.get(`/api/v1/images/${photo.imageId}`, { responseType: "blob" })
+          .then(({ data }) => {
+            const url = URL.createObjectURL(data);
+            previewUrls.current.push(url);
+            setAnswers((prev) => ({ ...prev, [questionId]: { ...prev[questionId],
+              photos: (prev[questionId]?.photos ?? []).map((p) => (p.key === photo.key ? { ...p, url } : p)) } }));
+          })
+          .catch(() => null); // the photo stays listed, without its preview
+      }));
+  }, [draft.loading, answers]);
+
+  useEffect(() => {
+    if (draft.loading || result) return undefined;
+    const payload = toDraft({ answers, equipment, inspectionDate, remarks, step });
+    // the sheet as it opened (blank, or resumed): nothing to save yet
+    if (lastSaved.current === null) { lastSaved.current = payload; return undefined; }
+    if (payload === lastSaved.current) return undefined;
+    saveTimer.current = setTimeout(() => {
+      saving.current = apiClient.put("/api/v1/drafts", { templateId: id, ...(taskId ? { taskId } : {}), payload })
+        .then(() => {
+          lastSaved.current = payload;
+          setDraft((d) => ({ ...d, savedAt: new Date(), failed: false }));
+        })
+        .catch(() => setDraft((d) => ({ ...d, failed: true })));
+    }, 1500);
+    return () => clearTimeout(saveTimer.current);
+  }, [answers, equipment, inspectionDate, remarks, step, draft.loading, result, id, taskId]);
 
   // replace state, never modify it: copy the old answers, then overwrite one.
   // choices: the question's tick boxes, ticked from what the text says (full report)
@@ -291,7 +385,16 @@ export default function InspectionForm({ id, taskId = null, initialEquipment = "
   };
 
   const questions = [...(template?.questions ?? [])].sort((a, b) => a.position - b.position);
-  if (!template) return <p>Loading...</p>;
+  if (!template || draft.loading) return <p>Loading...</p>;
+
+  // where the draft stands, above the sheet
+  const draftNote = !result && (draft.restored || draft.savedAt || draft.failed) && (
+    <p className="mx-auto mb-3 max-w-[1000px] px-1 text-xs text-slate-500 dark:text-slate-400" role="status">
+      {draft.failed ? "Brouillon non enregistré : vérifiez la connexion. Vos réponses restent à l'écran."
+        : draft.savedAt ? `Brouillon enregistré à ${draft.savedAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}.`
+        : "Vos réponses enregistrées sont reprises : vérifiez-les, complétez, puis envoyez."}
+    </p>
+  );
 
   // The full expertise report (expertiseComplet.js), or its démontage part: its labels name their section, a photo
   // question takes up to 4 photos, Commentaires / Recommandations have the paper report's tick
@@ -386,11 +489,16 @@ export default function InspectionForm({ id, taskId = null, initialEquipment = "
     }
     setErrors([]);
     setSending(true);
+    // no draft save may land after the report (it would bring the draft back)
+    clearTimeout(saveTimer.current);
+    await saving.current.catch(() => null);
     try {
       // the state is an object keyed by id; the backend expects a list
       const body = {
         templateId: template.id,
         ...(taskId ? { taskId } : {}),
+        // a task's report may come back to be corrected: its state goes with it (kept by the server)
+        ...(taskId ? { draftPayload: toDraft({ answers, equipment, inspectionDate, remarks, step }) } : {}),
         equipment: equipment.trim(),
         inspectionDate,          // "YYYY-MM-DD" → LocalDate on the server
         remarks,
@@ -483,6 +591,7 @@ export default function InspectionForm({ id, taskId = null, initialEquipment = "
   if (steps)
     return (
       <div className="py-8">
+        {draftNote}
         <SectionWizard
           template={template}
           steps={steps}
@@ -527,6 +636,7 @@ export default function InspectionForm({ id, taskId = null, initialEquipment = "
     // No overflow-hidden: with aspect-ratio it would freeze the height and clip
     // whatever doesn't fit (the footer and its Envoyer button). Without it, the sheet grows.
     <div className="py-8">
+      {draftNote}
       <div
         className="mx-auto w-full max-w-[1000px] bg-white text-slate-900 shadow-2xl ring-1 ring-slate-200"
         style={{ aspectRatio: "210 / 297" }}

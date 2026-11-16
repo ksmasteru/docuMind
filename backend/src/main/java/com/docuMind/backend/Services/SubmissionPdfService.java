@@ -111,6 +111,9 @@ public class SubmissionPdfService {
     {
         Context context = new Context(Locale.FRENCH);
         context.setVariable("logo", logoDataUri);
+        // what became of the report (« Validé par … le … », templates/verification.html :: approval); null
+        // for a report that answers no task and for a preview
+        context.setVariable("review", report.review());
         // the verification block at the end of every report (templates/verification.html); none on a preview
         if (report.verification() != null)
             context.setVariable("verification", new VerificationBlock(report.verification().code(),
@@ -144,11 +147,12 @@ public class SubmissionPdfService {
 
     // a check report (levée de doute, CheckPdfService): templates/check-report.html, with the same
     // verification block as the other reports. code: formatted ("7K3F-9QXM-…"), null for none
-    public byte[] renderCheck(CheckReportDocument report, String code, String url)
+    public byte[] renderCheck(CheckReportDocument report, String code, String url, SubmissionReport.Review review)
     {
         Context context = new Context(Locale.FRENCH);
         context.setVariable("logo", logoDataUri);
         context.setVariable("report", report);
+        context.setVariable("review", review);
         if (code != null)
             context.setVariable("verification", new VerificationBlock(code, url, qrDataUri(url)));
         return toPdf(templateEngine.process(CHECK_TEMPLATE, context));

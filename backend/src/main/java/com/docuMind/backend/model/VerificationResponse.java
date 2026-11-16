@@ -15,7 +15,9 @@ What the public verification page shows for a scanned report (GET /api/public/ve
   "submittedAt": "06/10/2026 14:32",
   "status": "NON_CONFORME",
   "replacedAt": null,
-  "kind": "CHECKLIST"
+  "kind": "CHECKLIST",
+  "reviewedBy": "Hicham Manager",
+  "reviewedAt": "07/10/2026 09:10"
 }
 Only what the paper already shows: no answers, photos, emails or internal ids. Anyone with the
 code can read it, without logging in.
@@ -36,7 +38,11 @@ public record VerificationResponse(
     String submittedAt,     // "06/10/2026 14:32", site time
     String status,          // "CONFORME" | "NON_CONFORME"
     String replacedAt,      // when the newer version was sent, if current is false
-    Kind kind
+    Kind kind,
+    // who validated it and when ("06/10/2026 14:32"), once it is: by name, "—" when the account has none.
+    // Both null while it waits, was sent back, or answers no task
+    String reviewedBy,
+    String reviewedAt
 )
 {
     public enum Result {
