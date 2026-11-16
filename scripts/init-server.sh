@@ -2,11 +2,13 @@
 # Sets up a DocuMind server: the steps SERVER_SETUP.md used to list by hand.
 # Safe to run again on a server that is already set up: what exists is left as it is.
 #
-# Run it on the server, from the repo folder (/opt/documind), once .env is filled in:
+# On a fresh server, right after cloning the repo (anywhere), this is the only command:
 #   ./scripts/init-server.sh
 #
 # What it does:
-#   1. checks .env, and creates my-react-app/.env when it is missing
+#   0. installs curl and Docker when missing (Docker's official get.docker.com script)
+#   1. creates .env when missing: generates the secrets, asks for the OpenAI key, proposes
+#      FRONT_END_URL; creates my-react-app/.env when it is missing
 #   2. builds and starts docker-compose.server.yml                (skip: --no-start)
 #   3. waits for the backend to answer
 #   4. runs forms/server_db_check.sql, and offers to apply the fixes it prints
@@ -16,13 +18,17 @@
 #   8. gives the manager his team: the technicians in no team join it (scripts/team_seed.sql),
 #      only the first time, so a technician he removed later is not put back
 #   9. schedules the nightly backup (scripts/backup-db.sh, 02:30, 14 days kept) and takes one now
+#  10. HTTPS proxy: installs Caddy, writes /etc/caddy/Caddyfile for FRONT_END_URL  (skip: --no-proxy)
+#  11. firewall: opens SSH, 80 and 443 in ufw (asks before turning ufw on)
 #
 # It asks for the passwords. To run it without questions, set ADMIN_EMAIL, ADMIN_PASSWORD
 # and ACCOUNTS_PASSWORD (the one password all the role accounts get).
 # TEAM_MANAGER: whose team step 8 fills (default manager@phova.com, from roles_accounts.txt).
+# It needs root: not run as root, it runs itself again with sudo.
 #
 # Options:
 #   --no-start        the stack is already running: don't build and start it
+#   --no-proxy        don't touch Caddy or the firewall (steps 10 and 11)
 #   --base-url URL    where the backend answers (default http://localhost:8080)
 
 set -euo pipefail
@@ -30,16 +36,30 @@ umask 077   # the temp files hold the passwords and the token
 
 cd "$(dirname "$0")/.."
 
+# installing Docker and Caddy, the firewall and the backup job all need root
+if [ "$(id -u)" != 0 ]; then
+  case " $* " in *" -h "*|*" --help "*) ;; *)
+    command -v sudo >/dev/null 2>&1 || { echo "error: run this as root (no sudo here)" >&2; exit 1; }
+    echo "Not root: running again with sudo."
+    exec sudo --preserve-env=ADMIN_EMAIL,ADMIN_PASSWORD,ACCOUNTS_PASSWORD,TEAM_MANAGER,OPENAI_API_KEY \
+      bash "$(pwd)/scripts/init-server.sh" "$@"
+  esac
+fi
+
 COMPOSE="docker compose -f docker-compose.server.yml"
 BASE_URL="http://localhost:8080"
 START=1
+PROXY=1
 FAILED=0
+SUDO=""
+[ "$(id -u)" = 0 ] || SUDO="sudo"
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --no-start) START=0 ;;
+    --no-proxy) PROXY=0 ;;
     --base-url) BASE_URL="${2:?--base-url needs a value}"; shift ;;
-    -h|--help)  sed -n '2,22p' "$0"; exit 0 ;;
+    -h|--help)  sed -n '2,32p' "$0"; exit 0 ;;
     *)          echo "unknown option: $1 (see --help)" >&2; exit 2 ;;
   esac
   shift
@@ -102,11 +122,200 @@ psql_exec() {
   $COMPOSE exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" "$@"' psql "$@"
 }
 
+# set_env KEY VALUE: writes KEY=VALUE into .env (replaces the line, or adds one)
+set_env() {
+  if grep -q "^$1=" .env; then
+    sed "s|^$1=.*|$1=$2|" .env > "$TMP/env" && cat "$TMP/env" > .env
+  else
+    printf '%s=%s\n' "$1" "$2" >> .env
+  fi
+}
+
+# setup_proxy HOST: Caddy on 80/443 for HOST, /api/* -> backend :8080, the rest -> frontend :5173
+setup_proxy() {
+  local host=$1 caddyfile=/etc/caddy/Caddyfile other code
+
+  # another web server on 80/443 (nginx, apache...): leave it alone
+  if command -v ss >/dev/null 2>&1; then
+    other=$($SUDO ss -tlnp 2>/dev/null | awk '$4 ~ /:(80|443)$/' | grep -v '"caddy"' \
+      | grep -oE 'users:\(\("[^"]+"' | sed 's/users:(("//; s/"$//' | sort -u | tr '\n' ' ' || true)
+    if [ -n "$other" ]; then
+      fail "ports 80/443 are taken by: $other. Stop it (sudo systemctl disable --now <name>) and run this again, or configure it by hand (SERVER_SETUP.md, step 3)"
+      return
+    fi
+  fi
+
+  if command -v caddy >/dev/null 2>&1; then
+    ok "Caddy is installed ($(caddy version 2>/dev/null | cut -d' ' -f1))"
+  else
+    command -v apt-get >/dev/null 2>&1 \
+      || { fail "Caddy is not installed, and this is not Debian/Ubuntu: install it (caddyserver.com/docs/install) and run this again"; return; }
+    echo "   installing Caddy from its apt repository (a minute)"
+    if $SUDO apt-get update -qq >"$TMP/apt" 2>&1 \
+      && $SUDO apt-get install -y -qq debian-keyring debian-archive-keyring apt-transport-https gnupg >>"$TMP/apt" 2>&1 \
+      && curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/gpg.key \
+           | $SUDO gpg --batch --yes --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg \
+      && curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt \
+           | $SUDO tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null \
+      && $SUDO chmod 644 /usr/share/keyrings/caddy-stable-archive-keyring.gpg /etc/apt/sources.list.d/caddy-stable.list \
+      && $SUDO apt-get update -qq >>"$TMP/apt" 2>&1 \
+      && $SUDO apt-get install -y -qq caddy >>"$TMP/apt" 2>&1; then
+      ok "Caddy installed"
+    else
+      fail "installing Caddy: $(tail -3 "$TMP/apt")"
+      return
+    fi
+  fi
+
+  cat > "$TMP/Caddyfile" <<EOF
+# Managed by documind/scripts/init-server.sh, from FRONT_END_URL in .env.
+# It rewrites this file on each run: change .env, not this file.
+$host {
+	request_body {
+		max_size 25MB
+	}
+	handle /api/* {
+		reverse_proxy localhost:8080
+	}
+	handle {
+		reverse_proxy localhost:5173
+	}
+}
+EOF
+  if $SUDO cmp -s "$TMP/Caddyfile" "$caddyfile"; then
+    skip "$caddyfile is already up to date"
+  else
+    # a Caddyfile that is neither ours nor the package's ":80" placeholder: ask first
+    if $SUDO test -s "$caddyfile" \
+      && ! $SUDO grep -q "Managed by documind" "$caddyfile" \
+      && ! $SUDO grep -vE '^[[:space:]]*(#|$)' "$caddyfile" | head -1 | grep -qE '^:80[[:space:]]*\{'; then
+      echo "   $caddyfile already has a config of its own:"
+      $SUDO grep -vE '^[[:space:]]*(#|$)' "$caddyfile" | head -8 | sed 's/^/     /'
+      if ! confirm "Replace it (a copy is kept next to it)?"; then
+        fail "$caddyfile left as it is: add the routes of SERVER_SETUP.md step 3 to it yourself"
+        return
+      fi
+    fi
+    if $SUDO test -f "$caddyfile"; then
+      $SUDO cp "$caddyfile" "$caddyfile.bak-$(date +%Y%m%d-%H%M%S)"
+    fi
+    $SUDO install -m 644 "$TMP/Caddyfile" "$caddyfile"   # caddy runs as its own user: must be readable
+    ok "wrote $caddyfile for $host"
+  fi
+
+  if ! $SUDO caddy validate --config "$caddyfile" --adapter caddyfile >"$TMP/cv" 2>&1; then
+    fail "the Caddyfile is refused: $(tail -2 "$TMP/cv")"
+    return
+  fi
+  $SUDO systemctl enable caddy >/dev/null 2>&1 || true
+  if ! $SUDO systemctl reload-or-restart caddy; then
+    fail "Caddy did not start. Look at: sudo journalctl -u caddy -n 50"
+    return
+  fi
+  ok "Caddy running"
+
+  # the first time, Caddy needs a little while to get the certificate
+  echo "   waiting for https://$host (the certificate, up to 2 minutes)"
+  for _ in $(seq 1 24); do
+    code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "https://$host/" 2>/dev/null) || code=000
+    [ "$code" = 200 ] && break
+    sleep 5
+  done
+  if [ "$code" != 200 ]; then
+    fail "https://$host does not answer (last status $code). Ports 80 and 443 must be open to the internet (the hosting provider's firewall too), and $host must point to this server. Look at: sudo journalctl -u caddy -n 50"
+    return
+  fi
+  ok "https://$host answers"
+  code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "https://$host/api/auth/login" 2>/dev/null) || code=000
+  case "$code" in
+    000|502|503|504) fail "https://$host/api does not reach the backend (status $code)" ;;
+    *)               ok "https://$host/api reaches the backend" ;;
+  esac
+}
+
+
+step "0. Server packages"
+if command -v curl >/dev/null 2>&1; then
+  ok "curl"
+else
+  command -v apt-get >/dev/null 2>&1 || die "curl is not installed: install it and run this again"
+  apt-get update -qq >/dev/null && apt-get install -y -qq curl ca-certificates >/dev/null || die "installing curl failed"
+  ok "curl installed"
+fi
+if docker compose version >/dev/null 2>&1; then
+  ok "docker $(docker version --format '{{.Server.Version}}' 2>/dev/null || true), $(docker compose version --short 2>/dev/null)"
+else
+  echo "   installing Docker with its official script, get.docker.com (a few minutes)"
+  curl -fsSL https://get.docker.com -o "$TMP/get-docker.sh" || die "cannot download get.docker.com"
+  sh "$TMP/get-docker.sh" >"$TMP/docker-install" 2>&1 || die "installing Docker failed: $(tail -5 "$TMP/docker-install")"
+  docker compose version >/dev/null 2>&1 || die "Docker is installed but 'docker compose' is not: see $TMP/docker-install"
+  ok "Docker installed"
+fi
+if command -v systemctl >/dev/null 2>&1; then
+  systemctl enable --now docker >/dev/null 2>&1 || true
+fi
+docker info >/dev/null 2>&1 || die "the docker service does not answer: systemctl status docker"
+
 
 step "1. Config files"
-command -v curl >/dev/null || die "curl is not installed"
-docker compose version >/dev/null 2>&1 || die "docker compose is not installed"
-[ -f .env ] || die ".env is missing: copy .env.server.example to .env and fill it in"
+if [ -f .env ]; then
+  ok ".env exists: only its blank values are filled in"
+else
+  cp .env.server.example .env
+  ok ".env created from .env.server.example"
+fi
+chmod 600 .env
+# compose takes the project name from here, so the volumes are documind_* wherever the repo is
+[ -n "$(env_value COMPOSE_PROJECT_NAME)" ] || set_env COMPOSE_PROJECT_NAME documind
+
+# blank secrets: generated. They are only read by the containers, nobody types them.
+random_hex() { head -c "$1" /dev/urandom | od -An -tx1 | tr -d ' \n'; }
+if [ -z "$(env_value JWT_SECRET)" ]; then
+  set_env JWT_SECRET "$(head -c 32 /dev/urandom | base64 | tr -d '\n')"; ok "JWT_SECRET generated"
+fi
+if [ -z "$(env_value ADMIN_KEY)" ]; then
+  set_env ADMIN_KEY "$(random_hex 32)"; ok "ADMIN_KEY generated"
+fi
+if [ -z "$(env_value POSTGRES_PASSWORD)" ]; then
+  # an existing database keeps the password it was created with: a new one would lock the backend out
+  if docker volume ls -q | grep -qx "$(env_value COMPOSE_PROJECT_NAME)_postgres_data"; then
+    die "POSTGRES_PASSWORD is blank but a database already exists: put its password in .env (POSTGRES_PASSWORD and DB_PASSWORD)"
+  fi
+  pg_pw=$(random_hex 24)
+  set_env POSTGRES_PASSWORD "$pg_pw"
+  set_env DB_PASSWORD "$pg_pw"
+  ok "POSTGRES_PASSWORD and DB_PASSWORD generated"
+elif [ -z "$(env_value DB_PASSWORD)" ]; then
+  set_env DB_PASSWORD "$(env_value POSTGRES_PASSWORD)"
+fi
+GRAFANA_NEW=""
+if [ -z "$(env_value GRAFANA_ADMIN_PASSWORD)" ]; then
+  GRAFANA_NEW=$(random_hex 12)
+  set_env GRAFANA_ADMIN_PASSWORD "$GRAFANA_NEW"; ok "GRAFANA_ADMIN_PASSWORD generated (shown at the end)"
+fi
+# the one secret that cannot be made up here
+if [ -z "$(env_value OPENAI_API_KEY)" ]; then
+  if [ -n "${OPENAI_API_KEY:-}" ]; then
+    key=$OPENAI_API_KEY
+  elif [ -t 0 ]; then
+    read -r -s -p "   OpenAI API key (sk-...): " key </dev/tty; echo
+  else
+    key=""
+  fi
+  [ -n "$key" ] || die "OPENAI_API_KEY is blank: run this again in a terminal, or set OPENAI_API_KEY"
+  set_env OPENAI_API_KEY "$key"
+  ok "OPENAI_API_KEY written to .env"
+fi
+# FRONT_END_URL blank: propose the sslip.io address of this server's public IP (2.31.83.75 -> 2-31-83-75.sslip.io)
+if [ -z "$(env_value FRONT_END_URL)" ] && [ -t 0 ]; then
+  ip=$(curl -4 -fsS --max-time 5 https://ifconfig.me 2>/dev/null || true)
+  if printf '%s' "$ip" | grep -qE '^[0-9]+(\.[0-9]+){3}$'; then
+    url=$(ask "FRONT_END_URL is blank. The address people will open" "https://$(printf '%s' "$ip" | tr . -).sslip.io")
+    url=${url%/}
+    set_env FRONT_END_URL "$url"
+    ok "FRONT_END_URL=$url written to .env"
+  fi
+fi
 missing=""
 for key in JWT_SECRET ADMIN_KEY OPENAI_API_KEY POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD DB_PASSWORD FRONT_END_URL; do
   [ -n "$(env_value "$key")" ] || missing="$missing $key"
@@ -281,8 +490,52 @@ else
   skip "the postgres container is not reachable from here: no backup taken now"
 fi
 
+
+step "10. HTTPS proxy (Caddy)"
+front=$(env_value FRONT_END_URL)
+front=${front%/}
+host=$(printf '%s' "$front" | sed -E 's#^https://##; s#[/:].*$##')
+if [ "$PROXY" = 0 ]; then
+  skip "--no-proxy"
+elif [ "${front#https://}" = "$front" ] || [ -z "$host" ] || [ "$host" = localhost ] \
+  || printf '%s' "$host" | grep -qE '^[0-9.]+$'; then
+  skip "FRONT_END_URL ($front) is not https://<a name>: no certificate possible, no proxy set up"
+elif ! command -v systemctl >/dev/null 2>&1; then
+  skip "no systemd on this machine: set up the proxy by hand (SERVER_SETUP.md, step 3)"
+else
+  setup_proxy "$host"
+fi
+
+
+step "11. Firewall (ufw): only SSH, 80 and 443 open"
+if [ "$PROXY" = 0 ]; then
+  skip "--no-proxy"
+elif ! command -v ufw >/dev/null 2>&1; then
+  skip "no ufw on this machine: open ports 80 and 443 in whatever firewall it has"
+else
+  # the SSH port to keep open: the one this session came in on, and the one sshd is set to
+  ssh_ports=$( { [ -n "${SSH_CONNECTION:-}" ] && echo "${SSH_CONNECTION##* }"
+                 $SUDO sshd -T 2>/dev/null | awk '$1 == "port" { print $2 }'
+                 echo 22; } | sort -un | tr '\n' ' ')
+  if $SUDO ufw status 2>/dev/null | grep -q "Status: active"; then
+    $SUDO ufw allow 80/tcp >/dev/null && $SUDO ufw allow 443/tcp >/dev/null
+    ok "ufw is on: 80 and 443 allowed"
+  elif confirm "ufw is off. Turn it on, with only ports ${ssh_ports}(SSH), 80 and 443 open?"; then
+    for p in $ssh_ports; do $SUDO ufw allow "$p/tcp" >/dev/null; done
+    $SUDO ufw allow 80/tcp >/dev/null && $SUDO ufw allow 443/tcp >/dev/null
+    $SUDO ufw --force enable >/dev/null
+    ok "ufw on: ${ssh_ports}80, 443 open"
+  else
+    skip "ufw left off"
+  fi
+  echo "   note  Docker publishes 8080, 5173 and 3001 itself, around ufw: they stay reachable on the server's IP"
+fi
+
 if [ "$FAILED" -gt 0 ]; then
   printf '\n%s step(s) failed, see FAIL above. Fix them and run the script again.\n' "$FAILED"
   exit 1
 fi
-printf '\nDone. Open %s and sign in.\n' "$(env_value FRONT_END_URL)"
+printf '\nDone. Open %s and sign in as %s.\n' "$(env_value FRONT_END_URL)" "$ADMIN_EMAIL"
+if [ -n "$GRAFANA_NEW" ]; then
+  printf 'Grafana (port 3001): admin / %s  (kept in .env as GRAFANA_ADMIN_PASSWORD)\n' "$GRAFANA_NEW"
+fi

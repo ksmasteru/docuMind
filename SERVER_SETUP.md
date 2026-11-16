@@ -1,29 +1,64 @@
 # Setting up a new server
 
-Everything after step 3 is done by [scripts/init-server.sh](scripts/init-server.sh). It can be
+Everything after step 2 (filling `.env`) is done by [scripts/init-server.sh](scripts/init-server.sh). It can be
 run again at any time: what already exists (accounts, forms) is skipped, never changed.
+
+## Fresh server: the short version
+
+1. At the hosting provider: open ports 80 and 443 (and keep SSH open).
+2. On the server (Debian/Ubuntu, logged in as root or a sudo user):
+
+```sh
+git clone git@github.com:ksmasteru/docuMind.git /opt/documind
+cd /opt/documind
+./scripts/init-server.sh
+```
+
+That's all. The script installs Docker and Caddy, creates `.env` (it generates the secrets and
+asks only for the OpenAI key, the admin's email and password, and the role accounts' password),
+starts everything, gets the HTTPS certificate, and prints the address and the Grafana password.
+The sections below say what it does, for when something goes wrong.
 
 ## 1. The server
 
-- Docker with the compose plugin (`docker compose version`), git and curl.
+- Debian/Ubuntu with systemd. The script installs Docker (with the compose plugin) and curl when
+  they are missing; git is needed to clone.
 - Open ports 80 and 443 for the HTTPS proxy (step 3). Docker also publishes 8080 (backend),
   5173 (frontend) and 3001 (Grafana) on every interface.
 
 ## 2. Code and `.env`
 
 ```sh
-sudo git clone git@github.com:ksmasteru/docuMind.git /opt/documind
+git clone git@github.com:ksmasteru/docuMind.git /opt/documind
 cd /opt/documind
-cp .env.server.example .env      # then fill it in: each line says what goes there
 ```
 
-Keep the folder at `/opt/documind`: the compose project name comes from it, and so do the
-volume names (`documind_postgres_data`, ...).
+The script makes `.env` from `.env.server.example` when there is none. It generates `JWT_SECRET`,
+`ADMIN_KEY`, `POSTGRES_PASSWORD` (= `DB_PASSWORD`) and `GRAFANA_ADMIN_PASSWORD`, asks for
+`OPENAI_API_KEY`, and proposes `FRONT_END_URL`. A value already in `.env` is never changed, so
+you can still fill it by hand first.
+
+The folder can be anywhere: `.env` sets `COMPOSE_PROJECT_NAME=documind`, so the volume names stay
+`documind_postgres_data`, ...
 
 `FRONT_END_URL` is the new address. With sslip.io the address is the server's IP with dashes:
 `https://2-31-83-75.sslip.io` for 2.31.83.75, so **changing the server changes the address**.
 
-## 3. HTTPS proxy (not in this repo)
+## 3. HTTPS proxy (done by the script)
+
+**Nothing to do by hand on Debian/Ubuntu:** step 10 of the script installs Caddy, writes
+`/etc/caddy/Caddyfile` for the host of `FRONT_END_URL`, starts it and waits for the certificate.
+Step 11 opens SSH, 80 and 443 in ufw (it asks before turning ufw on). What you still need:
+
+- ports 80 and 443 open at the hosting provider too (its own firewall / security group)
+- `FRONT_END_URL` set to `https://<a name>`. Left blank, the script proposes the sslip.io address
+  of the server's public IP and writes it into `.env`.
+- if nginx or another web server already holds port 80/443, the script stops at step 10 without
+  touching it: stop that server (`sudo systemctl disable --now nginx`) and run the script again.
+- a Caddyfile with a config of its own is replaced only after you answer y (a `.bak-<date>` copy
+  is kept). `--no-proxy` skips steps 10 and 11.
+
+The rest of this section is what the script sets up, for doing it by hand on another system.
 
 The frontend calls `/api/...` on its own address (`VITE_API_URL` is blank), so one proxy in front
 of both containers has to:
@@ -67,6 +102,11 @@ accounts. Then it:
 8. gives `manager@phova.com` his team: every technician in no team joins it
    ([scripts/team_seed.sql](scripts/team_seed.sql)). Only the first time he gets a team, so
    someone he removed later is not put back. `TEAM_MANAGER=<email>` picks another manager.
+9. schedules the nightly backup and takes one now (see Backups)
+10. sets up the HTTPS proxy (Caddy) for `FRONT_END_URL`, and checks that `https://<address>` answers
+11. opens SSH, 80 and 443 in ufw. Docker's ports (8080, 5173, 3001) go around ufw and stay reachable.
+
+The script needs root: run as another user, it runs itself again with sudo.
 
 To run it without questions, set `ADMIN_EMAIL`, `ADMIN_PASSWORD` and `ACCOUNTS_PASSWORD`.
 If the stack is already running, `--no-start` skips step 2.
