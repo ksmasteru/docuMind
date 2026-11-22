@@ -7,7 +7,8 @@
   "paperDate": "18/03/2024",
   "layout": "CONTROL_SHEET",
   "fillRoles": [
-    "QUALITY"
+    "QUALITY",
+    "USER"
   ],
   "readRoles": [
     "QUALITY",

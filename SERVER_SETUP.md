@@ -98,7 +98,10 @@ accounts. Then it:
 4. runs [forms/server_db_check.sql](forms/server_db_check.sql) and offers to apply the fixes it prints
 5. creates the admin (with `ADMIN_KEY` from `.env`)
 6. creates one account per line of [roles_accounts.txt](roles_accounts.txt)
-7. creates the 8 quality forms in [forms/quality/](forms/quality/)
+7. creates the 8 quality forms in [forms/quality/](forms/quality/) and the workshop forms in
+   [forms/workshop/](forms/workshop/) (the assembly report, RASSN-02); then (7b) makes the 4 control sheets
+   fillable by technicians on a server whose forms were created before that
+   ([scripts/control_sheets_technicians.sql](scripts/control_sheets_technicians.sql))
 8. gives `manager@phova.com` his team: every technician in no team joins it
    ([scripts/team_seed.sql](scripts/team_seed.sql)). Only the first time he gets a team, so
    someone he removed later is not put back. `TEAM_MANAGER=<email>` picks another manager.
@@ -165,7 +168,19 @@ cd /opt/documind && git pull && ./scripts/init-server.sh
 ```
 
 This rebuilds and restarts the stack and re-runs the database check. It also adds any account
-newly listed in `roles_accounts.txt` and any new form in `forms/quality/`.
+newly listed in `roles_accounts.txt` and any new form in `forms/quality/` or `forms/workshop/`.
+
+### Forms for technicians (since 2026-11-21)
+
+Nothing to run by hand: `./scripts/init-server.sh` covers it ([plan_forms_technician_assembly.md](plan_forms_technician_assembly.md)).
+
+- **The 4 control sheets** (EN-CPE-QU-01, EN-PFD-MIC-01/03/04) are fillable by technicians as well as by
+  Quality. Step 7b adds `USER` to their roles on the server. It only adds: if someone removes `USER` from one
+  of them by hand, the next run of the script puts it back.
+- **« Rapport d'assemblage pompe »** (RASSN-02) is a new form for technicians, created by step 7 from
+  `forms/workshop/`. The backend has to know it (its title is how the app opens it as a section-by-section
+  report): step 2 rebuilds the stack first, so this holds unless the script is run with `--no-start` on an
+  old stack.
 
 ### Reports and accounts (since 2026-11-15)
 

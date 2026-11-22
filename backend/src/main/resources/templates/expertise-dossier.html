@@ -19,14 +19,16 @@
   <meta charset="UTF-8"/>
   <title th:text="'Dossier d\'expertise — ' + ${dossier.interventionNumber}">Dossier d'expertise</title>
   <style>
+    /* the margins, header and footer of the reports (expertise-report-v2.html, template_phova.pdf) */
     @page {
       size: A4;
-      margin: 21mm 14mm 17mm 14mm;
-      @top-center { content: element(header); }
-      @bottom-center { content: element(footer); }
+      margin: 16mm 12.5mm 14mm 12.7mm;
+      @top-center { content: element(header); vertical-align: top; padding-top: 4.6mm; }
+      @bottom-center { content: element(footer); vertical-align: middle; }
     }
+    /* the same side margins as the next pages: the document is laid out at the first page's width */
     @page :first {
-      margin: 12mm 14mm 12mm 14mm;
+      margin: 12mm 12.5mm 12mm 12.7mm;
       @top-center { content: none; }
       @bottom-center { content: none; }
     }
@@ -37,8 +39,8 @@
     .steps { width: 100%; table-layout: fixed; margin: 1mm 0 5mm 0; }
     .steps td { padding: 0 0.8mm; vertical-align: top; text-align: center; }
     .steps .bar { height: 1.2mm; background: #d0d5dd; margin-bottom: 1.6mm; }
-    .steps .done .bar { background: #1a75bc; }
-    .steps .l { font-size: 6.6pt; font-weight: bold; color: #0f2a49; line-height: 1.25; }
+    .steps .done .bar { background: #25a7e0; }
+    .steps .l { font-size: 6.6pt; font-weight: bold; color: #1c2345; line-height: 1.25; }
     .steps .todo .l { color: #111111; }
     .steps .d { font-size: 6.6pt; color: #111111; margin-top: 0.5mm; }
     .steps .a { font-size: 6.2pt; color: #111111; }
@@ -46,26 +48,26 @@
     /* comparison of measures */
     .cmp { width: 100%; table-layout: fixed; margin-bottom: 4mm; page-break-inside: avoid; }
     .cmp th, .cmp td { border: 0.5pt solid #d9dee5; }
-    .cmp .band { background: #1a75bc; color: #ffffff; font-size: 7.8pt; font-weight: bold; text-align: left; padding: 1.3mm 2.2mm; border-color: #1a75bc; }
+    .cmp .band { background: #25a7e0; color: #ffffff; font-size: 7.8pt; font-weight: bold; text-align: left; padding: 1.3mm 2.2mm; border-color: #25a7e0; }
     .cmp .band .u { font-weight: normal; color: #d8ebf8; }
-    .cmp .hd th { background: #eef3f8; color: #0f2a49; font-size: 6.9pt; padding: 1mm; text-align: center; }
+    .cmp .hd th { background: #eef3f8; color: #1c2345; font-size: 6.9pt; padding: 1mm; text-align: center; }
     .cmp .hd th.l { text-align: left; padding-left: 2.2mm; }
     .cmp td { padding: 1.1mm 1.4mm; text-align: center; font-size: 8pt; vertical-align: middle; }
-    .cmp td.mark { text-align: left; padding-left: 2.2mm; font-weight: bold; color: #0f2a49; background: #f8f9fb; width: 38%; }
-    .cmp td.after { font-weight: bold; color: #0f2a49; }
+    .cmp td.mark { text-align: left; padding-left: 2.2mm; font-weight: bold; color: #1c2345; background: #f8f9fb; width: 38%; }
+    .cmp td.after { font-weight: bold; color: #1c2345; }
     .cmp td.delta { width: 18%; font-weight: bold; }
-    .cmp td.out { color: #b42318; background: #fef3f2; font-weight: bold; }
+    .cmp td.out { color: #c00000; background: #fef3f2; font-weight: bold; }
     .cmp td.delta.up { color: #175cd3; } .cmp td.delta.down { color: #067647; } .cmp td.delta.same, .cmp td.delta.none { color: #111111; }
 
     /* devis */
     .qmeta { width: 100%; table-layout: fixed; margin-bottom: 4mm; }
     .qmeta td { padding: 2mm 2.6mm; border: 0.6pt solid #e4e7ec; background: #f8f9fb; }
     .qmeta .l { font-size: 6.6pt; font-weight: bold; letter-spacing: 0.5pt; text-transform: uppercase; color: #111111; }
-    .qmeta .v { font-size: 9.6pt; font-weight: bold; color: #0f2a49; margin-top: 0.4mm; }
+    .qmeta .v { font-size: 9.6pt; font-weight: bold; color: #1c2345; margin-top: 0.4mm; }
     .totals { width: 44%; margin-left: 56%; margin-top: 1mm; }
     .totals td { padding: 1.4mm 2.4mm; font-size: 8.2pt; border-bottom: 0.5pt solid #e4e7ec; }
     .totals td.r { text-align: right; font-weight: bold; }
-    .totals tr.ttc td { background: #0f2a49; color: #ffffff; font-size: 10.5pt; font-weight: bold; border-bottom: none; }
+    .totals tr.ttc td { background: #1c2345; color: #ffffff; font-size: 10.5pt; font-weight: bold; border-bottom: none; }
 
     /* signatures */
     .signs { width: 100%; table-layout: fixed; margin-top: 2mm; }
@@ -75,7 +77,7 @@
 <body>
   <th:block th:replace="~{expertise/parts :: running(
       'Dossier d\'expertise · ' + ${dossier.interventionNumber} + ' — ' + ${dossier.equipment},
-      ${dossier.interventionNumber})}"></th:block>
+      'Réf.', ${dossier.interventionNumber})}"></th:block>
 
   <!-- ===================================================================== cover -->
   <table class="cover-logos">

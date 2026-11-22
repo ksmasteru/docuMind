@@ -93,8 +93,9 @@ public record ExpertiseReportV2(
     public record MeasureLine(String mark, List<String> readings, String list, String average, boolean empty, boolean out) {}
 
     // a geometric check: its drawing as a thumbnail, its readings, the average, the technician's comment
+    // status / tone: the check's conformity when the form asks for it (the assembly report), else null
     public record GeometryRow(String control, String drawing, List<String> readings, String list, String average,
-                              String comment, boolean empty, boolean out) {}
+                              String comment, boolean empty, boolean out, String status, String tone) {}
 
     public record SummaryLine(String quantity, String description, String code, String recommendation, String tone,
                               String decision, String remark) {}
@@ -174,6 +175,8 @@ public record ExpertiseReportV2(
     public static String kindOf(String title)
     {
         String t = title == null ? "" : title.toLowerCase(Locale.ROOT);
+        // the assembly report of a pump PHOVA builds (« Rapport d'assemblage pompe », RASSN-02)
+        if (t.contains("assemblage")) return "ASSEMBLAGE";
         if (t.contains("démontage") || t.contains("demontage")) return "DEMONTAGE";
         if (t.contains("montage")) return "MONTAGE";
         return "COMPLET";
@@ -182,10 +185,23 @@ public record ExpertiseReportV2(
     public static String kindLabel(String kind)
     {
         return switch (kind) {
+            case "ASSEMBLAGE" -> "Assemblage pompe";
             case "DEMONTAGE" -> "Démontage et expertise";
             case "MONTAGE" -> "Montage et essais";
             default -> "Expertise complète";
         };
+    }
+
+    // what the document is: the cover's kicker
+    public String docName()
+    {
+        return kind.equals("ASSEMBLAGE") ? "Rapport d'assemblage" : "Rapport d'expertise";
+    }
+
+    // the footer's line: « Rapport d'expertise · Montage et essais — 03DYS30 », « Rapport d'assemblage — 16C003F »
+    public String docLabel()
+    {
+        return (kind.equals("ASSEMBLAGE") ? docName() : docName() + " · " + kindLabel) + " — " + equipment;
     }
 
     // "Inspection des pièces > Corps de pompe : Photos" → { rubrique, page ("" if none), field }
@@ -240,29 +256,48 @@ public record ExpertiseReportV2(
             int most = 0;
             String unit = null;
             for (List<ReportRow> page : pages.values())
-            {
-                ReportRow measure = measureOf(page);
-                most = Math.max(most, readingsOf(measure).size());
-                if (unit == null && measure.data() != null) unit = measure.data().path("unit").asText(null);
-            }
+                for (ReportRow measure : measuresOf(page))
+                {
+                    most = Math.max(most, readingsOf(measure).size());
+                    if (unit == null && measure.data() != null) unit = measure.data().path("unit").asText(null);
+                }
             int columns = most > MAX_COLUMNS ? 0 : Math.max(most, 1);
+            long conform = 0, nonConform = 0;
             for (Map.Entry<String, List<ReportRow>> page : pages.entrySet())
             {
-                ReportRow measure = measureOf(page.getValue());
-                String comment = page.getValue().stream().filter(r -> !"MEASURE".equals(r.answerType()) && !blank(r))
-                        .map(ReportRow::value).reduce((a, b) -> a + " " + b).orElse(null);
-                List<String> readings = readingsOf(measure);
-                rows.add(new GeometryRow(withoutPhase(page.getKey(), phase), drawingOf(measure, drawings),
-                        pad(readings, columns), String.join("  ·  ", readings), averageOf(measure), comment, readings.isEmpty(),
-                        outOf(measure)));
+                List<ReportRow> measures = measuresOf(page.getValue());
+                // the check's conformity, its remark with the comments (the assembly report)
+                ReportRow conformity = page.getValue().stream().filter(ExpertiseReportV2::isConformityRow).findFirst().orElse(null);
+                String status = conformity == null ? null : chosenOf(conformity.data());
+                String conformityTone = status == null ? null : checkTone(status, nonConforming(conformity.data(), status));
+                if ("reuse".equals(conformityTone)) conform++;
+                if ("replace".equals(conformityTone)) nonConform++;
+                List<String> notes = new ArrayList<>();
+                page.getValue().stream().filter(r -> "TEXT".equals(r.answerType()) && !blank(r)).forEach(r -> notes.add(r.value()));
+                if (conformity != null && blankToNull(conformity.comment()) != null) notes.add(conformity.comment().strip());
+                String comment = notes.isEmpty() ? null : String.join(" ", notes);
+                String control = withoutPhase(page.getKey(), phase);
+                // two values of one check (the jeu hydraulique's J and X): a row each, « Jeu hydraulique (J) »
+                for (int i = 0; i < measures.size(); i++)
+                {
+                    ReportRow measure = measures.get(i);
+                    List<String> readings = readingsOf(measure);
+                    rows.add(new GeometryRow(measures.size() > 1 ? control + " (" + place(measure.labelFr())[2] + ")" : control,
+                            drawingOf(measure, drawings), pad(readings, columns), String.join("  ·  ", readings), averageOf(measure),
+                            i == 0 ? comment : null, readings.isEmpty(), outOf(measure), status, conformityTone));
+                }
             }
-            // nothing measured: the section is only named, like a blank one
-            if (rows.stream().allMatch(GeometryRow::empty))
+            // nothing measured nor judged: the section is only named, like a blank one
+            if (rows.stream().allMatch(r -> r.empty() && r.status() == null))
                 return new Section(number, name, anchor, phase, List.of(), List.of(), 0, unit, List.of(name), null);
-            long measured = rows.stream().filter(r -> !r.empty()).count();
+            // checks measured, not rows: the jeu hydraulique's J and X are one check
+            long measured = rows.stream().filter(r -> !r.empty()).map(r -> r.control().replaceAll(" \\([^)]*\\)$", "")).distinct().count();
             long out = rows.stream().filter(GeometryRow::out).count();
+            String judged = conform + nonConform == 0 ? ""
+                    : " : " + plural(conform, "conforme", "conformes") + (nonConform > 0 ? ", " + plural(nonConform, "non conforme", "non conformes") : "");
             return new Section(number, name, anchor, phase, List.of(), rows, columns, unit, List.of(),
                     measured + " contrôle" + (measured > 1 ? "s relevés" : " relevé") + (phase != null ? " " + phase : "")
+                    + judged
                     + (out > 0 ? ", dont " + out + " hors tolérance" : "")
                     + (unit != null ? " — moyenne des prises, en " + unit : "") + ".");
         }
@@ -291,7 +326,7 @@ public record ExpertiseReportV2(
     private static String introOf(String name, String phase, List<Card> cards)
     {
         if (name.equals(RECEPTION)) return "État de la pompe à son arrivée à l'atelier.";
-        if (name.equals(ASSEMBLED)) return "La pompe remontée, prête pour l'essai.";
+        if (name.equals(ASSEMBLED)) return "La pompe assemblée, prête pour l'essai.";
         List<Check> checks = cards.stream().flatMap(c -> c.blocks().stream()).filter(b -> b.kind().equals("checklist"))
                 .flatMap(b -> b.checks().stream()).toList();
         if (!checks.isEmpty())
@@ -301,6 +336,15 @@ public record ExpertiseReportV2(
             long na = checks.size() - ok - bad;
             return checks.size() + " contrôles : " + ok + " conforme" + (ok > 1 ? "s" : "")
                     + (bad > 0 ? ", " + bad + " à reprendre" : "") + (na > 0 ? ", " + na + " non applicable" + (na > 1 ? "s" : "") : "") + ".";
+        }
+        // parts judged conforme or not (the assembly report)
+        List<Card> judged = cards.stream().filter(ExpertiseReportV2::hasConformity).toList();
+        if (!judged.isEmpty())
+        {
+            long ok = judged.stream().filter(c -> "reuse".equals(c.tone())).count();
+            long bad = judged.stream().filter(c -> "replace".equals(c.tone())).count();
+            return plural(judged.size(), "pièce assemblée", "pièces assemblées") + " : " + plural(ok, "conforme", "conformes")
+                    + (bad > 0 ? ", " + plural(bad, "non conforme", "non conformes") : "") + ".";
         }
         long parts = cards.stream().filter(c -> c.state() != null).count();
         if (parts > 0)
@@ -322,22 +366,40 @@ public record ExpertiseReportV2(
         return null;
     }
 
-    // the cover's identification: who the pump is, where it sits, who wrote and checked the report
+    // the cover's identification: who the pump is, where it sits, who wrote and checked the report;
+    // in the order of PHOVA's design (template_phova.pdf), one column
     public List<Field> coverFacts()
     {
         List<Field> facts = new ArrayList<>();
+        String checked = trace.reviewer() != null ? trace.reviewer() + " · " + trace.reviewedAt() : "En attente de validation";
+        String version = trace.versions() > 1 ? trace.version() + " sur " + trace.versions() : String.valueOf(trace.version());
+        if (kind.equals("ASSEMBLAGE"))
+        {
+            // a pump PHOVA builds: its production order and serial number, no client file
+            addFact(facts, "N° d'ordre de fabrication", identityValue("N° d'ordre de fabrication"));
+            addFact(facts, "Type de pompe", identityValue("Type"));
+            addFact(facts, "N° de série", equipment);
+            addFact(facts, "Fabricant", identityValue("Fabricant"));
+            addFact(facts, "Date d'assemblage", inspectionDate);
+            addFact(facts, "Vérifié par", checked);
+            addFact(facts, "N° d'opération", identityValue("N° d'opération"));
+            addFact(facts, "Date de réception des pièces", identityValue("Date de réception des pièces"));
+            addFact(facts, "Rédigé par", inspector);
+            addFact(facts, "Version", version);
+            return facts;
+        }
         addFact(facts, "Client", identityValue("Client"));
-        addFact(facts, "Site / entité", identityValue("Entité"));
         addFact(facts, "Équipement", equipment);
-        addFact(facts, "Type de pompe", identityValue("Type"));
         addFact(facts, "Fabricant", identityValue("Fabricant"));
-        addFact(facts, "Fluide pompé", identityValue("Fluide pompé"));
         addFact(facts, "N° de commande", identityValue("N° de commande"));
-        addFact(facts, "N° d'opération", identityValue("N° d'opération"));
         addFact(facts, kind.equals("MONTAGE") ? "Date du montage" : "Date d'expertise", inspectionDate);
+        addFact(facts, "Vérifié par", checked);
+        addFact(facts, "Site / entité", identityValue("Entité"));
+        addFact(facts, "Type de pompe", identityValue("Type"));
+        addFact(facts, "Fluide pompé", identityValue("Fluide pompé"));
+        addFact(facts, "N° d'opération", identityValue("N° d'opération"));
         addFact(facts, "Rédigé par", inspector);
-        addFact(facts, "Vérifié par", trace.reviewer() != null ? trace.reviewer() + " · " + trace.reviewedAt() : "En attente de validation");
-        addFact(facts, "Version", trace.versions() > 1 ? trace.version() + " sur " + trace.versions() : String.valueOf(trace.version()));
+        addFact(facts, "Version", version);
         return facts;
     }
 
@@ -346,11 +408,14 @@ public record ExpertiseReportV2(
         if (value != null && !value.isBlank()) facts.add(new Field(label, value));
     }
 
-    private static ReportRow measureOf(List<ReportRow> page)
+    private static List<ReportRow> measuresOf(List<ReportRow> page)
     {
-        return page.stream().filter(r -> "MEASURE".equals(r.answerType())).findFirst().orElseThrow();
+        return page.stream().filter(r -> "MEASURE".equals(r.answerType())).toList();
     }
 
+    // A rubrique of checks, one per page: each page holds one measure (two at most: the jeu hydraulique's
+    // J and X), comments, and maybe its conformity. Shown as one table, a row per measure. The rubriques
+    // with many measures on a page (the jeux, the concentricités) stay measurement sheets
     private static boolean isGeometry(Map<String, List<ReportRow>> pages)
     {
         if (pages.size() < 2)
@@ -359,10 +424,35 @@ public record ExpertiseReportV2(
         {
             if (page.getKey().isEmpty()) return false;
             long measures = page.getValue().stream().filter(r -> "MEASURE".equals(r.answerType())).count();
-            boolean onlyText = page.getValue().stream().allMatch(r -> "MEASURE".equals(r.answerType()) || "TEXT".equals(r.answerType()));
-            if (measures != 1 || !onlyText) return false;
+            boolean onlyChecks = page.getValue().stream().allMatch(r -> "MEASURE".equals(r.answerType())
+                    || "TEXT".equals(r.answerType()) || isConformityRow(r));
+            if (measures < 1 || measures > 2 || !onlyChecks) return false;
         }
         return true;
+    }
+
+    // « Conformité » : Conforme / Non conforme with a remark, not numbered like a check of the montage checklist
+    static boolean isConformityRow(ReportRow row)
+    {
+        return "SINGLE_CHOICE".equals(row.answerType()) && row.data() != null && row.data().path("remark").asBoolean(false)
+                && !NUMBERED.matcher(place(row.labelFr())[2]).matches();
+    }
+
+    // what was chosen, listed or typed; null if nothing
+    private static String chosenOf(JsonNode data)
+    {
+        if (data == null) return null;
+        String chosen = data.path("selected").asText(null);
+        return chosen != null ? chosen : data.path("other").asText(null);
+    }
+
+    // the form names this choice among those that aren't right (« Non conforme », « À reprendre »)
+    private static boolean nonConforming(JsonNode data, String chosen)
+    {
+        if (data == null || chosen == null) return false;
+        for (JsonNode n : data.path("nonConforming"))
+            if (n.asText().equals(chosen)) return true;
+        return false;
     }
 
     private static String commonPhase(Iterable<String> pages)
@@ -410,7 +500,10 @@ public record ExpertiseReportV2(
             String type = row.answerType() == null ? "TEXT" : row.answerType();
             String field = place(row.labelFr())[2];
             JsonNode data = row.data();
-            boolean checklistRow = type.equals("SINGLE_CHOICE") && data != null && data.path("remark").asBoolean(false);
+            // a part's own conformity and its remark (the assembly report: « Conformité »), not numbered like
+            // a check of the montage checklist (« 01. Contrôle général… »): the card's state
+            boolean conformityRow = isConformityRow(row);
+            boolean checklistRow = type.equals("SINGLE_CHOICE") && data != null && data.path("remark").asBoolean(false) && !conformityRow;
             boolean shortField = (type.equals("TEXT") && !LONG_TEXT.matcher(field).matches()) || type.equals("DATE") || type.equals("BON_MAUVAIS");
 
             if (!run.isEmpty() && !(type.equals("MEASURE") && same(groupOf(run.get(0)), groupOf(row))))
@@ -438,12 +531,33 @@ public record ExpertiseReportV2(
                     List<String> unchecked = new ArrayList<>();
                     for (JsonNode c : data.path("choices"))
                         if (!checked.contains(c.asText())) unchecked.add(c.asText());
+                    // boxes to tick (the assembly report's « Rotation normale de l'arbre », « Conformité validée »):
+                    // shown ticked and not, but they aren't findings and give the card no state
+                    if (data.path("checks").asBoolean(false))
+                    {
+                        blocks.add(new Block("ticks", field, null, null, checked, unchecked, null, null, null, 0, null, null, null, null));
+                        continue;
+                    }
                     blocks.add(new Block("choices", field, null, null, checked, unchecked, null, null, null, 0, null, null, null, null));
                     boolean good = checked.size() == 1 && checked.get(0).toLowerCase(Locale.ROOT).startsWith("bon");
                     findingsState = good ? "Bon état" : "Anomalies";
                     findingsTone = good ? "reuse" : "warn";
                 }
                 case "SINGLE_CHOICE" -> {
+                    if (conformityRow)
+                    {
+                        String status = chosenOf(data);
+                        if (status != null)
+                        {
+                            String conformityTone = checkTone(status, nonConforming(data, status));
+                            blocks.add(new Block("decision", field, null, null, null, List.of(), status, conformityTone, null, 0, null, null, null, null));
+                            state = status;
+                            tone = conformityTone;
+                        }
+                        if (blankToNull(row.comment()) != null)
+                            blocks.add(new Block("text", "Commentaire", null, row.comment().strip(), null, null, null, null, null, 0, null, null, null, null));
+                        continue;
+                    }
                     if (checklistRow)
                     {
                         var numbered = NUMBERED.matcher(field);
@@ -579,14 +693,19 @@ public record ExpertiseReportV2(
                     assembledPhoto = card.photos().get(0);
                 card.blocks().stream().filter(b -> b.kind().equals("checklist")).forEach(b -> allChecks.addAll(b.checks()));
 
-                // a part: a card with a recommendation, or findings
-                boolean isPart = !section.name().equals(RECEPTION)
+                // a part: a card with a recommendation, or findings, or a conformity. The pump itself (reception,
+                // assembled) isn't one, even when the assembly report asks for its conformity
+                boolean isPart = !section.name().equals(RECEPTION) && !section.name().equals(ASSEMBLED)
                         && card.blocks().stream().anyMatch(b -> b.kind().equals("decision") || b.kind().equals("choices"));
                 if (isPart && card.state() != null)
                 {
-                    String findings = card.blocks().stream().filter(b -> b.kind().equals("choices"))
-                            .flatMap(b -> b.checked().stream()).reduce((a, b) -> a + ", " + b).orElse(null);
-                    String recommendation = card.blocks().stream().filter(b -> b.kind().equals("decision"))
+                    boolean judged = hasConformity(card);
+                    // a part judged conforme or not: its remark in the findings' place, no recommendation
+                    String findings = (judged
+                            ? card.blocks().stream().filter(b -> b.kind().equals("text")).map(Block::text)
+                            : card.blocks().stream().filter(b -> b.kind().equals("choices")).flatMap(b -> b.checked().stream()))
+                            .reduce((a, b) -> a + ", " + b).orElse(null);
+                    String recommendation = judged ? null : card.blocks().stream().filter(b -> b.kind().equals("decision"))
                             .map(Block::chosen).findFirst().orElse(null);
                     parts.add(new PartState(card.anchor(), card.name() == null ? section.name() : card.name(), section.name(),
                             card.state(), card.tone(), findings, recommendation));
@@ -624,7 +743,30 @@ public record ExpertiseReportV2(
 
         String verdict, detail, tone;
         List<Tile> tiles = new ArrayList<>();
-        if (kind.equals("MONTAGE"))
+        if (kind.equals("ASSEMBLAGE"))
+        {
+            // conforme unless a critical answer says otherwise: a part, the pump or a check « Non conforme »
+            boolean conform = "CONFORME".equals(status);
+            verdict = conform ? "Assemblage conforme" : "Assemblage non conforme";
+            tone = conform ? "reuse" : "replace";
+            List<String> bits = new ArrayList<>();
+            bits.add(parts.isEmpty() ? "Aucune pièce renseignée"
+                    : plural(reuse, "pièce conforme", "pièces conformes") + " sur " + parts.size());
+            if (replace > 0) bits.add(plural(replace, "pièce non conforme", "pièces non conformes"));
+            // the geometric checks judged non conforme; the jeu hydraulique's J and X are one check
+            long geometryBad = sections.stream().flatMap(s -> s.geometry().stream()).filter(g -> "replace".equals(g.tone()))
+                    .map(g -> g.control().replaceAll(" \\([^)]*\\)$", "")).distinct().count();
+            if (geometryBad > 0) bits.add(plural(geometryBad, "contrôle géométrique non conforme", "contrôles géométriques non conformes"));
+            if (!allChecks.isEmpty()) bits.add(ok + "/" + allChecks.size() + " contrôles conformes");
+            if (bad > 0) bits.add(plural(bad, "point à reprendre", "points à reprendre"));
+            if (na > 0) bits.add(na + " non applicable" + (na > 1 ? "s" : ""));
+            detail = String.join(" · ", bits);
+            tiles.add(new Tile(String.valueOf(parts.size()), parts.size() > 1 ? "pièces assemblées" : "pièce assemblée", "info"));
+            tiles.add(new Tile(String.valueOf(replace), replace > 1 ? "non conformes" : "non conforme", replace > 0 ? "replace" : "none"));
+            tiles.add(new Tile(ok + "/" + allChecks.size(), "contrôles conformes", "reuse"));
+            tiles.add(new Tile(String.valueOf(measured), "mesures relevées", "info"));
+        }
+        else if (kind.equals("MONTAGE"))
         {
             boolean conform = "CONFORME".equals(status);
             verdict = conform ? "Montage conforme" : "Montage non conforme";
@@ -663,17 +805,19 @@ public record ExpertiseReportV2(
             detail += " · " + plural(outs.size(), "mesure hors tolérance", "mesures hors tolérance");
         }
 
-        Photo hero = kind.equals("MONTAGE") ? (assembledPhoto != null ? assembledPhoto : anyPhoto)
+        // montage and assembly show the pump assembled; the others, the pump as received
+        boolean assembled = kind.equals("MONTAGE") || kind.equals("ASSEMBLAGE");
+        Photo hero = assembled ? (assembledPhoto != null ? assembledPhoto : anyPhoto)
                 : (receptionPhoto != null ? receptionPhoto : anyPhoto);
 
         // the cover: two photos of the pump at reception (démontage) or assembled (montage), else of its parts
         List<CoverPhoto> cover = new ArrayList<>();
-        String first = kind.equals("MONTAGE") ? ASSEMBLED : RECEPTION;
+        String first = assembled ? ASSEMBLED : RECEPTION;
         for (Section section : sections)
             if (section.name().equals(first))
                 for (Card card : section.cards())
                     for (Photo photo : card.photos())
-                        if (cover.size() < 2) cover.add(new CoverPhoto(photo, kind.equals("MONTAGE") ? "Pompe assemblée" : "À la réception"));
+                        if (cover.size() < 2) cover.add(new CoverPhoto(photo, assembled ? "Pompe assemblée" : "À la réception"));
         for (Section section : sections)
             if (!section.name().equals(first))
                 for (Card card : section.cards())
@@ -683,6 +827,13 @@ public record ExpertiseReportV2(
                 : hero == assembledPhoto ? "Pompe assemblée" : hero == receptionPhoto ? "Pompe à la réception" : "Photo du rapport";
         return new Summary(verdict, detail, tone, tiles, parts, notInspected, reception, open, hero, heroLabel,
                 allChecks.size(), (int) ok, cover, outs);
+    }
+
+    // a card whose state is its conformity (« Conformité » : Conforme / Non conforme), not a recommendation
+    static boolean hasConformity(Card card)
+    {
+        return card.blocks().stream().anyMatch(b -> b.kind().equals("decision") && b.label() != null
+                && b.label().toLowerCase(Locale.ROOT).startsWith("conformit"));
     }
 
     private static int severity(String tone)

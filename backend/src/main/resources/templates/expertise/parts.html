@@ -12,234 +12,246 @@
 -->
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org" lang="fr">
 <head>
-<style th:fragment="styles">
+<style th:fragment="styles" th:inline="css">
+  /* PHOVA's report design (template_phova.pdf, plan_report_phova_style.md):
+     navy #1c2345 · blue #25a7e0 · grey text #848484 · table header #f2f2f2 · tiles #f0fafe · rules 0.5pt black.
+     Titles in Poppins, text in Arial (Liberation Sans when Arial isn't installed: same metrics). */
   * { box-sizing: border-box; }
-  body { font-family: "Noto Sans"; font-size: 8pt; line-height: 1.38; color: #1f2933; margin: 0; }
+  body { font-family: Arial, "Liberation Sans", "Noto Sans", "Noto Naskh Arabic"; font-size: 9pt; line-height: 1.3; color: #000000; margin: 0; }
   table { border-collapse: collapse; }
   td, th { vertical-align: top; padding: 0; }
   img { max-width: 100%; }
   .keep { page-break-inside: avoid; }
-  .muted { color: #111111; }
-  .small { font-size: 7pt; }
+  .muted { color: #848484; }
+  .small { font-size: 7.5pt; }
   .num { font-variant-numeric: tabular-nums; }
 
+  /* ---------------------------------------------------------------- the gutter: a faint blue strip on the left
+     edge, white at the top, fading to #d8f2fc at the bottom (static/report/gutter.png); none on the cover */
+  @page { background-image: url("[(${gutter})]"); background-repeat: no-repeat; background-position: 0 0; background-size: 3mm 297mm; }
+  @page :first { background-image: none; }
+
   /* ---------------------------------------------------------------- running header and footer */
-  #header-first, #header, #footer { width: 100%; }
-  #header-first { position: running(headerFirst); }
+  #header, #footer { width: 100%; }
   #header { position: running(header); }
   #footer { position: running(footer); }
-  #header-first table, #header table, #footer table { width: 100%; }
-  #header-first td { vertical-align: middle; }
-  #header-first .phova { height: 10mm; }
-  #header-first .um6p { height: 14mm; }
-  #header-first .ocp { height: 12.5mm; }
-  #header-first .rule { height: 2.2mm; margin-top: 2.5mm; border-top: 1.6pt solid #0f2a49; border-bottom: 0.6pt solid #1a75bc; }
-  #header td { vertical-align: bottom; padding-bottom: 1.6mm; border-bottom: 0.8pt solid #0f2a49; }
-  #header .phova { height: 6.5mm; }
-  #header .doc { font-size: 7.4pt; color: #0f2a49; font-weight: bold; text-align: center; }
-  #header .ref { font-size: 7.4pt; color: #111111; text-align: right; }
-  #footer td { vertical-align: top; padding-top: 1.6mm; border-top: 0.6pt solid #d0d5dd; font-size: 6.6pt; color: #111111; }
-  #footer .company { color: #1a75bc; font-weight: bold; letter-spacing: 0.3pt; }
-  #footer .pageno { text-align: right; }
-  #footer .pageno:after { content: "Page " counter(page) " / " counter(pages); }
+  #header table, #footer table { width: 100%; }
+  #header table { border-bottom: 0.5pt solid #f2f2f2; }
+  #header td { vertical-align: bottom; padding-bottom: 1.5mm; }
+  #header .phova { width: 21.6mm; height: 6.75mm; }  /* both: a width alone leaves the image at its own size */
+  #header .ref { text-align: right; font-size: 9pt; color: #848484; padding-bottom: 2.2mm; }
+  #footer td { vertical-align: middle; font-size: 9pt; color: #848484; }
+  #footer .pageno { text-align: right; width: 25%; }
+  #footer .pageno:after { content: "Page - " counter(page); }
 
-  /* ---------------------------------------------------------------- tones */
-  .t-replace { color: #b42318; background: #fef3f2; border-color: #fda29b; }
-  .t-repair, .t-warn { color: #b54708; background: #fffaeb; border-color: #fec84b; }
-  .t-reuse { color: #067647; background: #ecfdf3; border-color: #75e0a7; }
-  .t-info { color: #175cd3; background: #eff8ff; border-color: #84caff; }
-  .t-none { color: #111111; background: #f2f4f7; border-color: #d0d5dd; }
-  .chip { display: inline-block; padding: 0.35mm 2.2mm 0.45mm 2.2mm; border: 0.6pt solid; border-radius: 2.4mm;
-          font-size: 6.9pt; font-weight: bold; line-height: 1.3; white-space: nowrap; }
+  /* ---------------------------------------------------------------- tones: a state is coloured bold text */
+  .t-replace { color: #c00000; background: #fdf2f2; border-color: #c00000; }
+  .t-repair, .t-warn { color: #e2ac00; background: #fffaeb; border-color: #e2ac00; }
+  .t-reuse { color: #00b050; background: #effbf4; border-color: #00b050; }
+  .t-info { color: #25a7e0; background: #f0fafe; border-color: #25a7e0; }
+  .t-none { color: #848484; background: #f2f2f2; border-color: #d9d9d9; }
+  span.chip { display: inline; padding: 0; border: none; background: transparent; font-weight: bold; white-space: nowrap; }
   .dot { display: inline-block; width: 2mm; height: 2mm; border-radius: 1mm; margin-right: 1.2mm; }
-  .dot.t-replace { background: #d92d20; } .dot.t-repair, .dot.t-warn { background: #f79009; }
-  .dot.t-reuse { background: #17b26a; } .dot.t-info { background: #2e90fa; } .dot.t-none { background: #98a2b3; }
+  .dot.t-replace { background: #c00000; } .dot.t-repair, .dot.t-warn { background: #e2ac00; }
+  .dot.t-reuse { background: #00b050; } .dot.t-info { background: #25a7e0; } .dot.t-none { background: #b3b3b3; }
 
-  /* ---------------------------------------------------------------- the report's first page */
-  .doc-head { width: 100%; margin-bottom: 4mm; }
-  .doc-head .kicker { font-size: 7pt; font-weight: bold; letter-spacing: 1.2pt; color: #1a75bc; text-transform: uppercase; }
-  .doc-head h1 { margin: 0.6mm 0 0.8mm 0; font-size: 18pt; line-height: 1.15; color: #0f2a49; }
-  .doc-head .sub { font-size: 9pt; color: #111111; }
+  /* ---------------------------------------------------------------- a report's first page (in the final file) */
+  .doc-head { width: 100%; margin-bottom: 5mm; }
+  .doc-head .kicker { font-family: Poppins, "Liberation Sans", "Noto Sans"; font-size: 9pt; font-weight: bold; letter-spacing: 1pt; color: #25a7e0; text-transform: uppercase; }
+  .doc-head h1 { margin: 0.6mm 0 0.8mm 0; font-family: Poppins, "Liberation Sans", "Noto Sans"; font-size: 18pt; line-height: 1.2; color: #1c2345; }
+  .doc-head .sub { font-size: 9pt; color: #000000; }
   .meta { width: 100%; }
-  .meta td { padding: 0.9mm 0 0.9mm 2.5mm; font-size: 7.4pt; border-bottom: 0.5pt solid #e4e7ec; }
-  .meta td.k { color: #111111; width: 38%; padding-left: 0; }
-  .meta td.v { font-weight: bold; color: #1f2933; }
+  .meta td { padding: 1mm 0 1mm 1.9mm; font-size: 8pt; border-bottom: 0.5pt solid #000000; }
+  .meta td.k { width: 38%; padding-left: 0; }
+  .meta td.v { font-weight: bold; color: #1c2345; }
 
-  .verdict { width: 100%; margin-bottom: 3.5mm; border: 0.7pt solid; border-left-width: 3.2mm; }
+  .verdict { width: 100%; margin-bottom: 4mm; border: 0.5pt solid; border-left-width: 3mm; }
   .verdict td { padding: 2.6mm 3.5mm; }
-  .verdict .title { font-size: 12.5pt; font-weight: bold; }
-  .verdict .detail { margin-top: 0.4mm; font-size: 8.2pt; color: #111111; }
+  .verdict .title { font-family: Poppins, "Liberation Sans", "Noto Sans"; font-size: 12pt; font-weight: bold; }
+  .verdict .detail { margin-top: 0.4mm; font-size: 9pt; color: #000000; }
 
-  .tiles { width: 100%; table-layout: fixed; margin-bottom: 4mm; }
-  .tiles td { padding: 0 1.2mm; }
-  .tiles td.first { padding-left: 0; }
-  .tiles td.last { padding-right: 0; }
-  .tile { border: 0.6pt solid #e4e7ec; border-top-width: 1.6pt; padding: 2.2mm 2.6mm 2mm 2.6mm; background: #ffffff; }
-  .tile .v { font-size: 17pt; font-weight: bold; line-height: 1.05; }
-  .tile .l { font-size: 7pt; color: #111111; margin-top: 0.6mm; }
-  .tile.t-none .v { color: #111111; }
-  .tile.t-replace { border-top-color: #d92d20; background: #ffffff; } .tile.t-repair { border-top-color: #f79009; background: #ffffff; }
-  .tile.t-reuse { border-top-color: #17b26a; background: #ffffff; } .tile.t-info { border-top-color: #2e90fa; background: #ffffff; }
-  .tile.t-none { border-top-color: #d0d5dd; background: #ffffff; }
+  /* the cells carry the colour, so tiles keep one height when a label wraps; white borders make the gaps */
+  .tiles { width: 100%; table-layout: fixed; margin-bottom: 4mm; border-collapse: separate; border-spacing: 0; }
+  .tiles td { padding: 0; background: #f0fafe; border-left: 2.5mm solid #ffffff; }
+  .tiles td.first { border-left: none; }
+  .tiles .tile { background: transparent; border: none; color: #1c2345; padding: 2.3mm 1.9mm 2.6mm 1.9mm; }
+  .tile .v { font-family: Poppins, "Liberation Sans", "Noto Sans"; font-size: 18pt; font-weight: bold; line-height: 1.55; color: #1c2345; }
+  .tile .l { font-family: Poppins, "Liberation Sans", "Noto Sans"; font-size: 8pt; line-height: 1.5; text-transform: uppercase; color: #1c2345; }
 
-  h3.block-title { margin: 0 0 1.6mm 0; font-size: 8.6pt; color: #0f2a49; text-transform: uppercase; letter-spacing: 0.5pt;
-                   page-break-after: avoid; }
+  h3.block-title { margin: 8mm 0 3.5mm 0; font-family: Poppins, "Liberation Sans", "Noto Sans"; font-size: 9pt; font-weight: bold;
+                   color: #1c2345; text-transform: uppercase; page-break-after: avoid; }
+  h3.block-title:after { content: " :"; }
   .split { width: 100%; table-layout: fixed; margin-bottom: 4mm; }
-  .hero { border: 0.6pt solid #e4e7ec; background: #f8f9fb; padding: 1.5mm; text-align: center; }
-  .hero img { max-height: 54mm; }
-  .hero .cap { text-align: left; font-size: 7pt; color: #111111; margin-top: 1mm; }
+  .hero { text-align: left; }
+  .hero img { max-height: 60mm; }
+  .hero .cap { font-size: 9pt; color: #000000; margin-top: 2mm; }
+  .hero .cap b { color: #1c2345; }
 
-  .grid { width: 100%; margin-bottom: 3mm; -fs-table-paginate: paginate; }
-  .grid th { background: #0f2a49; color: #ffffff; font-size: 6.9pt; font-weight: bold; text-align: left; padding: 1.3mm 2mm;
-             letter-spacing: 0.2pt; }
-  .grid td { padding: 1.3mm 2mm; font-size: 7.6pt; border-bottom: 0.5pt solid #e4e7ec; vertical-align: middle; }
-  .grid tr.alt td { background: #f8f9fb; }
+  /* tables: a grey header row, bold; a black hairline under every row; plain black text */
+  .grid { width: 100%; margin-bottom: 4mm; -fs-table-paginate: paginate; }
+  .grid th { background: #f2f2f2; color: #000000; font-size: 9pt; font-weight: bold; text-align: left; padding: 1.9mm;
+             border-bottom: 0.5pt solid #000000; vertical-align: middle; }
+  .grid td { padding: 1.9mm; font-size: 9pt; line-height: 1.2; border-bottom: 0.5pt solid #000000; vertical-align: middle; }
   .grid .c { text-align: center; }
   .grid .r { text-align: right; }
-  .grid .b { font-weight: bold; color: #0f2a49; }
-  .grid .pref { color: #1a75bc; text-decoration: none; font-size: 7pt; }
+  .grid .b { font-weight: bold; }
+  .grid .pref { color: #000000; text-decoration: none; }
   .grid .pref:after { content: "p. " target-counter(attr(href), page); }
 
-  .identity { width: 100%; table-layout: fixed; margin-bottom: 4mm; }
-  .identity > tbody > tr > td { padding-right: 3mm; }
-  .idgroup { margin-bottom: 2.5mm; page-break-inside: avoid; }
-  .idgroup .name { font-size: 6.8pt; font-weight: bold; letter-spacing: 0.6pt; text-transform: uppercase; color: #1a75bc;
-                   padding-bottom: 0.8mm; border-bottom: 0.8pt solid #1a75bc; margin-bottom: 0.6mm; }
-  .idgroup table { width: 100%; table-layout: fixed; }
-  .idgroup td { padding: 0.6mm 0; font-size: 7.4pt; border-bottom: 0.5pt solid #eef0f3; }
-  .idgroup td.k { color: #111111; width: 42%; padding-right: 2mm; }
+  /* identification: a table per group, its name on a grey band between two rules */
+  .identity { width: 100%; table-layout: fixed; }
+  .identity td.l { width: 50%; padding-right: 2.8mm; }
+  .identity td.r { width: 50%; padding-left: 2.8mm; }
+  .idgroup { width: 100%; table-layout: fixed; margin-bottom: 7mm; page-break-inside: avoid; }
+  .idgroup th { background: #f2f2f2; color: #000000; text-align: left; font-size: 8pt; font-weight: bold; text-transform: uppercase;
+                padding: 1mm 0.8mm; border-top: 0.5pt solid #000000; border-bottom: 0.5pt solid #000000; }
+  .idgroup td { padding: 1mm 0.8mm; font-size: 8pt; line-height: 1.15; border-bottom: 0.5pt solid #000000; vertical-align: middle; }
+  .idgroup td.k { width: 37%; padding-right: 2mm; }
   .idgroup td.v { font-weight: bold; word-wrap: break-word; }
 
-  .note { margin: 1.5mm 0 3mm 0; padding: 1.6mm 2.4mm; border: 0.6pt dashed #d0d5dd; color: #111111; font-size: 7.2pt; }
-  .note b { color: #111111; }
+  .note { margin: 1mm 0 4mm 0; font-size: 8.5pt; color: #000000; }
+  .note b { font-weight: bold; }
 
-  /* ---------------------------------------------------------------- sections */
+  /* ---------------------------------------------------------------- sections (as bands, in the final file) */
   .sections { margin-top: 6mm; }
   .section { margin-bottom: 5mm; }
-  .section-band { width: 100%; margin-bottom: 3mm; background: #0f2a49; page-break-after: avoid; table-layout: fixed; }
-  .section-band td { padding: 1.9mm 3mm; color: #ffffff; vertical-align: middle; }
-  .section-band .no { width: 11mm; font-size: 11pt; font-weight: bold; color: #5bc6e8; }
-  .section-band .name { font-size: 10.5pt; font-weight: bold; letter-spacing: 0.3pt; text-transform: uppercase; }
-  .section-band .phase { width: 40mm; text-align: right; font-size: 7.6pt; color: #c9d7e8; }
+  .section-band { width: 100%; margin-bottom: 3mm; background: #f2f2f2; border-top: 0.5pt solid #000000; border-bottom: 0.5pt solid #000000;
+                  page-break-after: avoid; table-layout: fixed; }
+  .section-band td { padding: 1.9mm; vertical-align: middle; }
+  .section-band .no { width: 11mm; font-family: Poppins, "Liberation Sans", "Noto Sans"; font-size: 11pt; font-weight: bold; color: #25a7e0; }
+  .section-band .name { font-family: Poppins, "Liberation Sans", "Noto Sans"; font-size: 10.5pt; font-weight: bold; color: #1c2345; }
+  .section-band .phase { width: 40mm; text-align: right; font-size: 8pt; color: #848484; }
 
-  .card { width: 100%; margin-bottom: 3.6mm; border: 0.6pt solid #d9dee5; page-break-inside: avoid;
-          border-collapse: separate; border-spacing: 0; }
-  .card .head td { padding: 1.8mm 2.6mm; background: #f5f7fa; border-bottom: 0.6pt solid #d9dee5; vertical-align: middle; }
-  .card .head .name { font-size: 9.4pt; font-weight: bold; color: #0f2a49; }
-  .card .head .added { font-size: 6.8pt; color: #111111; font-weight: normal; }
+  /* a card: the part's name and state on a grey band between two rules; photos left, findings right */
+  .card { width: 100%; margin-bottom: 6mm; border-bottom: 0.5pt solid #000000; page-break-inside: avoid; }
+  .card .head td { padding: 1.9mm; background: #f2f2f2; border-top: 0.5pt solid #000000; border-bottom: 0.5pt solid #000000; vertical-align: middle; }
+  .card .head .name { font-size: 9pt; font-weight: bold; color: #000000; }
+  .card .head .added { font-size: 8pt; color: #848484; font-weight: normal; }
   .card .head .state { text-align: right; width: 34%; }
-  .card .body td.pics { width: 52%; padding: 2.4mm 1.4mm 2.4mm 2.4mm; }
-  .card .body td.info { padding: 2.4mm 2.6mm; }
+  .card .body td.pics { width: 50%; padding: 2.2mm 1.9mm 3mm 1.9mm; }
+  .card .body td.info { padding: 2.2mm 1.9mm 3mm 1.9mm; }
 
   .pics table { width: 100%; table-layout: fixed; }
-  .pics td.ph { padding: 1mm; vertical-align: top; }
-  .ph .frame { border: 0.5pt solid #e4e7ec; background: #f8f9fb; text-align: center; padding: 1mm; }
-  .ph img { max-height: 40mm; }
-  .ph.one img { max-height: 58mm; }
-  .ph .cap { font-size: 6.6pt; color: #111111; margin-top: 0.7mm; line-height: 1.3; }
-  .ph .cap .n { color: #1a75bc; font-weight: bold; }
+  .pics td.ph { padding: 0 1mm 2mm 1mm; vertical-align: top; }
+  .pics td.ph.one { padding: 0 0 1mm 0; }
+  .ph .frame { text-align: left; }
+  .ph img { max-height: 42mm; }
+  .ph.one img { max-height: 66mm; }
+  .ph .cap { font-size: 9pt; color: #000000; margin-top: 2.4mm; line-height: 1.3; }
+  .ph .cap .n { color: #1c2345; font-weight: bold; }
+  .ph .cap .muted { font-size: 8pt; }
 
-  .blk { margin-bottom: 2.4mm; }
+  .blk { margin-bottom: 3mm; }
   .blk:last-child { margin-bottom: 0; }
-  .lbl { font-size: 6.7pt; font-weight: bold; letter-spacing: 0.6pt; text-transform: uppercase; color: #111111; margin-bottom: 0.8mm; }
+  .lbl { font-size: 9pt; font-weight: bold; text-transform: uppercase; color: #000000; margin-bottom: 2mm; }
   .ticked { margin: 0; padding: 0; }
-  .ticked div { padding: 0.25mm 0; font-weight: bold; font-size: 7.9pt; }
-  .box { display: inline-block; width: 2.6mm; height: 2.6mm; margin-right: 1.4mm; border: 0.7pt solid #0f2a49; background: #0f2a49;
-         color: #ffffff; font-size: 5.6pt; line-height: 2.4mm; text-align: center; font-weight: bold; }
-  .others { margin-top: 0.8mm; font-size: 7.2pt; color: #111111; line-height: 1.4; }
-  .others b { color: #111111; font-weight: bold; }
-  .decision .chip { font-size: 7.4pt; }
-  .para { padding: 1.4mm 2.2mm; border-left: 1.4pt solid #1a75bc; background: #f8f9fb; white-space: pre-wrap; font-size: 7.9pt; }
+  .ticked div { padding: 0.4mm 0; font-size: 10pt; }
+  .box { display: inline-block; width: 1.6mm; height: 1.6mm; margin: 0 2.8mm 0.5mm 0; background: #000000; color: #000000;
+         font-size: 1pt; line-height: 1pt; overflow: hidden; vertical-align: middle; }
+  .others { margin-top: 1.6mm; font-size: 9pt; color: #000000; line-height: 1.3; }
+  .others b { font-weight: bold; }
+  .decision .chip { font-size: 9pt; }
+  .para { padding: 0.4mm 0 0.4mm 2.2mm; border-left: 1.2pt solid #25a7e0; white-space: pre-wrap; font-size: 9pt; }
   .kv { width: 100%; table-layout: fixed; }
-  .kv td { padding: 0.8mm 0; border-bottom: 0.5pt solid #eef0f3; font-size: 7.7pt; }
-  .kv td.k { color: #111111; width: 40%; padding-right: 2mm; }
+  .kv td { padding: 1mm 0.8mm; border-bottom: 0.5pt solid #000000; font-size: 9pt; }
+  .kv td.k { width: 40%; padding-right: 2mm; }
   .kv td.v { font-weight: bold; }
+  /* boxes to tick: filled when ticked, outlined when not */
+  .tick-list div { padding: 0.5mm 0; font-size: 9pt; }
+  .tick-list div.off { color: #848484; }
+  .tick-list .box { width: 2.6mm; height: 2.6mm; }
+  .box.off { background: #ffffff; border: 0.7pt solid #000000; }
 
-  /* measurement sheet: the group's band, its drawings, a row per mark, a column per reading */
-  .sheet { width: 100%; margin-bottom: 3mm; table-layout: fixed; page-break-inside: avoid; }
-  .sheet th, .sheet td { border: 0.5pt solid #d9dee5; }
-  .sheet .band { background: #1a75bc; color: #ffffff; font-size: 7.6pt; font-weight: bold; text-align: left; padding: 1.2mm 2mm; border-color: #1a75bc; }
-  .sheet .band .u { font-weight: normal; color: #d8ebf8; }
-  .sheet .pictures { text-align: center; padding: 2mm; background: #ffffff; }
+  /* measurement sheet: the group's name on a grey band, its drawings, a row per mark, a column per reading */
+  .sheet { width: 100%; margin-bottom: 4mm; table-layout: fixed; page-break-inside: avoid; }
+  .sheet th, .sheet td { border-bottom: 0.5pt solid #000000; }
+  .sheet .band { background: #f2f2f2; color: #000000; font-size: 9pt; font-weight: bold; text-align: left; padding: 1.6mm 1.9mm;
+                 border-top: 0.5pt solid #000000; }
+  .sheet .band .u { font-weight: normal; }
+  .sheet .pictures { text-align: center; padding: 2mm; }
   .sheet .pictures img { max-height: 38mm; margin: 0 3mm; }
-  .sheet .hd th { background: #eef3f8; color: #0f2a49; font-size: 6.8pt; padding: 0.9mm 1mm; text-align: center; }
-  .sheet .hd th.mark { text-align: left; padding-left: 2mm; }
-  .sheet td { font-size: 7.8pt; text-align: center; padding: 0.9mm 1.2mm; vertical-align: middle; }
-  .sheet td.mark { width: 17%; font-weight: bold; text-align: left; color: #0f2a49; background: #f8f9fb; padding-left: 2mm; }
+  .sheet .hd th { color: #000000; font-size: 8.5pt; font-weight: bold; padding: 1.3mm 1mm; text-align: center; }
+  .sheet .hd th.mark { text-align: left; padding-left: 1.9mm; }
+  .sheet td { font-size: 9pt; text-align: center; padding: 1.3mm 1.2mm; vertical-align: middle; }
+  .sheet td.mark { width: 17%; font-weight: bold; text-align: left; padding-left: 1.9mm; }
   .sheet td.avg, .sheet th.avg { width: 17%; }
-  .sheet td.avg { font-weight: bold; background: #eef3f8; color: #0f2a49; }
+  .sheet td.avg { font-weight: bold; background: #f0fafe; color: #1c2345; }
   .sheet td.list { text-align: left; }
-  .sheet tr.empty td { color: #111111; }
-  .sheet tr.empty td.avg { font-weight: normal; font-size: 7pt; }
+  .sheet tr.empty td { color: #848484; }
+  .sheet tr.empty td.avg { font-weight: normal; font-size: 8pt; }
 
   /* geometric checks: one table, a thumbnail of each drawing */
-  .geo { width: 100%; table-layout: fixed; margin-bottom: 3mm; }
-  .geo th { background: #0f2a49; color: #ffffff; font-size: 6.9pt; padding: 1.3mm 1.2mm; text-align: center; }
-  .geo th.l { text-align: left; padding-left: 2mm; }
-  .geo td { border-bottom: 0.5pt solid #e4e7ec; padding: 1.4mm 1.2mm; text-align: center; vertical-align: middle; font-size: 7.8pt; }
+  .geo { width: 100%; table-layout: fixed; margin-bottom: 4mm; }
+  .geo th { background: #f2f2f2; color: #000000; font-size: 9pt; font-weight: bold; padding: 1.9mm 1.2mm; text-align: center;
+            border-bottom: 0.5pt solid #000000; vertical-align: middle; }
+  .geo th.l { text-align: left; padding-left: 1.9mm; }
+  .geo td { border-bottom: 0.5pt solid #000000; padding: 1.4mm 1.2mm; text-align: center; vertical-align: middle; font-size: 9pt; }
   .geo td.thumb { width: 21mm; padding: 1mm; }
   .geo td.thumb img { max-height: 15mm; max-width: 19mm; }
-  .geo td.ctl { text-align: left; padding-left: 2mm; }
-  .geo td.ctl .n { font-weight: bold; color: #0f2a49; font-size: 8pt; }
-  .geo td.ctl .c { font-size: 6.8pt; color: #111111; margin-top: 0.4mm; }
-  .geo td.avg { font-weight: bold; color: #0f2a49; background: #eef3f8; }
-  .geo tr.empty td { color: #111111; }
-  .geo tr.empty td.avg { font-weight: normal; font-size: 7pt; background: #f8f9fb; }
+  .geo.judged td.thumb { width: 38mm; padding: 1.5mm 1mm; }
+  .geo.judged td.thumb img { max-height: 24mm; max-width: 36mm; }
+  .geo td.ctl { text-align: left; padding-left: 1.9mm; }
+  .geo td.ctl .n { font-weight: bold; }
+  .geo td.ctl .c { font-size: 8pt; color: #848484; margin-top: 0.4mm; }
+  .geo td.avg { font-weight: bold; color: #1c2345; background: #f0fafe; }
+  .geo tr.empty td { color: #848484; }
+  .geo tr.empty td.avg { font-weight: normal; font-size: 8pt; }
 
   /* a measure marked « hors tolérance » by the technician */
-  .sheet tr.out td, .geo tr.out td { background: #fef3f2; }
-  .sheet tr.out td.mark, .geo tr.out td.ctl .n { color: #b42318; }
-  .sheet tr.out td.avg, .geo tr.out td.avg { color: #b42318; background: #fde4e1; }
-  .flag { display: block; margin-top: 0.3mm; font-size: 5.8pt; font-weight: bold; letter-spacing: 0.3pt; text-transform: uppercase;
-          color: #b42318; }
+  .sheet tr.out td, .geo tr.out td { background: #fdf2f2; }
+  .sheet tr.out td.mark, .geo tr.out td.ctl .n { color: #c00000; }
+  .sheet tr.out td.avg, .geo tr.out td.avg { color: #c00000; background: #fbe3e3; }
+  .flag { display: block; margin-top: 0.3mm; font-size: 6.5pt; font-weight: bold; text-transform: uppercase; color: #c00000; }
 
   /* montage checklist */
-  .checks td.no { width: 8mm; font-weight: bold; color: #1a75bc; }
-  .checks td.st { width: 30mm; }
-  .checks tr.bad td { background: #fffbfa; }
+  .checks td.no { width: 10mm; font-weight: bold; color: #25a7e0; }
+  .checks td.st { width: 32mm; }
+  .checks tr.bad td { background: #fdf2f2; }
 
-  /* ---------------------------------------------------------------- cover */
+  /* ---------------------------------------------------------------- the final file's cover */
   .cover-logos { width: 100%; margin-bottom: 7mm; }
   .cover-logos td { vertical-align: middle; }
   .cover-logos .phova { height: 11mm; } .cover-logos .um6p { height: 16mm; } .cover-logos .ocp { height: 14mm; }
-  .cover-band { width: 100%; background: #0f2a49; margin-bottom: 5mm; }
+  .cover-band { width: 100%; background: #1c2345; margin-bottom: 5mm; }
   .cover-band td { padding: 7mm 7mm 6.5mm 7mm; color: #ffffff; vertical-align: bottom; }
-  .cover-band .kicker { font-size: 7.6pt; font-weight: bold; letter-spacing: 1.6pt; color: #5bc6e8; text-transform: uppercase; }
-  .cover-band h1 { margin: 1.6mm 0 1.4mm 0; font-size: 22pt; line-height: 1.1; color: #ffffff; }
-  .cover-band .sub { font-size: 10pt; color: #c9d7e8; }
+  .cover-band .kicker { font-family: Poppins, "Liberation Sans", "Noto Sans"; font-size: 9pt; font-weight: bold; letter-spacing: 1.6pt; color: #25a7e0; text-transform: uppercase; }
+  .cover-band h1 { margin: 1.6mm 0 1.4mm 0; font-family: Poppins, "Liberation Sans", "Noto Sans"; font-size: 22pt; line-height: 1.15; color: #ffffff; }
+  .cover-band .sub { font-size: 10pt; color: #d9dcea; }
   .cover-band .sub b { color: #ffffff; }
   .cover-band .no { text-align: right; width: 40mm; }
-  .cover-band .no .l { font-size: 7pt; letter-spacing: 1pt; color: #8fb3d9; text-transform: uppercase; }
-  .cover-band .no .v { font-size: 20pt; font-weight: bold; color: #5bc6e8; }
+  .cover-band .no .l { font-size: 7pt; letter-spacing: 1pt; color: #aab0c8; text-transform: uppercase; }
+  .cover-band .no .v { font-family: Poppins, "Liberation Sans", "Noto Sans"; font-size: 20pt; font-weight: bold; color: #25a7e0; }
   .ba { width: 100%; table-layout: fixed; margin-bottom: 5mm; }
   .ba td.side { width: 50%; padding: 0 2mm 0 0; }
   .ba td.side.after { padding: 0 0 0 2mm; }
-  .ba .tag { padding: 1.4mm 2.6mm; font-size: 7.2pt; font-weight: bold; letter-spacing: 0.8pt; text-transform: uppercase; color: #ffffff; }
-  .ba .tag.before { background: #475467; } .ba .tag.after { background: #067647; }
-  .ba .frame { border: 0.6pt solid #d9dee5; border-top: none; background: #f5f7fa; text-align: center; padding: 2mm; height: 74mm; }
+  .ba .tag { padding: 1.4mm 2.6mm; font-size: 8pt; font-weight: bold; letter-spacing: 0.8pt; text-transform: uppercase; color: #000000;
+             background: #f2f2f2; border-top: 0.5pt solid #000000; border-bottom: 0.5pt solid #000000; }
+  .ba .frame { text-align: center; padding: 2mm 0; height: 74mm; }
   .ba .frame img { max-height: 70mm; }
-  .ba .frame .none { padding-top: 32mm; color: #111111; font-size: 8pt; }
-  .ba .cap { font-size: 6.9pt; color: #111111; margin-top: 1mm; }
+  .ba .frame .none { padding-top: 32mm; color: #848484; font-size: 9pt; }
+  .ba .cap { font-size: 8pt; color: #000000; margin-top: 1mm; }
   .facts { width: 100%; table-layout: fixed; margin-top: 4mm; }
-  .facts td { padding: 1.3mm 2mm 1.3mm 0; border-bottom: 0.5pt solid #e4e7ec; font-size: 8pt; vertical-align: top; }
-  .facts td.k { color: #111111; width: 17%; }
-  .facts td.v { font-weight: bold; width: 33%; }
-  .cover-foot { margin-top: 5mm; font-size: 7pt; color: #111111; }
+  .facts td { padding: 1.3mm 2mm 1.3mm 0; border-bottom: 0.5pt solid #000000; font-size: 9pt; vertical-align: top; }
+  .facts td.k { width: 17%; }
+  .facts td.v { font-weight: bold; color: #1c2345; width: 33%; }
+  .cover-foot { margin-top: 5mm; font-size: 8pt; color: #848484; }
 
-  /* ---------------------------------------------------------------- contents and chapters */
+  /* ---------------------------------------------------------------- contents and chapters: « 02 - Pompe réceptionnée » */
   .chapter { page-break-before: always; }
-  .chapter-head { margin-bottom: 5mm; padding-bottom: 2.4mm; border-bottom: 1.4pt solid #0f2a49; }
-  .chapter-head .no { font-size: 26pt; font-weight: bold; color: #5bc6e8; line-height: 1; }
-  .chapter-head h2 { margin: 1mm 0 0.6mm 0; font-size: 17pt; color: #0f2a49; }
-  .chapter-head .intro { font-size: 8.4pt; color: #111111; }
-  .chapter-tag { font-size: 7pt; font-weight: bold; letter-spacing: 1.2pt; color: #5bc6e8; text-transform: uppercase; margin-bottom: 1mm; }
-  .toc { width: 100%; margin-top: 2mm; }
-  .toc td { padding: 3mm 0; border-bottom: 0.5pt solid #e4e7ec; vertical-align: middle; }
-  .toc td.no { width: 14mm; font-size: 14pt; font-weight: bold; color: #5bc6e8; }
-  .toc td.t { font-size: 10.5pt; font-weight: bold; color: #0f2a49; }
-  .toc td.t .d { display: block; font-size: 7.6pt; font-weight: normal; color: #111111; margin-top: 0.4mm; }
-  .toc td.pg { width: 18mm; text-align: right; font-size: 9pt; color: #1a75bc; font-weight: bold; }
-  .toc a { color: #1a75bc; text-decoration: none; }
+  .chapter-head { padding-top: 12mm; margin-bottom: 7mm; }
+  .chapter-head .no { display: inline; font-family: Poppins, "Liberation Sans", "Noto Sans"; font-size: 18pt; font-weight: bold; line-height: 1.2; color: #25a7e0; }
+  .chapter-head .no:after { content: " - "; color: #1c2345; }
+  .chapter-head h2 { display: inline; margin: 0; font-family: Poppins, "Liberation Sans", "Noto Sans"; font-size: 18pt; font-weight: bold; line-height: 1.2; color: #1c2345; }
+  .chapter-head .intro { margin-top: 1.6mm; font-size: 9pt; color: #848484; }
+  .chapter-tag { font-family: Poppins, "Liberation Sans", "Noto Sans"; font-size: 8pt; font-weight: bold; letter-spacing: 1pt; color: #25a7e0; text-transform: uppercase; margin-bottom: 1mm; }
+  .toc { width: 100%; margin-top: 9mm; }
+  .toc td { padding: 3.2mm 0; border-bottom: 0.5pt solid #e1e4e8; vertical-align: middle;
+            font-family: Poppins, "Liberation Sans", "Noto Sans"; font-size: 9pt; font-weight: bold; color: #1c2345; }
+  .toc tr.last td { border-bottom: none; }
+  .toc td.no { width: 14.5mm; text-align: right; padding-right: 2.2mm; color: #25a7e0; }
+  .toc td.t .d { display: block; font-family: Arial, "Liberation Sans", "Noto Sans"; font-size: 8pt; font-weight: normal; color: #848484; margin-top: 0.4mm; }
+  .toc td.pg { width: 18mm; text-align: right; }
+  .toc a { color: #1c2345; text-decoration: none; }
   .toc a:after { content: target-counter(attr(href), page); }
   .chaptered .chapter-head { page-break-after: avoid; }
 
@@ -247,43 +259,35 @@
   .trace { width: 100%; table-layout: fixed; margin-top: 2mm; }
   .trace td.cell { padding-right: 3mm; }
   .trace td.cell.last { padding-right: 0; }
-  .tbox { border: 0.6pt solid #d9dee5; padding: 2.2mm 2.6mm; }
-  .tbox .tbody { height: 17mm; overflow: hidden; }
-  .tbox .lbl { margin-bottom: 1.2mm; }
-  .tbox .who { font-size: 8.6pt; font-weight: bold; color: #0f2a49; }
-  .tbox .when { font-size: 7.2pt; color: #111111; margin-top: 0.4mm; }
-  .tbox .sign { margin-top: 5mm; border-top: 0.5pt dotted #98a2b3; font-size: 6.4pt; color: #111111; padding-top: 0.6mm; }
-  .refs { margin-top: 2.5mm; font-size: 6.6pt; color: #111111; }
+  .tbox { border-bottom: 0.5pt solid #000000; padding-bottom: 2mm; }
+  .tbox .tbody { height: 22mm; overflow: hidden; }
+  .tbox .lbl { background: #f2f2f2; padding: 1.6mm 1.9mm; margin-bottom: 1.8mm; border-top: 0.5pt solid #000000; border-bottom: 0.5pt solid #000000; }
+  .tbox .who { font-size: 9pt; font-weight: bold; color: #1c2345; padding: 0 1.9mm; }
+  .tbox .when { font-size: 8pt; color: #000000; margin-top: 0.4mm; padding: 0 1.9mm; }
+  .tbox .sign { margin: 5mm 1.9mm 0 1.9mm; border-top: 0.5pt dotted #848484; font-size: 7.5pt; color: #848484; padding-top: 0.6mm; }
+  .tbox > .when { margin-top: 5mm; padding-top: 0.6mm; }  /* the version, in the signature's place: the boxes end level */
+  .refs { margin-top: 3mm; font-size: 8pt; color: #848484; }
 </style>
 </head>
 <body>
 
 <!-- ======================================================================= running header / footer -->
-<th:block th:fragment="running(docLabel, docRef)">
-  <div id="header-first">
-    <table>
-      <tr>
-        <td style="width: 33%; text-align: left;"><img class="phova" th:src="${logo}" alt="PHOVA Technology"/></td>
-        <td style="width: 34%; text-align: center;"><img class="um6p" th:src="${um6pLogo}" alt="Mohammed VI Polytechnic University"/></td>
-        <td style="width: 33%; text-align: right;"><img class="ocp" th:src="${ocpLogo}" alt="OCP"/></td>
-      </tr>
-    </table>
-    <div class="rule"></div>
-  </div>
+<!-- the logo and the reference on top, the document's name and the page at the bottom (template_phova.pdf).
+     refLabel: "Réf.", or "Aperçu" for a report not sent; refValue: what follows it, in bold -->
+<th:block th:fragment="running(docLabel, refLabel, refValue)">
   <div id="header">
     <table>
       <tr>
-        <td style="width: 25%;"><img class="phova" th:src="${logo}" alt="PHOVA Technology"/></td>
-        <td class="doc" th:text="${docLabel}">Rapport d'expertise · Démontage — 03DYS30</td>
-        <td class="ref" style="width: 25%;" th:text="${docRef}">AT-00002</td>
+        <td style="width: 50%;"><img class="phova" th:src="${brandLogo}" alt="PHOVA Technology"/></td>
+        <td class="ref"><span th:text="${refLabel}">Réf.</span> <b th:text="${refValue}">43c75b1a</b></td>
       </tr>
     </table>
   </div>
   <div id="footer">
     <table>
       <tr>
-        <td><span class="company">PHOSPHATE VALLEY TECHNOLOGY</span> · Providing Serenity &amp; Boosting Competitiveness</td>
-        <td class="pageno" style="width: 22%;"></td>
+        <td th:text="${docLabel}">Rapport d'expertise · Expertise complète — 23AP08</td>
+        <td class="pageno"></td>
       </tr>
     </table>
   </div>
@@ -365,17 +369,19 @@
 
 <!-- ======================================================================= each part's state -->
 <th:block th:fragment="partsTable(r, p)">
-  <!-- each part's state, the most serious first, with the page of its card -->
-  <th:block th:if="${!#lists.isEmpty(r.summary.parts)}">
-    <h3 class="block-title">État des pièces</h3>
+  <!-- each part's state, the most serious first, with the page of its card. The assembly report judges each
+       part conforme or not, with a remark: no findings, no recommendation -->
+  <th:block th:if="${!#lists.isEmpty(r.summary.parts)}" th:with="assembly=${r.kind == 'ASSEMBLAGE'}">
+    <h3 class="block-title" th:text="${assembly} ? 'Conformité des pièces' : 'État des pièces'">État des pièces</h3>
     <table class="grid">
-      <thead><tr><th style="width: 26%;">Pièce</th><th style="width: 18%;">État</th><th>Constats</th><th style="width: 25%;">Recommandation</th><th style="width: 9%;" class="r">Page</th></tr></thead>
+      <thead th:unless="${assembly}"><tr><th style="width: 26.5%;">Pièce</th><th style="width: 14%;">État</th><th>Constats</th><th style="width: 23%;">Recommandation</th><th style="width: 8.5%;">Page</th></tr></thead>
+      <thead th:if="${assembly}"><tr><th style="width: 34%;">Pièce</th><th style="width: 17%;">Conformité</th><th>Commentaire</th><th style="width: 8.5%;">Page</th></tr></thead>
       <tr th:each="pt, ps : ${r.summary.parts}" th:classappend="${ps.odd} ? '' : 'alt'" class="keep">
-        <td class="b" th:text="${pt.name}">Roue</td>
+        <td th:text="${pt.name}">Roue</td>
         <td><span class="chip" th:classappend="'t-' + ${pt.tone}" th:text="${pt.state}">À remplacer</span></td>
         <td th:text="${pt.findings != null ? pt.findings : '—'}">Usure</td>
-        <td th:text="${pt.recommendation != null ? pt.recommendation : '—'}">Remplacement</td>
-        <td class="r"><a class="pref" th:href="'#' + ${p} + ${pt.anchor}"></a></td>
+        <td th:unless="${assembly}" th:text="${pt.recommendation != null ? pt.recommendation : '—'}">Remplacement</td>
+        <td><a class="pref" th:href="'#' + ${p} + ${pt.anchor}"></a></td>
       </tr>
     </table>
     <div class="note" th:if="${!#lists.isEmpty(r.summary.notInspected)}"><b>Non inspectées : </b><span th:text="${#strings.listJoin(r.summary.notInspected, ', ')}">Palier</span></div>
@@ -386,14 +392,14 @@
 <!-- ======================================================================= the measures marked out of tolerance -->
 <th:block th:fragment="outTable(r, p)">
   <th:block th:if="${!#lists.isEmpty(r.summary.outOfTolerance)}">
-    <h3 class="block-title" style="color: #b42318;">Mesures hors tolérance</h3>
+    <h3 class="block-title" style="color: #c00000;">Mesures hors tolérance</h3>
     <table class="grid">
-      <thead><tr><th style="width: 40%;">Contrôle</th><th style="width: 22%;">Repère</th><th style="width: 20%;" class="c">Moyenne</th><th style="width: 9%;" class="r">Page</th></tr></thead>
+      <thead><tr><th style="width: 40%;">Contrôle</th><th style="width: 22%;">Repère</th><th style="width: 20%;" class="c">Moyenne</th><th style="width: 8.5%;">Page</th></tr></thead>
       <tr th:each="o : ${r.summary.outOfTolerance}" class="keep">
         <td th:text="${o.place}">Contrôles géométriques</td>
-        <td class="b" style="color: #b42318;" th:text="${o.mark}">Concentricité de l'arbre</td>
-        <td class="c b" style="color: #b42318;" th:text="${o.average} + (${o.unit != null} ? ' ' + ${o.unit} : '')">1,3 mm</td>
-        <td class="r"><a class="pref" th:href="'#' + ${p} + ${o.anchor}"></a></td>
+        <td class="b" style="color: #c00000;" th:text="${o.mark}">Concentricité de l'arbre</td>
+        <td class="c b" style="color: #c00000;" th:text="${o.average} + (${o.unit != null} ? ' ' + ${o.unit} : '')">1,3 mm</td>
+        <td><a class="pref" th:href="'#' + ${p} + ${o.anchor}"></a></td>
       </tr>
     </table>
     <div class="note"><b>À noter : </b>mesures marquées hors tolérance par le technicien. Les tolérances du constructeur ne sont pas
@@ -412,23 +418,26 @@
       <!-- the geometric checks: kept on one page with the section's band -->
       <div class="keep" th:if="${!#lists.isEmpty(s.geometry)}">
       <th:block th:replace="~{expertise/parts :: sectionHead(${s}, ${chapters})}"></th:block>
-      <table class="geo">
+      <!-- judged: the form asks each check's conformity (the assembly report): a column for it, the drawings larger -->
+      <table class="geo" th:with="judged=${!#lists.isEmpty(s.geometry.?[status != null])}" th:classappend="${judged} ? 'judged'">
         <thead>
           <tr>
-            <th style="width: 21mm;">Schéma</th>
+            <th th:style="${judged} ? 'width: 38mm;' : 'width: 21mm;'">Schéma</th>
             <th class="l">Contrôle</th>
             <th:block th:if="${s.geometryColumns gt 0}"><th th:each="n : ${#numbers.sequence(1, s.geometryColumns)}" style="width: 15mm;" th:text="'Prise ' + ${n}">Prise 1</th></th:block>
             <th th:if="${s.geometryColumns == 0}" style="width: 40mm;">Prises</th>
             <th style="width: 21mm;" th:text="'Moyenne' + (${s.geometryUnit != null} ? ' (' + ${s.geometryUnit} + ')' : '')">Moyenne (mm)</th>
+            <th th:if="${judged}" style="width: 25mm;">Conformité</th>
           </tr>
         </thead>
-        <tr th:each="g : ${s.geometry}" th:classappend="(${g.empty} ? 'empty ' : '') + (${g.out} ? 'out' : '')" class="keep">
+        <tr th:each="g : ${s.geometry}" th:classappend="(${g.empty} ? 'empty ' : '') + (${g.out or g.tone == 'replace'} ? 'out' : '')" class="keep">
           <td class="thumb"><img th:if="${g.drawing != null}" th:src="${g.drawing}" alt="Schéma"/></td>
           <td class="ctl"><div class="n" th:text="${g.control}">Concentricité de l'arbre</div>
             <div class="c" th:if="${g.comment != null}" th:text="${g.comment}">RAS</div></td>
           <td th:if="${s.geometryColumns gt 0}" th:each="v : ${g.readings}" th:text="${v != null ? v : '—'}">0,05</td>
           <td th:if="${s.geometryColumns == 0}" th:text="${g.empty ? '—' : g.list}">0,05 · 0,06</td>
           <td class="avg"><span th:text="${g.average != null ? g.average : 'Non mesuré'}">0,05</span><span class="flag" th:if="${g.out}">Hors tolérance</span></td>
+          <td th:if="${judged}" class="st"><span th:if="${g.status != null}" class="chip" th:classappend="'t-' + ${g.tone}" th:text="${g.status}">Conforme</span></td>
         </tr>
       </table>
       </div>
@@ -501,6 +510,25 @@
           </div>
           <div class="sign">Signature</div>
         </div></td>
+        <!-- the assembly report is signed by manufacturing and by quality (RASSN-02 « Validation & Qualité ») -->
+        <th:block th:if="${r.kind == 'ASSEMBLAGE'}">
+        <td class="cell"><div class="tbox">
+          <div class="tbody">
+            <div class="lbl">Validation manufacturing</div>
+            <div class="who">&#160;</div>
+          </div>
+          <div class="sign">Signature</div>
+        </div></td>
+        <td class="cell last"><div class="tbox">
+          <div class="tbody">
+            <div class="lbl">Validation qualité</div>
+            <div class="who" th:text="${r.trace.reviewer != null ? r.trace.reviewer : ' '}">Responsable qualité</div>
+            <div class="when" th:if="${r.trace.reviewer != null}" th:text="'Validé le ' + ${r.trace.reviewedAt}">Validé le 08/11/2026</div>
+          </div>
+          <div class="sign">Signature</div>
+        </div></td>
+        </th:block>
+        <th:block th:unless="${r.kind == 'ASSEMBLAGE'}">
         <td class="cell"><div class="tbox">
           <div class="tbody">
             <div class="lbl">Vérifié par</div>
@@ -519,6 +547,7 @@
           </div>
           <div class="when" th:text="'Version ' + ${r.trace.version} + (${r.trace.versions > 1} ? ' sur ' + ${r.trace.versions} : '')">Version 1</div>
         </div></td>
+        </th:block>
       </tr>
     </table>
     <div class="refs">
@@ -532,10 +561,12 @@
 <!-- ======================================================================= a section's heading -->
 <th:block th:fragment="sectionHead(s, chapters)">
   <th:block th:unless="${chapters}"><table th:replace="~{expertise/parts :: band(${s})}"></table></th:block>
+  <!-- « 03 - Inspection des pièces », its line below without the final full stop, as in the design -->
   <div th:if="${chapters}" class="chapter-head">
     <div class="no" th:text="${s.number}">03</div>
     <h2 th:text="${s.name}">Inspection des pièces</h2>
-    <div class="intro" th:if="${s.intro != null}" th:text="${s.intro}">8 pièces expertisées</div>
+    <div class="intro" th:if="${s.intro != null}"
+         th:text="${#strings.endsWith(s.intro, '.') ? #strings.substring(s.intro, 0, #strings.length(s.intro) - 1) : s.intro}">8 pièces expertisées</div>
   </div>
 </th:block>
 
@@ -560,7 +591,7 @@
     <div class="ticked"><div th:each="a : ${r.summary.receptionAnomalies}"><span class="box">&#160;</span><span th:text="${a}">Produit colmaté</span></div></div>
   </th:block>
   <th:block th:if="${!#lists.isEmpty(r.summary.openChecks)}">
-    <h3 class="block-title" style="margin-top: 3mm; color: #b42318;">Points à reprendre</h3>
+    <h3 class="block-title" style="margin-top: 3mm; color: #c00000;">Points à reprendre</h3>
     <table class="grid">
       <tr th:each="c : ${r.summary.openChecks}">
         <td style="width: 8mm;" class="b" th:text="${c.number}">06</td>
@@ -576,19 +607,19 @@
 <th:block th:fragment="identity(r, cols)">
   <table class="identity" th:if="${cols == 2}">
     <tr>
-      <td th:each="col : ${#numbers.sequence(0, 1)}" th:style="${col == 0} ? 'width: 50%; padding-right: 5mm;' : 'width: 50%; padding-left: 1mm;'">
-        <div class="idgroup" th:each="g, gs : ${r.identity}" th:if="${gs.index % 2 == col}">
-          <div class="name" th:text="${g.name}">Client / dossier</div>
-          <table><tr th:each="f : ${g.fields}"><td class="k" th:text="${f.label}">Client</td><td class="v" th:text="${f.value}">OCP S.A</td></tr></table>
-        </div>
+      <td th:each="col : ${#numbers.sequence(0, 1)}" th:class="${col == 0} ? 'l' : 'r'">
+        <table class="idgroup" th:each="g, gs : ${r.identity}" th:if="${gs.index % 2 == col}">
+          <tr><th colspan="2" th:text="${g.name}">Client / dossier</th></tr>
+          <tr th:each="f : ${g.fields}"><td class="k" th:text="${f.label}">Client</td><td class="v" th:text="${f.value}">OCP S.A</td></tr>
+        </table>
       </td>
     </tr>
   </table>
   <th:block th:if="${cols == 1}">
-    <div class="idgroup" th:each="g : ${r.identity}">
-      <div class="name" th:text="${g.name}">Client / dossier</div>
-      <table><tr th:each="f : ${g.fields}"><td class="k" th:text="${f.label}">Client</td><td class="v" th:text="${f.value}">OCP S.A</td></tr></table>
-    </div>
+    <table class="idgroup" th:each="g : ${r.identity}">
+      <tr><th colspan="2" th:text="${g.name}">Client / dossier</th></tr>
+      <tr th:each="f : ${g.fields}"><td class="k" th:text="${f.label}">Client</td><td class="v" th:text="${f.value}">OCP S.A</td></tr>
+    </table>
   </th:block>
 </th:block>
 
@@ -616,6 +647,15 @@
   <!-- short fields -->
   <div class="blk" th:if="${b.kind == 'fields'}">
     <table class="kv"><tr th:each="f : ${b.fields}"><td class="k" th:text="${f.label}">Fabricant</td><td class="v" th:text="${f.value}">John Crane</td></tr></table>
+  </div>
+
+  <!-- boxes to tick (the assembly report's pump): every box with its state, as on the paper sheet -->
+  <div class="blk" th:if="${b.kind == 'ticks'}">
+    <div class="lbl" th:text="${b.label}">Commentaires</div>
+    <div class="tick-list">
+      <div th:each="c : ${b.checked}"><span class="box">&#160;</span><span th:text="${c}">Rotation normale de l'arbre</span></div>
+      <div th:each="c : ${b.unchecked}" class="off"><span class="box off">&#160;</span><span th:text="${c}">Conformité validée</span></div>
+    </div>
   </div>
 
   <!-- findings: what was seen in bold, the rest of the list in grey -->

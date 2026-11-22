@@ -1,0 +1,1052 @@
+{
+  "title": "Rapport d'assemblage pompe",
+  "type": "INSPECTION",
+  "instructions": "Assemblage d'une pompe (RASSN-02) : une page par pièce (photos, conformité, n° de série), mesures, contrôles géométriques et liste de contrôle « Montage pompe ». Une pièce ou un contrôle « Non conforme » demande un commentaire.",
+  "fillRoles": [
+    "USER"
+  ],
+  "readRoles": [
+    "QUALITY",
+    "WORKSHOP_LEAD",
+    "PROJECT_LEAD",
+    "SALES"
+  ],
+  "items": [
+    {
+      "labelFr": "Informations générales : N° d'ordre de fabrication",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Ordre de fabrication"
+      }
+    },
+    {
+      "labelFr": "Informations générales : Date d'ordre de fabrication",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "DATE",
+      "options": {
+        "group": "Ordre de fabrication"
+      }
+    },
+    {
+      "labelFr": "Informations générales : Date de réception des pièces",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "DATE",
+      "options": {
+        "group": "Ordre de fabrication"
+      }
+    },
+    {
+      "labelFr": "Informations générales : N° d'opération",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Ordre de fabrication"
+      }
+    },
+    {
+      "labelFr": "Informations générales : Fabricant",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Identification pompe",
+        "suggestions": [
+          "PHOVA Technology"
+        ]
+      }
+    },
+    {
+      "labelFr": "Informations générales : Type",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Identification pompe"
+      }
+    },
+    {
+      "labelFr": "Informations générales : N° de série",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "Identification pompe",
+        "meta": "equipment"
+      }
+    },
+    {
+      "labelFr": "Informations générales : Date d'assemblage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "DATE",
+      "options": {
+        "group": "Assemblage",
+        "meta": "inspectionDate"
+      }
+    },
+    {
+      "labelFr": "Pompe assemblée : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE",
+      "options": {
+        "photoComments": true
+      }
+    },
+    {
+      "labelFr": "Pompe assemblée : Commentaires",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MULTI_CHOICE",
+      "options": {
+        "choices": [
+          "Rotation normale de l'arbre",
+          "Conformité validée"
+        ],
+        "checks": true
+      }
+    },
+    {
+      "labelFr": "Contrôles dimensionnels > Arbre et palier : J1",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "group": "Jeux palier / arbre",
+        "drawing": "/expertise/assemblage-arbre-palier.png"
+      }
+    },
+    {
+      "labelFr": "Contrôles dimensionnels > Arbre et palier : J2",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "group": "Jeux palier / arbre"
+      }
+    },
+    {
+      "labelFr": "Contrôles dimensionnels > Arbre et palier : J3",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "group": "Jeux palier / arbre"
+      }
+    },
+    {
+      "labelFr": "Contrôles dimensionnels > Arbre et palier : J4",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "group": "Jeux palier / arbre"
+      }
+    },
+    {
+      "labelFr": "Contrôles dimensionnels > Arbre et palier : C1",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "group": "Concentricités"
+      }
+    },
+    {
+      "labelFr": "Contrôles dimensionnels > Arbre et palier : C2",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "group": "Concentricités"
+      }
+    },
+    {
+      "labelFr": "Contrôles dimensionnels > Arbre et palier : C3",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "group": "Concentricités"
+      }
+    },
+    {
+      "labelFr": "Contrôles dimensionnels > Arbre et palier : C4",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "group": "Concentricités"
+      }
+    },
+    {
+      "labelFr": "Contrôles dimensionnels > Arbre et palier : C5",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "group": "Concentricités"
+      }
+    },
+    {
+      "labelFr": "Assemblage > Roulements : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE",
+      "options": {
+        "photoComments": true
+      }
+    },
+    {
+      "labelFr": "Assemblage > Roulements : Conformité",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme"
+        ],
+        "nonConforming": [
+          "Non conforme"
+        ],
+        "remark": true
+      }
+    },
+    {
+      "labelFr": "Assemblage > Roulements : N° de série",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": null
+    },
+    {
+      "labelFr": "Assemblage > Arbre : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE",
+      "options": {
+        "photoComments": true
+      }
+    },
+    {
+      "labelFr": "Assemblage > Arbre : Conformité",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme"
+        ],
+        "nonConforming": [
+          "Non conforme"
+        ],
+        "remark": true
+      }
+    },
+    {
+      "labelFr": "Assemblage > Arbre : N° de série",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": null
+    },
+    {
+      "labelFr": "Assemblage > Assemblage roulements et arbre : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE",
+      "options": {
+        "photoComments": true
+      }
+    },
+    {
+      "labelFr": "Assemblage > Assemblage roulements et arbre : Conformité",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme"
+        ],
+        "nonConforming": [
+          "Non conforme"
+        ],
+        "remark": true
+      }
+    },
+    {
+      "labelFr": "Assemblage > Assemblage roulements et arbre : N° de série",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": null
+    },
+    {
+      "labelFr": "Assemblage > Palier : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE",
+      "options": {
+        "photoComments": true
+      }
+    },
+    {
+      "labelFr": "Assemblage > Palier : Conformité",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme"
+        ],
+        "nonConforming": [
+          "Non conforme"
+        ],
+        "remark": true
+      }
+    },
+    {
+      "labelFr": "Assemblage > Palier : N° de série",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": null
+    },
+    {
+      "labelFr": "Assemblage > Chaise de palier : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE",
+      "options": {
+        "photoComments": true
+      }
+    },
+    {
+      "labelFr": "Assemblage > Chaise de palier : Conformité",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme"
+        ],
+        "nonConforming": [
+          "Non conforme"
+        ],
+        "remark": true
+      }
+    },
+    {
+      "labelFr": "Assemblage > Chaise de palier : N° de série",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": null
+    },
+    {
+      "labelFr": "Assemblage > Assemblage palier et chaise : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE",
+      "options": {
+        "photoComments": true
+      }
+    },
+    {
+      "labelFr": "Assemblage > Assemblage palier et chaise : Conformité",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme"
+        ],
+        "nonConforming": [
+          "Non conforme"
+        ],
+        "remark": true
+      }
+    },
+    {
+      "labelFr": "Assemblage > Assemblage palier et chaise : N° de série",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": null
+    },
+    {
+      "labelFr": "Contrôles géométriques > Faux rond : Mesure",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "drawing": "/expertise/concentricite-arbre.png"
+      }
+    },
+    {
+      "labelFr": "Contrôles géométriques > Faux rond : Conformité",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme"
+        ],
+        "nonConforming": [
+          "Non conforme"
+        ],
+        "remark": true
+      }
+    },
+    {
+      "labelFr": "Contrôles géométriques > Déplacement radial : Mesure",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "drawing": "/expertise/deplacement-radial.png"
+      }
+    },
+    {
+      "labelFr": "Contrôles géométriques > Déplacement radial : Conformité",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme"
+        ],
+        "nonConforming": [
+          "Non conforme"
+        ],
+        "remark": true
+      }
+    },
+    {
+      "labelFr": "Contrôles géométriques > Déplacement axial : Mesure",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "drawing": "/expertise/deplacement-axial.png"
+      }
+    },
+    {
+      "labelFr": "Contrôles géométriques > Déplacement axial : Conformité",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme"
+        ],
+        "nonConforming": [
+          "Non conforme"
+        ],
+        "remark": true
+      }
+    },
+    {
+      "labelFr": "Contrôles géométriques > Perpendicularité arbre / chaise : Mesure",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "drawing": "/expertise/perpendicularite-chaise.png"
+      }
+    },
+    {
+      "labelFr": "Contrôles géométriques > Perpendicularité arbre / chaise : Conformité",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme"
+        ],
+        "nonConforming": [
+          "Non conforme"
+        ],
+        "remark": true
+      }
+    },
+    {
+      "labelFr": "Contrôles géométriques > Concentricité arbre / chaise : Mesure",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "drawing": "/expertise/concentricite-chaise.png"
+      }
+    },
+    {
+      "labelFr": "Contrôles géométriques > Concentricité arbre / chaise : Conformité",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme"
+        ],
+        "nonConforming": [
+          "Non conforme"
+        ],
+        "remark": true
+      }
+    },
+    {
+      "labelFr": "Contrôles géométriques > Jeu hydraulique : X",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm",
+        "drawing": "/expertise/jeu-hydraulique.png"
+      }
+    },
+    {
+      "labelFr": "Contrôles géométriques > Jeu hydraulique : J",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "MEASURE",
+      "options": {
+        "unit": "mm"
+      }
+    },
+    {
+      "labelFr": "Contrôles géométriques > Jeu hydraulique : Conformité",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme"
+        ],
+        "nonConforming": [
+          "Non conforme"
+        ],
+        "remark": true
+      }
+    },
+    {
+      "labelFr": "Suite assemblage > Fond de garniture : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE",
+      "options": {
+        "photoComments": true
+      }
+    },
+    {
+      "labelFr": "Suite assemblage > Fond de garniture : Conformité",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme"
+        ],
+        "nonConforming": [
+          "Non conforme"
+        ],
+        "remark": true
+      }
+    },
+    {
+      "labelFr": "Suite assemblage > Fond de garniture : N° de série",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": null
+    },
+    {
+      "labelFr": "Suite assemblage > Garniture mécanique : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE",
+      "options": {
+        "photoComments": true
+      }
+    },
+    {
+      "labelFr": "Suite assemblage > Garniture mécanique : Conformité",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme"
+        ],
+        "nonConforming": [
+          "Non conforme"
+        ],
+        "remark": true
+      }
+    },
+    {
+      "labelFr": "Suite assemblage > Garniture mécanique : N° de série",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": null
+    },
+    {
+      "labelFr": "Suite assemblage > Assemblage garniture : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE",
+      "options": {
+        "photoComments": true
+      }
+    },
+    {
+      "labelFr": "Suite assemblage > Assemblage garniture : Conformité",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme"
+        ],
+        "nonConforming": [
+          "Non conforme"
+        ],
+        "remark": true
+      }
+    },
+    {
+      "labelFr": "Suite assemblage > Assemblage garniture : N° de série",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": null
+    },
+    {
+      "labelFr": "Suite assemblage > Roue : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE",
+      "options": {
+        "photoComments": true
+      }
+    },
+    {
+      "labelFr": "Suite assemblage > Roue : Conformité",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme"
+        ],
+        "nonConforming": [
+          "Non conforme"
+        ],
+        "remark": true
+      }
+    },
+    {
+      "labelFr": "Suite assemblage > Roue : N° de série",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": null
+    },
+    {
+      "labelFr": "Suite assemblage > Volute : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE",
+      "options": {
+        "photoComments": true
+      }
+    },
+    {
+      "labelFr": "Suite assemblage > Volute : Conformité",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme"
+        ],
+        "nonConforming": [
+          "Non conforme"
+        ],
+        "remark": true
+      }
+    },
+    {
+      "labelFr": "Suite assemblage > Volute : N° de série",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": null
+    },
+    {
+      "labelFr": "Suite assemblage > Flasque côté commande : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE",
+      "options": {
+        "photoComments": true
+      }
+    },
+    {
+      "labelFr": "Suite assemblage > Flasque côté commande : Conformité",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme"
+        ],
+        "nonConforming": [
+          "Non conforme"
+        ],
+        "remark": true
+      }
+    },
+    {
+      "labelFr": "Suite assemblage > Flasque côté commande : N° de série",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": null
+    },
+    {
+      "labelFr": "Suite assemblage > Flasque côté GM : Photos",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "IMAGE",
+      "options": {
+        "photoComments": true
+      }
+    },
+    {
+      "labelFr": "Suite assemblage > Flasque côté GM : Conformité",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme"
+        ],
+        "nonConforming": [
+          "Non conforme"
+        ],
+        "remark": true
+      }
+    },
+    {
+      "labelFr": "Suite assemblage > Flasque côté GM : N° de série",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": null
+    },
+    {
+      "labelFr": "Liste de contrôle « Montage pompe » : Ordre de fabrication N°",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": {
+        "group": "En-tête"
+      }
+    },
+    {
+      "labelFr": "Liste de contrôle « Montage pompe » : Date fin assemblage",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "DATE",
+      "options": {
+        "group": "En-tête"
+      }
+    },
+    {
+      "labelFr": "Liste de contrôle « Montage pompe » : 01. Contrôle général de la propreté et conformité visuelle des pièces à remonter",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    },
+    {
+      "labelFr": "Liste de contrôle « Montage pompe » : 02. Contrôle du centrage de l'arbre",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    },
+    {
+      "labelFr": "Liste de contrôle « Montage pompe » : 03. Contrôle de la concentricité de la chaise de palier",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    },
+    {
+      "labelFr": "Liste de contrôle « Montage pompe » : 04. Contrôle des jeux des déplacements d'arbre (radial et axial)",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    },
+    {
+      "labelFr": "Liste de contrôle « Montage pompe » : 05. Contrôle de la perpendicularité de l'arbre à la chaise de palier",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    },
+    {
+      "labelFr": "Liste de contrôle « Montage pompe » : 06. Test d'étanchéité de la garniture avant montage",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    },
+    {
+      "labelFr": "Liste de contrôle « Montage pompe » : 07. Contrôle du serrage de la visserie de la pompe",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    },
+    {
+      "labelFr": "Liste de contrôle « Montage pompe » : 08. Ajustage du jeu hydraulique de la pompe",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    },
+    {
+      "labelFr": "Liste de contrôle « Montage pompe » : 09. Test d'étanchéité de la garniture après montage",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    },
+    {
+      "labelFr": "Liste de contrôle « Montage pompe » : 10. Test d'étanchéité de la pompe",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    },
+    {
+      "labelFr": "Liste de contrôle « Montage pompe » : 11. Protection des orifices de la garniture mécanique",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    },
+    {
+      "labelFr": "Liste de contrôle « Montage pompe » : 12. Protection de l'aspiration et du refoulement de la pompe",
+      "labelAr": null,
+      "critical": true,
+      "answerType": "SINGLE_CHOICE",
+      "options": {
+        "choices": [
+          "Conforme",
+          "Non conforme",
+          "Non applicable",
+          "À reprendre"
+        ],
+        "nonConforming": [
+          "Non conforme",
+          "À reprendre"
+        ],
+        "remark": true,
+        "group": "Contrôles"
+      }
+    },
+    {
+      "labelFr": "Points à améliorer identifiés : Observations",
+      "labelAr": null,
+      "critical": false,
+      "answerType": "TEXT",
+      "options": null
+    }
+  ]
+}

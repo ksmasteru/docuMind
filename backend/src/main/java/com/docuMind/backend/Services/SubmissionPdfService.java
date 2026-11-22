@@ -77,10 +77,24 @@ public class SubmissionPdfService {
     private final String ocpLogoDataUri;
     // the paper report's measurement drawings (static/expertise), by name
     private final Map<String, String> drawings;
+    // PHOVA's report design (template_phova.pdf, plan_report_phova_style.md), static/report: the logo drawn
+    // from the design's vector (sharp at cover size), the cover's grid and pump drawing as one page-sized
+    // background, the gutter's strip
+    private final String brandLogoDataUri;
+    private final String coverBackgroundDataUri;
+    private final String gutterDataUri;
+
+    // Arial is Monotype's: its files can't ship with the app without a licence. The templates ask for Arial,
+    // then Liberation Sans (SIL OFL, Arial's metrics). Licensed files dropped in resources/fonts are used.
+    private static final boolean ARIAL = SubmissionPdfService.class.getResource("/fonts/Arial.ttf") != null;
+    private static final boolean ARIAL_BOLD = SubmissionPdfService.class.getResource("/fonts/Arial-Bold.ttf") != null;
 
     public SubmissionPdfService(ITemplateEngine templateEngine)
     {
         this.templateEngine = templateEngine;
+        this.brandLogoDataUri = pngDataUri("/static/report/phova-logo.png");
+        this.coverBackgroundDataUri = pngDataUri("/static/report/cover-background.png");
+        this.gutterDataUri = pngDataUri("/static/report/gutter.png");
         this.logoDataUri = "data:image/png;base64,"
                 + Base64.getEncoder().encodeToString(readClasspath("/static/phova_logo.png"));
         this.um6pLogoDataUri = "data:image/png;base64,"
@@ -88,8 +102,11 @@ public class SubmissionPdfService {
         this.ocpLogoDataUri = "data:image/jpeg;base64,"
                 + Base64.getEncoder().encodeToString(readClasspath("/static/ocp_logo.jpg"));
         Map<String, String> drawings = new HashMap<>();
+        // the last four are the assembly report's own (RASSN-02): its shaft with J1–J4 and C1–C5, and the
+        // checks against the bearing housing (chaise) and the jeu hydraulique, as drawn on the paper report
         for (String name : List.of("arbre-palier", "coupe-pompe", "concentricite-arbre", "deplacement-axial",
-                "deplacement-radial", "perpendicularite", "concentricite-boite"))
+                "deplacement-radial", "perpendicularite", "concentricite-boite",
+                "assemblage-arbre-palier", "perpendicularite-chaise", "concentricite-chaise", "jeu-hydraulique"))
             drawings.put(name, "data:image/png;base64,"
                 + Base64.getEncoder().encodeToString(readClasspath("/static/expertise/" + name + ".png")));
         this.drawings = Map.copyOf(drawings);
@@ -125,8 +142,8 @@ public class SubmissionPdfService {
         } else if (StructuredAnswers.isV2(report.title())) {
             template = EXPERTISE_V2_TEMPLATE;
             context.setVariable("report", trace == null ? ExpertiseReportV2.of(report, drawings) : ExpertiseReportV2.of(report, drawings, trace));
-            context.setVariable("um6pLogo", um6pLogoDataUri);
-            context.setVariable("ocpLogo", ocpLogoDataUri);
+            setDesign(context);
+            context.setVariable("coverBackground", coverBackgroundDataUri);
         } else if (ExpertiseReport.isFor(report.title())) {
             template = EXPERTISE_TEMPLATE;
             context.setVariable("report", ExpertiseReport.of(report));
@@ -192,7 +209,15 @@ public class SubmissionPdfService {
         context.setVariable("logo", logoDataUri);
         context.setVariable("um6pLogo", um6pLogoDataUri);
         context.setVariable("ocpLogo", ocpLogoDataUri);
+        setDesign(context);
         return toPdf(templateEngine.process(DOSSIER_TEMPLATE, context));
+    }
+
+    // what expertise/parts.html's header and gutter need, in the v2 reports and the final file
+    private void setDesign(Context context)
+    {
+        context.setVariable("brandLogo", brandLogoDataUri);
+        context.setVariable("gutter", gutterDataUri);
     }
 
     private byte[] toPdf(String html)
@@ -204,6 +229,14 @@ public class SubmissionPdfService {
             builder.useFont(font("NotoSans-Regular.ttf"), "Noto Sans", 400, FontStyle.NORMAL, true);
             builder.useFont(font("NotoSans-Bold.ttf"), "Noto Sans", 700, FontStyle.NORMAL, true);
             builder.useFont(font("NotoNaskhArabic.ttf"), "Noto Naskh Arabic", 400, FontStyle.NORMAL, true);
+            // PHOVA's report design: Poppins for titles, Arial for text (see ARIAL)
+            builder.useFont(font("Poppins-Regular.ttf"), "Poppins", 400, FontStyle.NORMAL, true);
+            builder.useFont(font("Poppins-SemiBold.ttf"), "Poppins", 600, FontStyle.NORMAL, true);
+            builder.useFont(font("Poppins-Bold.ttf"), "Poppins", 700, FontStyle.NORMAL, true);
+            builder.useFont(font("LiberationSans-Regular.ttf"), "Liberation Sans", 400, FontStyle.NORMAL, true);
+            builder.useFont(font("LiberationSans-Bold.ttf"), "Liberation Sans", 700, FontStyle.NORMAL, true);
+            if (ARIAL) builder.useFont(font("Arial.ttf"), "Arial", 400, FontStyle.NORMAL, true);
+            if (ARIAL_BOLD) builder.useFont(font("Arial-Bold.ttf"), "Arial", 700, FontStyle.NORMAL, true);
             // ICU (openhtmltopdf-rtl-support) splits the Arabic labels into right-to-left runs,
             // then joins and orders their letters
             builder.useUnicodeBidiSplitter(new ICUBidiSplitter.ICUBidiSplitterFactory());
@@ -245,6 +278,11 @@ public class SubmissionPdfService {
                 throw new IllegalStateException("font missing from the classpath: fonts/" + name);
             return stream;
         };
+    }
+
+    private static String pngDataUri(String path)
+    {
+        return "data:image/png;base64," + Base64.getEncoder().encodeToString(readClasspath(path));
     }
 
     private static byte[] readClasspath(String path)

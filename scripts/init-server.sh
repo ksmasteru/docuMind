@@ -14,7 +14,9 @@
 #   4. runs forms/server_db_check.sql, and offers to apply the fixes it prints
 #   5. creates the admin account
 #   6. creates one account per line of roles_accounts.txt; the role is the part before the @
-#   7. creates the quality forms in forms/quality/*.json
+#   7. creates the forms in forms/quality/*.json and forms/workshop/*.json
+#  7b. makes the quality control sheets fillable by technicians on a server whose forms predate it
+#      (scripts/control_sheets_technicians.sql: adds USER, never removes a role)
 #   8. gives the manager his team: the technicians in no team join it (scripts/team_seed.sql),
 #      only the first time, so a technician he removed later is not put back
 #   9. schedules the nightly backup (scripts/backup-db.sh, 02:30, 14 days kept) and takes one now
@@ -433,8 +435,9 @@ while IFS= read -r line || [ -n "$line" ]; do
 done < roles_accounts.txt
 
 
-step "7. Quality forms (forms/quality/*.json)"
-for form in forms/quality/*.json; do
+step "7. Forms (forms/quality/*.json, forms/workshop/*.json)"
+for form in forms/quality/*.json forms/workshop/*.json; do
+  [ -e "$form" ] || continue
   api POST /api/v1/forms/ "$form"
   case "$HTTP" in
     201) ok "$(basename "$form")" ;;
@@ -442,6 +445,24 @@ for form in forms/quality/*.json; do
     *)   fail "$(basename "$form"): HTTP $HTTP $(cat "$TMP/out")" ;;
   esac
 done
+
+
+step "7b. Control sheets fillable by technicians (scripts/control_sheets_technicians.sql)"
+# forms created before 2026-11-21 still say QUALITY only: add USER where it's missing (never removes a role)
+if $COMPOSE exec -T postgres true >/dev/null 2>&1; then
+  if psql_exec -At < scripts/control_sheets_technicians.sql > "$TMP/sheets" 2>&1; then
+    added=$(sed -n 's/^UPDATE \([0-9]*\)$/\1/p' "$TMP/sheets")
+    if [ "${added:-0}" -gt 0 ]; then
+      ok "$added control sheet(s) now fillable by technicians"
+    else
+      skip "the control sheets already list USER"
+    fi
+  else
+    fail "control sheets: $(cat "$TMP/sheets")"
+  fi
+else
+  skip "the postgres container is not reachable from here"
+fi
 
 
 step "8. The manager's team (scripts/team_seed.sql)"

@@ -36,7 +36,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 //                   meta: "equipment" | "inspectionDate"   copied into the report's equipment / date
 //   SINGLE_CHOICE   choices: [..] (required), allowOther, nonConforming: [..] (critical: comment + NON_CONFORME),
 //                   remark: true (a remark beside the choice, in the answer's comment)
-//   MULTI_CHOICE    choices: [..] (required), allowOther, exclusive: "Bon état" (excludes every other finding)
+//   MULTI_CHOICE    choices: [..] (required), allowOther, exclusive: "Bon état" (excludes every other finding),
+//                   checks: true (boxes to tick, not findings: the PDF gives the card no « Anomalies » state)
 //   MEASURE         unit: "mm", drawing: "/expertise/x.png", maxReadings (default 50)
 //                   answer { readings: [..], out: true }: out, the technician marked the measure « hors tolérance »
 //                   (option A of the tolerances: no limit is stored yet; the flag is the technician's judgement)
@@ -53,10 +54,15 @@ public class StructuredAnswers {
 
     // the v2 forms ("Rapport d'expertise V2 (démontage)"…): blanks allowed, photos with titles, extra parts
     public static final String V2_PREFIX = "rapport d'expertise v2";
+    // the assembly report (« Rapport d'assemblage pompe », RASSN-02, forms/workshop/): a v2 report too, for
+    // a pump PHOVA builds; its PDF is ExpertiseReportV2's, kind ASSEMBLAGE
+    public static final String ASSEMBLY_PREFIX = "rapport d'assemblage";
 
     public static boolean isV2(String title)
     {
-        return title != null && title.strip().toLowerCase().startsWith(V2_PREFIX);
+        if (title == null) return false;
+        String t = title.strip().toLowerCase();
+        return t.startsWith(V2_PREFIX) || t.startsWith(ASSEMBLY_PREFIX);
     }
 
     // the forms answered like the v2 reports (blanks allowed, photos with titles): the v2 reports, told
@@ -123,6 +129,7 @@ public class StructuredAnswers {
                     String exclusive = optionalString(options, "exclusive", position);
                     if (exclusive != null && !choices.contains(exclusive))
                         throw new InvalidFormException("item " + position + ": exclusive \"" + exclusive + "\" isn't a choice");
+                    optionalBoolean(options, "checks", position);
                 }
                 else
                 {
@@ -720,6 +727,8 @@ public class StructuredAnswers {
         ObjectNode out = (ObjectNode) data;
         out.set("choices", options.path("choices").isArray() ? options.get("choices").deepCopy() : mapper.createArrayNode());
         out.put("allowOther", options.path("allowOther").asBoolean(false));
+        if (type == AnswerType.MULTI_CHOICE)
+            out.put("checks", options.path("checks").asBoolean(false));
         if (type == AnswerType.SINGLE_CHOICE)
         {
             out.put("remark", options.path("remark").asBoolean(false));

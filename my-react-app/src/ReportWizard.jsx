@@ -1,6 +1,8 @@
 // A v2 expertise report (report_ui.md), filled in as a wizard: one section per page, one page per
 // part, Précédent / Suivant without losing anything, a progress bar by section, and a last page to
-// add remarks and send. Opened by ReportForm.jsx for the "Rapport d'expertise V2 …" forms.
+// add remarks and send. Opened by ReportForm.jsx for the "Rapport d'expertise V2 …" forms (a client's pump,
+// taken apart and repaired) and for the « Rapport d'assemblage pompe » (a new pump PHOVA builds, RASSN-02):
+// the same wizard, with that form's own words for the dictation (vocabularyFor).
 //
 //   template ← given by ReportForm (GET /api/v1/forms/inspectionForm/:id, with each question's options)
 //   photos   → POST /api/v1/images                 (one call per photo, sent as soon as it's taken)
@@ -37,6 +39,7 @@ import {
     EXTRA_PART_FINDINGS, EXTRA_PART_RECOMMENDATIONS, INSPECTION_RUBRIQUE, buildPages, dictatedShort, dictationContext, formatOf, groupsOf,
     isAnswered, isPartFilled, metaQuestion, newExtraPart, newSummaryRow, optionsOf, photoProblems, requestBody, splitLabel, suggestionsOf,
     summaryRowsFrom, todayLocal, draftPayload, restoreDraft, listOptions, SEARCHABLE_GROUP, startValue, tableResult,
+    isAssemblyTitle, vocabularyFor,
 } from "./reportV2";
 import { ChoiceField, FindingsField, MeasureField, PartsSummaryField, PhotoGallery, SearchField, TableField, TextField, WithMic, fieldInput } from "./ReportV2Fields";
 
@@ -309,6 +312,8 @@ export default function ReportWizard({ template, taskId = null, initialEquipment
         setTake({ field: fieldId, deliver, context });
         await voice.start();
     };
+    // the words the transcriber expects: a teardown's, or a new pump's assembly (RASSN-02)
+    const vocabulary = vocabularyFor(template.title);
     const voiceFor = (fieldId, context, deliver) => ({
         recording: voice.status === "recording" && dictating === fieldId,
         transcribing: voice.status === "transcribing" && dictating === fieldId,
@@ -597,7 +602,7 @@ export default function ReportWizard({ template, taskId = null, initialEquipment
                         <div className={questions.every((q) => q.answerType === "TEXT" || q.answerType === "DATE") && group ? "grid gap-3 sm:grid-cols-2" : "space-y-5"}>
                             {questions.map((q) => (
                                 <Question key={q.id} q={q} answer={answers[q.id]} setAnswer={setAnswer} uploadInto={uploadInto}
-                                    voiceFor={voiceFor} pageQuestions={page.questions} locked={locked} known={known[q.labelFr]}
+                                    voiceFor={voiceFor} vocabulary={vocabulary} pageQuestions={page.questions} locked={locked} known={known[q.labelFr]}
                                     onGenerate={() => setAnswer(q.id)((v) => {
                                         const listed = new Set(v.rows.map((r) => r.description.trim().toLowerCase()));
                                         const rows = summaryRowsFrom(pages, answers, extraParts)
@@ -655,11 +660,15 @@ export default function ReportWizard({ template, taskId = null, initialEquipment
                     );
                 })}
             </ul>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Une pièce non inspectée peut rester vide : le rapport garde sa structure.</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+                {isAssemblyTitle(template.title)
+                    ? "Une page non renseignée peut rester vide : le rapport garde sa structure."
+                    : "Une pièce non inspectée peut rester vide : le rapport garde sa structure."}
+            </p>
 
             <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Remarques générales</p>
             <TextField value={remarks} onChange={setRemarks} disabled={locked} placeholder="Écrivez ou dictez…"
-                voice={voiceFor("remarks", dictationContext({ labelFr: "Remarques générales : Remarques" }), (text) => setRemarks((r) => appendText(r, text)))} />
+                voice={voiceFor("remarks", dictationContext({ labelFr: "Remarques générales : Remarques" }, { vocabulary }), (text) => setRemarks((r) => appendText(r, text)))} />
             {/* after a reload the login only keeps the role (AuthContext), not the email */}
             <p className="text-sm text-slate-600 dark:text-slate-300">Rédigé par {user?.email ?? "vous (compte connecté)"}</p>
 
@@ -721,14 +730,14 @@ export default function ReportWizard({ template, taskId = null, initialEquipment
 }
 
 // one question, drawn for its answer type
-function Question({ q, answer, setAnswer, uploadInto, voiceFor, pageQuestions, locked, onGenerate, known }) {
+function Question({ q, answer, setAnswer, uploadInto, voiceFor, vocabulary, pageQuestions, locked, onGenerate, known }) {
     const options = optionsOf(q);
     const { field } = splitLabel(q.labelFr);
     const value = answer.value;
     const onChange = setAnswer(q.id);
     const comment = setAnswer(q.id, "comment");
     // « + Autre »: the text goes into its box (deliver), the context names what's already listed
-    const otherMic = (deliver) => voiceFor(`${q.id}:other`, dictationContext(q, { kind: "other", choices: options.choices }), deliver);
+    const otherMic = (deliver) => voiceFor(`${q.id}:other`, dictationContext(q, { kind: "other", choices: options.choices, vocabulary }), deliver);
 
     // a montage check: the description, its status, the remark beside (a row of the checklist)
     if (q.answerType === "SINGLE_CHOICE" && options.remark) {
@@ -738,7 +747,7 @@ function Question({ q, answer, setAnswer, uploadInto, voiceFor, pageQuestions, l
                 <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{field}</p>
                 <ChoiceField value={value} onChange={onChange} options={options} mic={otherMic} disabled={locked} compact name={field} />
                 <div className="sm:col-span-2">
-                    <WithMic voice={voiceFor(`${q.id}:remark`, dictationContext(q, { pageQuestions: [q] }), (text) => comment((c) => appendText(c, text)))} disabled={locked}>
+                    <WithMic voice={voiceFor(`${q.id}:remark`, dictationContext(q, { pageQuestions: [q], vocabulary }), (text) => comment((c) => appendText(c, text)))} disabled={locked}>
                         <input value={answer.comment} onChange={(e) => comment(() => e.target.value)} disabled={locked}
                             placeholder={bad ? "Remarque (obligatoire)" : "Remarque"} aria-label={`Remarque : ${field}`}
                             className={`${fieldInput} py-1.5 ${bad && !answer.comment.trim() ? "border-red-400" : ""}`} />
@@ -787,12 +796,12 @@ function Question({ q, answer, setAnswer, uploadInto, voiceFor, pageQuestions, l
             // the client / file fields: a searchable list of the suggestions and the values of earlier reports
             if (!long && options.group === SEARCHABLE_GROUP) {
                 control = <SearchField value={value} onChange={onChange} options={listOptions(suggestions, known)} disabled={locked} label={field}
-                    voice={voiceFor(q.id, dictationContext(q, { pageQuestions }), deliver)}
+                    voice={voiceFor(q.id, dictationContext(q, { pageQuestions, vocabulary }), deliver)}
                     placeholder={format ? `ex. ${format.example} — ou cherchez` : "Écrivez ou cherchez…"} />;
                 break;
             }
             control = <TextField value={value} onChange={onChange} multiline={long} disabled={locked} suggestions={suggestions}
-                voice={voiceFor(q.id, dictationContext(q, { pageQuestions }), deliver)}
+                voice={voiceFor(q.id, dictationContext(q, { pageQuestions, vocabulary }), deliver)}
                 onBlur={format?.imposed ? () => onChange((current) => dictatedShort(current, suggestions, format)) : undefined}
                 placeholder={long ? "Écrivez ou dictez…" : format ? `ex. ${format.example}` : ""} />;
         }

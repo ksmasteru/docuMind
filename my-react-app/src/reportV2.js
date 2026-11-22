@@ -10,9 +10,14 @@ export { dictatedMeasure, pickedSuggestion };
 export const V2_DISMANTLING_TITLE = "Rapport d'expertise V2 (démontage)";
 export const V2_MOUNTING_TITLE = "Rapport d'expertise V2 (montage)";
 export const V2_COMPLETE_TITLE = "Rapport d'expertise V2 (complet)";
+export const ASSEMBLY_TITLE = "Rapport d'assemblage pompe";
 
-// every "Rapport d'expertise V2 …" form, whatever comes after
-export const isV2Title = (title) => !!title?.trim().toLowerCase().startsWith("rapport d'expertise v2");
+// every "Rapport d'expertise V2 …" form, whatever comes after, and the assembly report
+// (« Rapport d'assemblage pompe », RASSN-02, forms/workshop/): the same as StructuredAnswers.isV2 on the server
+export const isV2Title = (title) => !!title?.trim().toLowerCase().startsWith("rapport d'expertise v2") || isAssemblyTitle(title);
+
+// the assembly of a new pump PHOVA builds, unlike the expertise reports (a client's pump, taken apart)
+export const isAssemblyTitle = (title) => !!title?.trim().toLowerCase().startsWith("rapport d'assemblage");
 
 // the rubrique where « + Ajouter une pièce » adds a page
 export const INSPECTION_RUBRIQUE = "Inspection des pièces";
@@ -68,6 +73,16 @@ const EXPERTISE_VOCABULARY =
     "Les roulements sont grippés. La garniture fuit. Le joint torique est abîmé. La chemise est usée. " +
     "La bague d'usure est usée. Produit colmaté. Corrosion, érosion, fissure, traces de frottement. " +
     "Nettoyage et réutilisation. Réparation et réutilisation. Remplacement.";
+
+// the assembly report's own words (RASSN-02): a new pump's parts, checks and remarks, not a teardown's
+const ASSEMBLY_VOCABULARY =
+    "Conforme. Non conforme. Testé. Rotation normale de l'arbre. Conformité validée. " +
+    "Roulements, arbre, palier, chaise de palier, fond de garniture, garniture mécanique, roue, volute, " +
+    "flasque côté commande, flasque côté GM. Faux rond, déplacement radial, déplacement axial, perpendicularité, " +
+    "concentricité, jeu hydraulique. Ajout de cale. Rectification de l'alésage. Enlèvement de matière. Serrage de la visserie.";
+
+// the words the transcriber should expect on this form
+export const vocabularyFor = (title) => (isAssemblyTitle(title) ? ASSEMBLY_VOCABULARY : EXPERTISE_VOCABULARY);
 
 // The identification fields' formats (PHOVA's own references): the example shown in the empty field,
 // a few values of that shape for the transcriber to copy (Whisper follows its prompt's spelling: it then
@@ -145,19 +160,20 @@ const where = (q) => {
 //   kind "measure": a reading, said as a number
 //   kind "other":   a value added with « + Autre » to a list of choices
 // pageQuestions: the page's other questions, whose choices a comment is likely to name.
-export const dictationContext = (q, { kind = "text", pageQuestions = [], choices = null } = {}) => {
+// vocabulary: the form's words (vocabularyFor), the expertise's by default
+export const dictationContext = (q, { kind = "text", pageQuestions = [], choices = null, vocabulary = EXPERTISE_VOCABULARY } = {}) => {
     const { field } = splitLabel(q.labelFr);
     if (kind === "measure")
         return `${where(q)} ${field}. Valeurs en millimètres, par exemple 0,08. 0,12. 1,5. ${field} :`;
     if (kind === "other")
-        return `${EXPERTISE_VOCABULARY} ${where(q)} ${field} déjà proposés : ${(choices ?? []).join(". ")}. Autre ${field.toLowerCase()} :`;
+        return `${vocabulary} ${where(q)} ${field} déjà proposés : ${(choices ?? []).join(". ")}. Autre ${field.toLowerCase()} :`;
     const suggestions = suggestionsOf(q);
     const format = formatOf(q);
     if (format || suggestions)
         return `${where(q)}${format ? ` ${field}, par exemple : ${format.spoken.join(". ")}.` : ""}`
             + `${suggestions ? ` ${field} possibles : ${suggestions.join(". ")}.` : ""} ${field} :`;
     const named = pageQuestions.flatMap((x) => optionsOf(x).choices ?? []);
-    return `${EXPERTISE_VOCABULARY} ${where(q)}${named.length ? ` ${[...new Set(named)].join(". ")}.` : ""} ${field} :`;
+    return `${vocabulary} ${where(q)}${named.length ? ` ${[...new Set(named)].join(". ")}.` : ""} ${field} :`;
 };
 
 // a short dictated value: no closing full stop; a suggestion when it names one, else tidied into the

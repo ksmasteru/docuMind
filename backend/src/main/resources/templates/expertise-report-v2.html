@@ -1,140 +1,134 @@
 <!DOCTYPE html>
 <!--
-  PDF of one v2 expertise report ("Rapport d'expertise V2 …": démontage, montage, complet), in the style of the
-  intervention's final file (expertise-dossier.html, report_pdf.md):
+  PDF of one v2 expertise report ("Rapport d'expertise V2 …": démontage, montage, complet), in PHOVA's design
+  (template_phova.pdf, plan_report_phova_style.md):
 
-    cover      the report's kind, the pump and its photos, the verdict, the identification
+    cover      the logo, the reference, the report's kind, the identification in one column, over the design's
+               grid and pump drawing; no running header or footer, no gutter
+    page 2     what the report is for (the design team's text)
     contents   with page numbers
-    01         Synthèse et identification: key figures, each part's state (or the points to take up), every
-               identification field
+    01         Synthèse et identification: key figures, what was seen at reception, the points to take up, each
+               part's state, every identification field
     02 …       one chapter per rubrique of the form, numbered as in the form: a card per part, the geometric
                checks as one table, measurement sheets, the montage checklist
     last       remarks, traceability and signatures
 
   The pieces are expertise/parts.html's, shared with the final file. Rendered by Thymeleaf then OpenHTMLtoPDF
-  (SubmissionPdfService). Expects "report" (ExpertiseReportV2) and the logos as data URIs: "logo", "um6pLogo",
-  "ocpLogo". The cover has no running header or footer; the next pages a slim band with the report's name.
+  (SubmissionPdfService). Expects "report" (ExpertiseReportV2) and, as data URIs, "brandLogo",
+  "coverBackground" and "gutter".
 -->
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org" lang="fr">
 <head>
   <meta charset="UTF-8"/>
-  <title th:text="'Rapport d\'expertise — ' + ${report.kindLabel}">Rapport d'expertise</title>
+  <title th:text="${report.docName()} + ' — ' + ${report.kindLabel}">Rapport d'expertise</title>
   <style>
     @page {
       size: A4;
-      margin: 21mm 14mm 17mm 14mm;
-      @top-center { content: element(header); }
-      @bottom-center { content: element(footer); }
+      margin: 16mm 12.5mm 14mm 12.7mm;
+      @top-center { content: element(header); vertical-align: top; padding-top: 4.6mm; }
+      @bottom-center { content: element(footer); vertical-align: middle; }
     }
+    /* the cover keeps the side margins of the other pages: OpenHTMLtoPDF lays the whole document out at the first
+       page's width. Its full-bleed art (grid, pump drawing) is the page's background, set below */
     @page :first {
-      margin: 12mm 14mm 12mm 14mm;
+      margin: 0 12.5mm 0 12.7mm;
       @top-center { content: none; }
       @bottom-center { content: none; }
     }
   </style>
   <style th:replace="~{expertise/parts :: styles}"></style>
+  <style th:inline="css">
+    /* after parts :: styles, which takes the gutter off the first page */
+    @page :first { background-image: url("[(${coverBackground})]"); background-size: 210mm 297mm; }
+  </style>
   <style>
-    .ba .frame.wide { height: 92mm; }
-    .ba .frame.wide img { max-height: 88mm; }
-    .tag.kind-DEMONTAGE, .tag.kind-COMPLET { background: #475467; }
-    .tag.kind-MONTAGE { background: #067647; }
-    .tag.part { background: #1a75bc; }
+    /* the cover, placed as in template_phova.pdf: positions in points from the content's top-left corner,
+       36 pt (12.7 mm) right of the page's edge */
+    .cover { position: relative; width: 100%; height: 296.5mm; overflow: hidden; page-break-after: always; }
+    .cover .logo { position: absolute; left: 0; top: 84pt; width: 139pt; height: 43.45pt; }
+    .cover .title { position: absolute; left: 30.4pt; top: 248.6pt; width: 480pt; height: 95.8pt;
+                    border-left: 2.25pt solid #25a7e0; padding-left: 11.7pt; }
+    .cover .ref { display: inline-block; width: 130.4pt; margin-top: 3.4pt; padding: 3.4pt 3.6pt; background: #f2f2f2;
+                  font-size: 8pt; line-height: 1.5; }
+    .cover .ref b { color: #1c2345; }
+    .cover .kicker { margin-top: 5pt; font-family: Poppins, "Liberation Sans", "Noto Sans"; font-size: 14pt; font-weight: bold;
+                     letter-spacing: 0.8pt; line-height: 1.3; color: #25a7e0; text-transform: uppercase; }
+    .cover h1 { margin: 3pt 0 0 0; font-family: Poppins, "Liberation Sans", "Noto Sans"; font-size: 36pt; font-weight: bold;
+                line-height: 1.15; color: #1c2345; }
+    .cover .facts-v { position: absolute; left: 31.3pt; top: 367.3pt; width: 459.8pt; }
+    .cv-facts { width: 100%; table-layout: fixed; }
+    .cv-facts td { height: 14.9pt; padding: 0 5.4pt; font-size: 9pt; line-height: 1.2; vertical-align: middle;
+                   border-bottom: 0.5pt solid #000000; }
+    .cv-facts tr.first td { border-top: 0.5pt solid #000000; }
+    /* a cell's width leaves out its padding: 144 pt in all, as in the design */
+    .cv-facts td.k { width: 133.2pt; }
+    .cv-facts td.gap, .cv-facts tr.first td.gap { width: 13.4pt; padding: 0; border-top: none; border-bottom: none; }
+    .cv-facts td.v { font-weight: bold; color: #1c2345; }
+    .cover .preview { margin-top: 4mm; font-size: 8pt; font-weight: bold; color: #c00000; }
+
+    /* page 2: what the report is for */
+    .about { padding-top: 84mm; page-break-after: always; }
+    .about p { margin: 0 0 10mm 0; font-size: 9pt; line-height: 1.38; }
+
+    .toc-head { padding-top: 17mm; }
+    .reception { padding-left: 3.2mm; margin-bottom: 2mm; }
   </style>
 </head>
-<body th:with="r=${report}, ref=${report.trace.preview ? 'APERÇU — NON ENVOYÉ' : (report.trace.interventionNumber != null ? report.trace.interventionNumber : 'Réf. ' + #strings.substring(report.submissionId, 0, 8))}">
-  <th:block th:replace="~{expertise/parts :: running('Rapport d\'expertise · ' + ${report.kindLabel} + ' — ' + ${report.equipment}, ${ref})}"></th:block>
+<body th:with="r=${report},
+               refLabel=${report.trace.preview ? 'Aperçu —' : 'Réf.'},
+               refValue=${report.trace.preview ? 'non envoyé' : (report.trace.interventionNumber != null ? report.trace.interventionNumber : #strings.substring(report.submissionId, 0, 8))}">
+  <th:block th:replace="~{expertise/parts :: running(${report.docLabel()}, ${refLabel}, ${refValue})}"></th:block>
 
   <!-- ===================================================================== cover -->
-  <table class="cover-logos">
-    <tr>
-      <td style="width: 33%; text-align: left;"><img class="phova" th:src="${logo}" alt="PHOVA Technology"/></td>
-      <td style="width: 34%; text-align: center;"><img class="um6p" th:src="${um6pLogo}" alt="Mohammed VI Polytechnic University"/></td>
-      <td style="width: 33%; text-align: right;"><img class="ocp" th:src="${ocpLogo}" alt="OCP"/></td>
-    </tr>
-  </table>
+  <div class="cover">
+    <img class="logo" th:src="${brandLogo}" alt="PHOVA Technology"/>
+    <div class="title">
+      <div class="ref"><span th:text="${r.trace.preview} ? 'Aperçu —' : 'Référence :'">Référence :</span> <b th:text="${refValue}">43c75b1a</b></div>
+      <div class="kicker" th:text="${r.docName()}">Rapport d'expertise</div>
+      <h1 th:text="${r.kindLabel}">Expertise complète</h1>
+    </div>
+    <div class="facts-v" th:with="facts=${r.coverFacts()}">
+      <table class="cv-facts" th:if="${!#lists.isEmpty(facts)}">
+        <tr th:each="f, fs : ${facts}" th:classappend="${fs.first} ? 'first'">
+          <td class="k" th:text="${f.label}">Client</td>
+          <td class="gap"></td>
+          <td class="v" th:text="${f.value}">OCP S.A</td>
+        </tr>
+      </table>
+      <!-- a preview: the report isn't sent, its answers can still change -->
+      <div class="preview" th:if="${r.trace.preview}"
+           th:text="'Aperçu généré le ' + ${r.trace.generatedAt} + ' à partir des réponses saisies. Le rapport final sera produit à l\'envoi, après les contrôles.'">Aperçu</div>
+    </div>
+  </div>
 
-  <table class="cover-band">
-    <tr>
-      <td>
-        <div class="kicker" th:text="${r.trace.preview} ? 'Aperçu du rapport d\'expertise' : 'Rapport d\'expertise'">Rapport d'expertise</div>
-        <h1 th:text="${r.kindLabel}">Démontage et expertise</h1>
-        <div class="sub">Pompe <b th:text="${r.equipment}">03DYS30</b>
-          <span th:if="${r.identityValue('Type') != null}" th:text="' · ' + ${r.identityValue('Type')}"> · OTC125-43</span>
-          <span th:if="${r.identityValue('Client') != null}" th:text="' · ' + ${r.identityValue('Client')}"> · OCP S.A</span></div>
-      </td>
-      <td class="no">
-        <div class="l" th:text="${r.trace.interventionNumber != null ? 'Intervention' : (r.trace.preview ? 'Rapport' : 'Référence')}">Intervention</div>
-        <div class="v" th:text="${r.trace.interventionNumber != null ? r.trace.interventionNumber : (r.trace.preview ? 'Aperçu' : #strings.substring(r.submissionId, 0, 8))}">AT-00005</div>
-      </td>
-    </tr>
-  </table>
-
-  <!-- a preview: the report isn't sent, its answers can still change -->
-  <table class="verdict t-repair" th:if="${r.trace.preview}" style="margin-bottom: 4mm;">
-    <tr><td>
-      <div class="title">Aperçu — rapport non envoyé</div>
-      <div class="detail" th:text="'Généré le ' + ${r.trace.generatedAt} + ' à partir des réponses saisies. Le rapport final sera produit à l\'envoi, après les contrôles.'">Généré le</div>
-    </td></tr>
-  </table>
-
-  <!-- the pump: two photos side by side, or one wide -->
-  <table class="ba" th:if="${#lists.size(r.summary.coverPhotos) == 2}">
-    <tr>
-      <td class="side" th:each="cp, cs : ${r.summary.coverPhotos}" th:classappend="${cs.last} ? 'after'">
-        <div class="tag" th:classappend="${cs.first or cp.label == r.summary.coverPhotos[0].label} ? 'kind-' + ${r.kind} : 'part'"
-             th:text="${cp.label}">À la réception</div>
-        <div class="frame"><img th:src="${cp.photo.src}" alt="Photo de la pompe"/></div>
-        <div class="cap" th:text="${cp.photo.title != null ? cp.photo.title : ''}">Vue générale</div>
-      </td>
-    </tr>
-  </table>
-  <table class="ba" th:if="${#lists.size(r.summary.coverPhotos) == 1}">
-    <tr>
-      <td>
-        <div class="tag" th:classappend="'kind-' + ${r.kind}" th:text="${r.summary.coverPhotos[0].label}">À la réception</div>
-        <div class="frame wide"><img th:src="${r.summary.coverPhotos[0].photo.src}" alt="Photo de la pompe"/></div>
-        <div class="cap" th:text="${r.summary.coverPhotos[0].photo.title != null ? r.summary.coverPhotos[0].photo.title : ''}">Vue générale</div>
-      </td>
-    </tr>
-  </table>
-
-  <table class="verdict" th:classappend="'t-' + ${r.summary.tone}">
-    <tr><td>
-      <div class="title" th:text="${r.summary.verdict}">Remise en état nécessaire</div>
-      <div class="detail" th:text="${r.summary.verdictDetail}">2 pièces à remplacer · 2 à réparer · 8 réutilisables</div>
-    </td></tr>
-  </table>
-
-  <th:block th:with="facts=${r.coverFacts()}">
-  <table class="facts" th:if="${!#lists.isEmpty(facts)}">
-    <tr th:each="i : ${#numbers.sequence(0, #lists.size(facts) - 1, 2)}">
-      <td class="k" th:text="${facts[i].label}">Client</td>
-      <td class="v" th:text="${facts[i].value}">OCP S.A</td>
-      <td class="k" th:text="${i + 1 lt #lists.size(facts) ? facts[i + 1].label : ''}">Équipement</td>
-      <td class="v" th:text="${i + 1 lt #lists.size(facts) ? facts[i + 1].value : ''}">03DYS30</td>
-    </tr>
-  </table>
-  </th:block>
-  <div class="cover-foot">
-    <span th:text="'Formulaire : ' + ${r.title}">Formulaire</span> ·
-    <span th:text="${r.trace.preview} ? 'Pas encore envoyé' : 'Envoyé le ' + ${r.submittedAt}">Envoyé le</span>
-    <span th:if="${r.trace.generatedAt != null}" th:text="' · Généré le ' + ${r.trace.generatedAt}"></span>
+  <!-- ===================================================================== what the report is for
+       the design team's text describes an expertise: none for the assembly report -->
+  <div class="about" th:unless="${r.kind == 'ASSEMBLAGE'}">
+    <p>Le présent rapport d’expertise a pour objet de documenter l’évaluation technique d’une pompe réceptionnée en atelier
+      dans le cadre d’une opération de maintenance. Il présente les informations d’identification de l’équipement, son état à la
+      réception, les différentes étapes d’inspection ainsi que les contrôles géométriques et dimensionnels réalisés après
+      démontage.</p>
+    <p>Ce document rassemble les constats effectués sur les principaux composants de la pompe, les anomalies relevées, les
+      résultats des mesures et les recommandations techniques associées. Il précise, pour chaque pièce examinée, si celle-ci
+      peut être réutilisée, réparée ou doit être remplacée. Des photographies accompagnent les observations afin d’assurer la
+      traçabilité des constats et de faciliter leur compréhension.</p>
+    <p>Le rapport présente également les décisions prises concernant les pièces, les opérations de remise en état effectuées,
+      les observations complémentaires et l’état final de la pompe après remontage. Il constitue ainsi un support technique de
+      référence pour le client, les équipes de maintenance et les responsables de validation, en vue de statuer sur les actions
+      nécessaires avant les essais et la remise en service de l’équipement.</p>
   </div>
 
   <!-- ===================================================================== contents -->
   <div class="chapter" th:with="shown=${r.sections.?[!cards.isEmpty() or !geometry.isEmpty()]}">
-    <div class="chapter-head">
-      <h2>Sommaire</h2>
-      <div class="intro" th:text="'Rapport ' + ${#strings.toLowerCase(r.kindLabel)} + ' de la pompe ' + ${r.equipment} + (${r.trace.interventionNumber != null} ? ', intervention ' + ${r.trace.interventionNumber} : '') + '.'">Rapport</div>
-    </div>
+    <div class="chapter-head toc-head"><h2>Sommaire</h2></div>
     <table class="toc">
-      <tr><td class="no">01</td><td class="t">Synthèse et identification<span class="d" th:text="${r.summary.verdict} + ' — ' + ${r.summary.verdictDetail}">Bilan</span></td><td class="pg"><a href="#c-syn"></a></td></tr>
+      <tr><td class="no">01.</td><td class="t">Synthèse et identification</td><td class="pg"><a href="#c-syn"></a></td></tr>
       <tr th:each="s : ${shown}">
-        <td class="no" th:text="${s.number}">02</td>
-        <td class="t"><span th:text="${s.name}">Pompe réceptionnée</span><span class="d" th:if="${s.intro != null}" th:text="${s.intro}">État</span></td>
+        <td class="no" th:text="${s.number} + '.'">02.</td>
+        <td class="t" th:text="${s.name}">Pompe réceptionnée</td>
         <td class="pg"><a th:href="'#' + ${s.anchor}"></a></td>
       </tr>
-      <tr><td class="no">—</td><td class="t">Traçabilité et validation<span class="d">Rédaction, vérification, signatures</span></td><td class="pg"><a href="#c-trace"></a></td></tr>
+      <tr class="last"><td class="no">_</td><td class="t">Traçabilité et validation</td><td class="pg"><a href="#c-trace"></a></td></tr>
     </table>
   </div>
 
@@ -143,14 +137,18 @@
     <div class="chapter-head">
       <div class="no">01</div>
       <h2>Synthèse et identification</h2>
-      <div class="intro" th:text="${r.summary.verdictDetail}">2 pièces à remplacer</div>
+      <!-- a montage or an assembly is conforme or not: that verdict first, in its colour -->
+      <div class="intro" th:with="d=${r.summary.verdictDetail}, judged=${r.kind == 'MONTAGE' or r.kind == 'ASSEMBLAGE'}"><span
+           th:if="${judged}" class="chip" th:classappend="'t-' + ${r.summary.tone}" th:text="${r.summary.verdict}">Assemblage conforme</span><span
+           th:if="${judged}"> · </span><span
+           th:text="${#strings.endsWith(d, '.') ? #strings.substring(d, 0, #strings.length(d) - 1) : d}">7 pièces à remplacer · 0 à réparer · 5 réutilisables</span></div>
     </div>
 
     <table class="tiles keep">
       <tr>
         <td th:each="t, ts : ${r.summary.tiles}" th:classappend="${ts.first} ? 'first' : (${ts.last} ? 'last' : '')">
-          <div class="tile" th:classappend="'t-' + ${t.tone}">
-            <div class="v" th:text="${t.value}">2</div>
+          <div class="tile">
+            <div class="v" th:text="${t.value}">7</div>
             <div class="l" th:text="${t.label}">à remplacer</div>
           </div>
         </td>
@@ -159,16 +157,16 @@
 
     <th:block th:if="${!#lists.isEmpty(r.summary.receptionAnomalies)}">
       <h3 class="block-title">Constats à la réception</h3>
-      <div class="ticked blk" style="margin-bottom: 4mm;"><div th:each="a : ${r.summary.receptionAnomalies}"><span class="box">&#160;</span><span th:text="${a}">Produit colmaté</span></div></div>
+      <div class="ticked reception"><div th:each="a : ${r.summary.receptionAnomalies}"><span class="box">&#160;</span><span th:text="${a}">Arbre bloqué</span></div></div>
     </th:block>
 
     <th:block th:if="${!#lists.isEmpty(r.summary.openChecks)}">
-      <h3 class="block-title" style="color: #b42318;">Points à reprendre</h3>
+      <h3 class="block-title" style="color: #c00000;">Points à reprendre</h3>
       <table class="grid">
         <thead><tr><th style="width: 9%;" class="c">N°</th><th>Contrôle</th><th style="width: 30%;">Remarque</th><th style="width: 18%;">Statut</th></tr></thead>
         <tr th:each="c : ${r.summary.openChecks}" class="keep">
           <td class="c b" th:text="${c.number}">06</td>
-          <td class="b" th:text="${c.label}">Test d'étanchéité</td>
+          <td th:text="${c.label}">Test d'étanchéité</td>
           <td th:text="${c.remark != null ? c.remark : '—'}">fuite</td>
           <td><span class="chip t-replace" th:text="${c.status}">Non conforme</span></td>
         </tr>
@@ -178,7 +176,7 @@
     <th:block th:replace="~{expertise/parts :: partsTable(${r}, '')}"></th:block>
     <th:block th:replace="~{expertise/parts :: outTable(${r}, '')}"></th:block>
 
-    <div class="keep" th:if="${!#lists.isEmpty(r.identity)}" style="margin-top: 2mm;">
+    <div class="keep" th:if="${!#lists.isEmpty(r.identity)}">
       <h3 class="block-title">Identification</h3>
       <th:block th:replace="~{expertise/parts :: identity(${r}, 2)}"></th:block>
     </div>
@@ -191,7 +189,7 @@
   <div class="chapter" id="c-trace">
     <div class="chapter-head">
       <h2>Traçabilité et validation</h2>
-      <div class="intro">Qui a rédigé ce rapport, qui l'a vérifié, et dans quel dossier il s'inscrit.</div>
+      <div class="intro" th:text="${r.kind == 'ASSEMBLAGE'} ? 'Qui a rédigé ce rapport, et sa validation par le manufacturing et la qualité' : 'Qui a rédigé ce rapport, qui l\'a vérifié, et dans quel dossier il s\'inscrit'">Qui a rédigé ce rapport, qui l'a vérifié, et dans quel dossier il s'inscrit</div>
     </div>
     <th:block th:replace="~{expertise/parts :: trace(${r}, false)}"></th:block>
     <table th:replace="~{verification :: approval}"></table>
