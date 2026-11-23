@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.docuMind.backend.model.FormCreationDto;
@@ -48,11 +49,15 @@ public class CheckListController{
         return ResponseEntity.ok(response);
     }
 
-    // reutrn [{type, title, id}, ...] of the ACTIVE FORMS the caller's role may fill
+    // [{type, title, id, layout}, ...] of the ACTIVE FORMS the caller's role may fill (Formulaires).
+    // ?for=task: every active form, to assign one in a task (manager, admin, Pumps Maintenance Lead; 403 otherwise)
     @GetMapping("/options")
-    public ResponseEntity<FormOptionsResponse>getFormOptions(Authentication authentication)
+    public ResponseEntity<FormOptionsResponse>getFormOptions(@RequestParam(name = "for", required = false) String forWhat,
+                                                             Authentication authentication)
     {
-        FormOptionsResponse response = checkListService.getFormOptions(authentication.getName());
+        FormOptionsResponse response = "task".equals(forWhat)
+            ? checkListService.getTaskFormOptions(authentication.getName())
+            : checkListService.getFormOptions(authentication.getName());
         return ResponseEntity.ok(response);
     }
 

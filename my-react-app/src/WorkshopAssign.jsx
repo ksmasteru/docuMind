@@ -4,7 +4,7 @@
 //
 //   details     ← GET  /api/v1/interventions/:id     (canAssign: the caller took step 7 / 15)
 //   technicians ← GET  /api/v1/users/technicians     ({ technicianInfo: [{ name, email, worksite }] })
-//   templates   ← GET  /api/v1/forms/options         (the active checklists: only the "Rapport d'expertise" ones are offered)
+//   templates   ← GET  /api/v1/forms/options?for=task   (every active form: only the "Rapport d'expertise" ones are offered)
 //   send        → POST /api/v1/interventions/:id/assign   (InterventionAssignDto → { taskId })
 import Layout from "./Layout";
 import { useEffect, useState } from "react";
@@ -72,7 +72,8 @@ const WorkshopAssign = () => {
                 setLoadError(serverMessage(err, "L'intervention n'a pas pu être chargée. Vérifiez votre connexion et réessayez."));
             }
             try {
-                const { data } = await apiClient.get("/api/v1/forms/options");
+                // every active form, not only the ones the Workshop Lead fills himself: the task lets the technician fill it
+                const { data } = await apiClient.get("/api/v1/forms/options", { params: { for: "task" } });
                 setTemplatesError(false);
                 // the server refuses any other form on these steps
                 const list = (data.FormItem ?? []).filter((t) => isExpertiseTitle(t.title)).sort((a, b) => a.title.localeCompare(b.title));

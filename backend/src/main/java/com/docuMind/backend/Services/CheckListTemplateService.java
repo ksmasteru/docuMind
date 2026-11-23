@@ -7,6 +7,7 @@ import java.sql.SQLException;
 
 import org.springframework.core.NestedExceptionUtils;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import com.docuMind.backend.exception.FormAlreadyExistException;
@@ -21,6 +22,7 @@ import com.docuMind.backend.model.User;
 import com.docuMind.backend.model.enums.UserRole;
 import com.docuMind.backend.repository.CheckListTemplateRepository;
 import com.docuMind.backend.repository.SubmissionRepository;
+import com.docuMind.backend.repository.TaskRepository;
 import com.docuMind.backend.repository.UserRepository;
 import com.docuMind.backend.model.FormOptionsResponse;
 import com.docuMind.backend.model.InspectionFormResponse;
@@ -36,11 +38,17 @@ public class CheckListTemplateService{
     private final StructuredAnswers structuredAnswers;
     // the caller's role: a form names the roles that may fill it (CheckListTemplate.fillRoles)
     private final UserRepository userRepository;
+    // a task names the form its technician fills, whatever roles the form names: a manager assigns any report
+    private final TaskRepository taskRepository;
+
+    // who sends tasks with a report to fill: the manager, the Pumps Maintenance Lead (step 7 / 15), an admin
+    private static final java.util.Set<UserRole> TASK_SENDERS = java.util.EnumSet.of(UserRole.MANAGER, UserRole.ADMIN, UserRole.WORKSHOP_LEAD);
 
     public CheckListTemplateService(CheckListTemplateRepository checkListTemplateRepository,
                                     SubmissionRepository submissionRepository, StructuredAnswers structuredAnswers,
-                                    UserRepository userRepository)
+                                    UserRepository userRepository, TaskRepository taskRepository)
     {
+        this.taskRepository = taskRepository;
         this.checkListTemplateRepository = checkListTemplateRepository;
         this.submissionRepository = submissionRepository;
         this.structuredAnswers = structuredAnswers;
@@ -51,6 +59,28 @@ public class CheckListTemplateService{
     private UserRole roleOf(String userId)
     {
         return userRepository.findByEmail(userId).map(User::getRole).orElse(null);
+    }
+
+    // Who may fill a form (plan_rapports_platform.md, « a manager assigns any report »): the roles the form names
+    // (fillRoles), and the technician a task names it for, whatever those roles are.
+    //   mayOpen  the form's page: his role may, or one of his tasks names it (the page only knows the form)
+    //   mayFill  sending or previewing a report: his role may, or the task it answers (taskId) is his and names
+    //            this form. A report without a task: his role only
+    public boolean mayOpen(CheckListTemplate template, String userId)
+    {
+        return template.canFill(roleOf(userId))
+            || taskRepository.existsByTechnicianEmailAndTemplateId(userId, template.getId());
+    }
+
+    public boolean mayFill(CheckListTemplate template, String userId, String taskId)
+    {
+        if (template.canFill(roleOf(userId)))
+            return true;
+        if (taskId == null || taskId.isBlank())
+            return false;
+        return taskRepository.findById(taskId.strip())
+            .filter(task -> userId.equals(task.getTechnicianEmail()) && template.getId().equals(task.getTemplateId()))
+            .isPresent();
     }
 
     // deletes a form (and its questions, via cascade) by id.
@@ -76,7 +106,7 @@ public class CheckListTemplateService{
     {
         // if no form has this id, FormNotFoundException → 404 (see GlobalExceptionHandler)
         CheckListTemplate fetchedTemplate = checkListTemplateRepository.findById(id)
-                .filter(t -> t.canFill(roleOf(userId)))
+                .filter(t -> mayOpen(t, userId))
                 .orElseThrow(() -> new FormNotFoundException("no form with id " + id));
 
         // a record is built once, with all its values: build the question list first
@@ -167,13 +197,27 @@ public class CheckListTemplateService{
 
     }
 
-    // the active forms the caller's role may fill (a manager assigning a task sees the same list)
+    // the active forms the caller's role may fill (the Formulaires page)
     public FormOptionsResponse getFormOptions(String userId)
     {
         UserRole role = roleOf(userId);
-        List<CheckListTemplate> forms = checkListTemplateRepository.findByActiveTrue().stream()
+        return options(checkListTemplateRepository.findByActiveTrue().stream()
                 .filter(t -> t.canFill(role))
-                .toList();
+                .toList());
+    }
+
+    // every active form, for whoever sends a task with a report to fill (« Assigner une tâche », the Pumps
+    // Maintenance Lead's step 7 / 15): a manager assigns any report, the task lets the technician fill it.
+    // 403 for the other roles
+    public FormOptionsResponse getTaskFormOptions(String userId)
+    {
+        if (!TASK_SENDERS.contains(roleOf(userId)))
+            throw new AccessDeniedException("only the roles that send tasks list the forms to assign");
+        return options(checkListTemplateRepository.findByActiveTrue());
+    }
+
+    private static FormOptionsResponse options(List<CheckListTemplate> forms)
+    {
         List<FormOptionsResponse.FormOptionItem> items = new ArrayList<>();
         for (CheckListTemplate form : forms)
         {

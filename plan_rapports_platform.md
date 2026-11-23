@@ -99,3 +99,21 @@ manager through « Revue »). The other roles (Sales, Quality…) aren't used on
   `Layout.jsx`, `App.jsx`, `SubmissionService.java`, `TaskService.java`, `SERVER_SETUP.md`,
   `init-server.sh`. When `main` is merged into `test`, those files need their two sets of changes joined.
 - The super admin's « Revue » always shows every manager's reports (he has none of his own).
+
+## Fix (2026-11-23): a manager assigns any report
+
+Found in the walkthrough: « Assigner une tâche » listed only the 4 forms a manager may fill himself (dérogation,
+non-conformité, réclamations). Its list was `/api/v1/forms/options`, the forms of the *caller's* role, and the
+v2 reports, the assembly report and the control sheets are for technicians. The Workshop Lead's page (step 7 / 15,
+full platform) had the same list.
+
+**Decision (user, 2026-11-23):** the manager can assign any type of report to a technician. The task is what
+lets him fill it, whatever roles the form names for filling it on his own.
+- [x] `GET /api/v1/forms/options?for=task`: every active form, for whoever sends tasks (manager, admin, Pumps
+      Maintenance Lead); 403 for the others
+- [x] `AssignTask.jsx`, `WorkshopAssign.jsx`: ask for that list (the Workshop Lead's page still keeps only the
+      expertise reports)
+- [x] a technician may load, preview and send the form his task names, even one his role doesn't fill on its own
+      (`getInspectionForm`, `SubmissionService.checkCanFill`)
+- [x] tests, and the walkthrough again: 44 unit tests pass (`AssignAnyReportTest` new); the walkthrough's
+      56 checks pass, including a form only Quality fills on its own, assigned to a technician and sent by him

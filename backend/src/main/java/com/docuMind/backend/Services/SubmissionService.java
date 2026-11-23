@@ -95,6 +95,9 @@ public class SubmissionService {
     // the report platform: a technician's report sent without a task goes to his manager (plan_rapports_platform.md)
     private final OwnReportService ownReportService;
 
+    // who may fill a form: its roles, or the technician a task names it for (a manager assigns any report)
+    private final CheckListTemplateService checkListTemplateService;
+
     public SubmissionService(SubmissionRepository submissionRepository,
                              CheckListTemplateRepository checkListTemplateRepository,
                              UserRepository userRepository,
@@ -104,8 +107,10 @@ public class SubmissionService {
                             FormDraftRepository formDraftRepository,
                             ReportVerification reportVerification,
                             TeamRepository teamRepository,
-                            OwnReportService ownReportService)
+                            OwnReportService ownReportService,
+                            CheckListTemplateService checkListTemplateService)
     {
+        this.checkListTemplateService = checkListTemplateService;
         this.ownReportService = ownReportService;
         this.reportVerification = reportVerification;
         this.teamRepository = teamRepository;
@@ -388,10 +393,11 @@ public class SubmissionService {
         return userRepository.findByEmail(userId).map(User::getRole).orElse(null);
     }
 
-    // only the roles the form names may send it, or see its preview (a control sheet: Quality)
-    private void checkCanFill(CheckListTemplate template, String userId)
+    // only the roles the form names may send it, or see its preview (a control sheet: Quality), and the
+    // technician whose task names it: a manager assigns any report (CheckListTemplateService.mayFill)
+    private void checkCanFill(CheckListTemplate template, String userId, String taskId)
     {
-        if (!template.canFill(roleOf(userId)))
+        if (!checkListTemplateService.mayFill(template, userId, taskId))
             throw new AccessDeniedException("your role can't fill the form " + template.getTitle());
     }
 
@@ -486,7 +492,7 @@ public class SubmissionService {
         );
         if (!template.isActive())
             throw new FormNotActiveException("form " + templateId + " is not active anymore");
-        checkCanFill(template, userId);
+        checkCanFill(template, userId, request.taskId());
         
         SubmissionStatus status = this.checkSumbSubmissionStatus(request, template);
         // v2: added parts allowed (the v2 reports only); v2Answers: photos kept with their titles
@@ -681,7 +687,7 @@ public class SubmissionService {
     {
         CheckListTemplate template = checkListTemplateRepository.findById(request.templateId()).orElseThrow(
             () -> new FormNotFoundException("no form with id " + request.templateId()));
-        checkCanFill(template, userId);
+        checkCanFill(template, userId, request.taskId());
         boolean v2 = StructuredAnswers.isV2(template.getTitle());
         boolean v2Answers = StructuredAnswers.usesV2Answers(template);
         CheckListSubmission preview = new CheckListSubmission();

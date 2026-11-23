@@ -3,7 +3,8 @@
 // technician on the backend; equipement is set when the order was started from a pump, and alerte
 // when it answers an alert case: the case then records the order, and the page goes back to it.
 //
-//   templates ← GET  /api/v1/forms/options   (the active checklists, same list as the Forms page)
+//   templates ← GET  /api/v1/forms/options?for=task   (every active form: a manager assigns any report; the task
+//                                                       lets the technician fill it, whatever roles the form names)
 //   send      → POST /api/v1/task/new        (TaskCreationDto → { id }; the manager comes from the token)
 import Layout from "./Layout";
 import { useEffect, useState } from "react";
@@ -58,7 +59,7 @@ const AssignTask = () => {
     useEffect(() => {
         const loadTemplates = async () => {
             try {
-                const { data } = await apiClient.get("/api/v1/forms/options");
+                const { data } = await apiClient.get("/api/v1/forms/options", { params: { for: "task" } });
                 setTemplatesError(false);
                 setTemplates([...(data.FormItem ?? [])].sort((a, b) => a.title.localeCompare(b.title)));
             }
