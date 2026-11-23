@@ -195,6 +195,42 @@ What changes on the server ([plan_reports_validation.md](plan_reports_validation
   validation is recorded under the account that made it.
 - **Step 9 schedules the nightly backup** (below).
 
+## The report platform (since 2026-11-23)
+
+PHOVA's staff fill their reports on the platform before the rest of documind is finished
+([plan_rapports_platform.md](plan_rapports_platform.md)). Same code, one setting: `APP_EDITION=rapports` in
+`.env`. The server then shows only the reports, the tasks, the team, the documents and the assistant, and
+refuses the rest (alerts, pumps, workshop). Three roles: the admin, the managers, their technicians. A
+technician's report sent without a task goes to his manager's « Revue ».
+
+### Turning the current server into it
+
+1. **Back up what is there**, and copy the dump off the server: `./scripts/backup-db.sh`, then
+   `scp <server>:/opt/documind/backups/documind-<date>.dump .`
+2. **Get the code:** `git pull` on `main`.
+3. **Start from an empty database**, so the demo's reports, accounts and simulated alerts stay out. The dump
+   from step 1 is then the only copy of the demo data:
+
+   ```sh
+   docker compose -f docker-compose.server.yml down
+   docker volume rm documind_postgres_data
+   ```
+
+   The manuals uploaded for the assistant live in the database too: they are uploaded again in step 6.
+4. **In `.env`:** `APP_EDITION=rapports`.
+5. **Run `./scripts/init-server.sh`.** It asks for the admin's e-mail and password, and creates the forms (the
+   v2 expertise reports, the assembly report, the quality forms). It skips the shared role accounts and the
+   demo team.
+6. **In the app, as the admin:** « Comptes » → « Nouveau manager » for each manager; « Importer » for the
+   manuals.
+7. **Each manager:** « Techniciens » → his technicians. Everyone chooses their own password in « Mon compte ».
+
+### Back to the full platform, later
+
+Blank `APP_EDITION` and run `./scripts/init-server.sh` again: the same database, Hibernate adds the new
+tables, and the reports filled meanwhile stay. Step 6 then creates the accounts of `roles_accounts.txt`:
+empty it first if those shared accounts aren't wanted in production.
+
 ## Backups
 
 Everything the app keeps is in the database: the reports, their photos, the uploaded documents, the

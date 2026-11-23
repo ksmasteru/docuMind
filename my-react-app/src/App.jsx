@@ -42,6 +42,7 @@ import WorkshopAttachment from "./WorkshopAttachment";
 import RoleHome from "./RoleHome";
 import VerifyReport from "./VerifyReport";
 import ControlSheets from "./ControlSheets";
+import AccountsAdmin from "./AccountsAdmin";
 import { canOpen, homeFor } from "./roleTabs";
 import { pdfjs} from "react-pdf";
 
@@ -123,6 +124,8 @@ export default function App() {
           {/* the placeholder home page of the workshop roles whose step isn't built yet */}
           <Route path="/accueil" element={<ProtectedRoute><RoleHome/></ProtectedRoute>}/>
           <Route path="/controles" element={<ProtectedRoute><ControlSheets/></ProtectedRoute>}/>
+          {/* the super admin's accounts on the report platform: the managers he creates */}
+          <Route path="/comptes" element={<ProtectedRoute><AccountsAdmin/></ProtectedRoute>}/>
           <Route path="/terrain" element={<ProtectedRoute><FieldAlerts/></ProtectedRoute>}/>
           <Route path="/terrain/signaler" element={<ProtectedRoute><FieldReportForm/></ProtectedRoute>}/>
           <Route path="/terrain/:number" element={<ProtectedRoute><FieldAlertDetail/></ProtectedRoute>}/>

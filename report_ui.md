@@ -290,7 +290,7 @@ démontage and montage reports.
 Option A: the generic forms, extended. Three new forms, standing apart from the old ones:
 **Rapport d'expertise V2 (démontage)** (93 questions, sections 01–07, measures at démontage),
 **V2 (montage)** (59, Informations générales + 04/05 at remontage + 08–11), **V2 (complet)** (138, all 11).
-Bodies: `rapport_v2_demontage.json`, `rapport_v2_montage.json`, `rapport_v2_complet.json` (POST /api/v1/forms/).
+Bodies: `forms/workshop/rapport_v2_demontage.json`, `rapport_v2_montage.json`, `rapport_v2_complet.json` (POST /api/v1/forms/; `scripts/init-server.sh` step 7 posts them, technicians only since 2026-11-23).
 
 - **Labels** build the pages: `Rubrique : Champ`, or `Rubrique > Sous-page : Champ` for one page per part
   (` > `, since some section names hold a ` / `).

@@ -128,7 +128,7 @@ const TaskScreen = () => {
                 {backLink}
                 <h1 className="mt-1 truncate text-lg font-semibold text-slate-900 dark:text-slate-100">{task.title}</h1>
                 <div className="mt-2 flex flex-wrap items-center gap-2 pb-3 md:pb-0">
-                    <Chip><Wrench className="h-3.5 w-3.5" aria-hidden="true" /> {task.equipmentId}</Chip>
+                    {task.equipmentId && <Chip><Wrench className="h-3.5 w-3.5" aria-hidden="true" /> {task.equipmentId}</Chip>}
                     <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${status?.style}`}>{status?.label ?? task.status}</span>
                     {(task.status === "STARTED" || elapsed > 0) && (
                         <Chip><Timer className="h-3.5 w-3.5" aria-hidden="true" /> <span className="tabular-nums">{formatElapsed(elapsed)}</span></Chip>
@@ -168,7 +168,7 @@ const TaskScreen = () => {
                     </p>
                     <div className="min-h-0 flex-1">
                         <AskChat compact dictation
-                            emptyTitle={`Une question sur ${task.equipmentId} ?`}
+                            emptyTitle={task.equipmentId ? `Une question sur ${task.equipmentId} ?` : "Une question ?"}
                             emptyHint="Écrivez-la ou dictez-la, en langage courant."
                             placeholder="Votre question…" />
                     </div>
@@ -238,7 +238,7 @@ const DetailsTab = ({ task, onAccepted, onDeclined, onOpenReport }) => (
     <div className="space-y-4">
         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-2 dark:border-slate-700 dark:bg-slate-800">
             <dl className="divide-y divide-slate-100 dark:divide-slate-700">
-                <Row label="Équipement">{task.equipmentId}</Row>
+                {task.equipmentId && <Row label="Équipement">{task.equipmentId}</Row>}
                 {task.location && <Row label="Emplacement">{task.location}</Row>}
                 <Row label="Échéance">{task.dueDate ? formatDay(task.dueDate) : "Sans échéance"}</Row>
                 <Row label="Priorité"><PriorityBadge priority={task.priority} /></Row>

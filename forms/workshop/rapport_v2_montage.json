@@ -2,6 +2,9 @@
   "title": "Rapport d'expertise V2 (montage)",
   "type": "INSPECTION",
   "instructions": "Rapport au remontage : informations générales, contrôles au remontage, pièces changées ou réparées, commentaires, pompe assemblée et check-list de contrôle de montage. Chaque contrôle a un statut et une remarque.",
+  "fillRoles": [
+    "USER"
+  ],
   "items": [
     {
       "labelFr": "Informations générales : Client",

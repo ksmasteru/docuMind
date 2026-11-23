@@ -239,8 +239,10 @@ function TaskRow({ task, technician, open, onToggle }) {
                 <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium text-foreground">{task.title}</span>
                     <span className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-muted-foreground">
-                        <span className="font-data">{task.equipmentId}</span>
-                        <span aria-hidden="true">·</span>
+                        {task.equipmentId && <>
+                            <span className="font-data">{task.equipmentId}</span>
+                            <span aria-hidden="true">·</span>
+                        </>}
                         <span>{TASK_TYPE_LABEL[task.taskType] ?? task.taskType}</span>
                         <span aria-hidden="true">·</span>
                         <span>{dateLine(task)}</span>

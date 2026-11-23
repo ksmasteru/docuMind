@@ -6,6 +6,7 @@ import PhovaLogo from "./PhovaLogo";
 import AppShell from "./AppShell";
 import { ThemeToggle } from "./ThemeToggle";
 import { NAV_LINKS, SIDEBAR_ROLES, homeFor, tabsFor } from "./roleTabs";
+import { RAPPORTS } from "./edition";
 
 // kept here too: the login and signup pages import it from this file
 export { ThemeToggle };
@@ -34,7 +35,7 @@ export function TopBar({ active }) {
         <PhovaLogo className="h-6" />
         <span className="border-l border-border pl-3 leading-tight">
           <span className="block text-sm font-semibold text-foreground">GreenSense 4.0</span>
-          <span className="block font-data text-[10px] uppercase tracking-[0.14em] text-subtle">PHOVA</span>
+          <span className="block font-data text-[10px] uppercase tracking-[0.14em] text-subtle">{RAPPORTS ? "PHOVA · Rapports" : "PHOVA"}</span>
         </span>
       </Link>
       <nav className="flex flex-wrap items-center gap-x-5" aria-label="Navigation principale">

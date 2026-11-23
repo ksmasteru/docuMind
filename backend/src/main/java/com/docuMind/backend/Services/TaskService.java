@@ -254,7 +254,7 @@ public class TaskService {
             throw new InvalidRoleException("user " + task.technicianEmail() + " is not a technician");
 
         TaskModel taskOrder = new TaskModel(task.title(), task.taskType(), technician.getEmail(),
-                manager.getName(), task.equipmentId(), task.instructions(), task.dueDate()
+                manager.getName(), task.equipmentId() == null ? "" : task.equipmentId(), task.instructions(), task.dueDate()
         );
         
         taskOrder.setStatus(TaskStatus.ASSIGNED);

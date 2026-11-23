@@ -139,8 +139,9 @@ public class SubmissionController {
     // Also the name of the copy downloaded from the verification page (VerificationController)
     static String fileName(SubmissionReport report)
     {
-        String equipment = report.equipment().replaceAll("[^A-Za-z0-9_-]+", "-");
+        // a report about no equipment ("—") leaves it out of the name
+        String equipment = report.equipment().replaceAll("[^A-Za-z0-9_-]+", "-").replaceAll("^-+|-+$", "");
         String day = report.inspectionDate().replace('/', '-');
-        return "checklist-" + equipment + "-" + day + ".pdf";
+        return "checklist-" + (equipment.isEmpty() ? "" : equipment + "-") + day + ".pdf";
     }
 }

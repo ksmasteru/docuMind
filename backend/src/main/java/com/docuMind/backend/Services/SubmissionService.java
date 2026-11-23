@@ -92,6 +92,9 @@ public class SubmissionService {
     // the manager of the author's team reads his reports (the technician's profile, TeamService)
     private final TeamRepository teamRepository;
 
+    // the report platform: a technician's report sent without a task goes to his manager (plan_rapports_platform.md)
+    private final OwnReportService ownReportService;
+
     public SubmissionService(SubmissionRepository submissionRepository,
                              CheckListTemplateRepository checkListTemplateRepository,
                              UserRepository userRepository,
@@ -100,8 +103,10 @@ public class SubmissionService {
                             StructuredAnswers structuredAnswers,
                             FormDraftRepository formDraftRepository,
                             ReportVerification reportVerification,
-                            TeamRepository teamRepository)
+                            TeamRepository teamRepository,
+                            OwnReportService ownReportService)
     {
+        this.ownReportService = ownReportService;
         this.reportVerification = reportVerification;
         this.teamRepository = teamRepository;
         this.structuredAnswers = structuredAnswers;
@@ -170,6 +175,19 @@ public class SubmissionService {
         if (normalized == null)
             return java.util.Optional.empty();
         return submissionRepository.findByVerificationCode(normalized).map(s -> toReport(s, s.getId()));
+    }
+
+    // The report platform (Edition.rapports, OwnReportService): a technician's report sent without a task opens
+    // the task he started himself, for his manager; its id. The draft he filled it in, without a task, goes like
+    // the one of any report sent without a task (a ticket's goes below, by its id). null: not such a report
+    private String ownReport(String userId, CheckListTemplate template, String draftId, String equipment)
+    {
+        if (!ownReportService.applies(userId))
+            return null;
+        if ((draftId == null || draftId.isBlank()) && !FormDraftService.isTicket(template, null))
+            formDraftRepository.findFirstByUserIdAndTemplateIdAndTaskIdOrderByUpdatedAtDesc(userId, template.getId(), null)
+                .ifPresent(formDraftRepository::delete);
+        return ownReportService.open(userId, template, equipment);
     }
 
     // a submission, saved or not (previewReport), as the PDF reads it; id: the reference printed on it
@@ -250,7 +268,8 @@ public class SubmissionService {
                 template.getVersion(),
                 template.getInstructions(),
                 id,
-                submission.getEquipment(),
+                // « — » for a report about no equipment, like a preview without one
+                submission.getEquipment() == null || submission.getEquipment().isBlank() ? "—" : submission.getEquipment(),
                 submission.getInspectionDate() == null ? "" : submission.getInspectionDate().format(DAY),
                 inspector,
                 submission.getSubmittedAt() == null ? "" : submission.getSubmittedAt().atZone(SITE_ZONE).format(DAY_TIME),
@@ -527,7 +546,8 @@ public class SubmissionService {
         
         checkListSubmission.setTemplate(template);
         
-        checkListSubmission.setEquipment(request.equipment());
+        // a report needn't be about one equipment (plan_rapports_platform.md): blank, the column stays NOT NULL
+        checkListSubmission.setEquipment(request.equipment() == null ? "" : request.equipment());
 
         checkListSubmission.setInspectionDate(request.inspectionDate());
         
@@ -593,7 +613,11 @@ public class SubmissionService {
                         images.add(ownImage(photo.imageId().strip(), "added part « " + part.name().strip() + " »", userId, usedImageIds, earlierReports));
         }
 
-        String taskId = (request.taskId() == null || request.taskId().isBlank()) ? null : request.taskId().trim();
+        String requestedTaskId = (request.taskId() == null || request.taskId().isBlank()) ? null : request.taskId().trim();
+        // on the report platform, a technician's report sent without a task goes to his manager: it gets a
+        // task he started himself, then goes on as a task's report (submitTask below)
+        String taskId = requestedTaskId != null ? requestedTaskId
+            : ownReport(userId, template, request.draftId(), checkListSubmission.getEquipment());
         checkListSubmission.setTaskId(taskId);
 
         checkListSubmission.setVerificationCode(reportVerification.newCode());

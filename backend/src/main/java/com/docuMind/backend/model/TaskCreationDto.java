@@ -23,7 +23,7 @@ public record TaskCreationDto(
     @Email(message = "technicianEmail must be valid")
     String technicianEmail,
 
-    @NotBlank(message = "equipmentId must not be blank")
+    // blank or missing: the task isn't about one equipment (stored blank)
     String equipmentId,
 
     String instructions,

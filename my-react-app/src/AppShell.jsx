@@ -3,6 +3,9 @@
 // Below the lg breakpoint the sidebar becomes a drawer opened from the header.
 //
 // The frame wears the app's theme (index.css): the console's tokens, light or dark with the toggle.
+//
+// On the report platform (edition.js) the frame has no simulated twin: no alerts bell, no « Digital twin »
+// panel, and nothing is sent to /api/v1/alerts/sync (the twin's fake alerts must not reach its database).
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Bell, LogOut, Menu, X } from "lucide-react";
@@ -14,6 +17,7 @@ import phovaLogo from "./assets/phova_logo.png";
 import { TICK_MS, useFleet } from "./fleetSimulator";
 import { syncAlerts, useAlertIssues } from "./alertStore";
 import { NAV_LINKS, NAV_SECTIONS, homeFor, tabsFor } from "./roleTabs";
+import { RAPPORTS } from "./edition";
 
 const ROLE_LABEL = { MANAGER: "Manager", ADMIN: "Administrateur", USER: "Technicien" };
 
@@ -77,7 +81,7 @@ function TwinStatus({ pumps }) {
   );
 }
 
-// counts: page → { value, tone }, the numbers shown at the end of the links
+// counts: page → { value, tone }, the numbers shown at the end of the links; pumps: the twin's, null without one
 function Sidebar({ active, counts, pumps, onNavigate, onClose }) {
   const { user } = useAuth();
   const tabs = tabsFor(user?.role);
@@ -91,7 +95,7 @@ function Sidebar({ active, counts, pumps, onNavigate, onClose }) {
           <span className="shrink-0 rounded-sm px-1.5 py-1 dark:bg-white"><img src={phovaLogo} alt="PHOVA Technology" className="h-5 w-auto" /></span>
           <span className="min-w-0 leading-tight">
             <span className="block truncate text-sm font-semibold text-foreground">GreenSense 4.0</span>
-            <span className="block font-data text-[10px] uppercase tracking-[0.14em] text-subtle">Supervision</span>
+            <span className="block font-data text-[10px] uppercase tracking-[0.14em] text-subtle">{RAPPORTS ? "Rapports" : "Supervision"}</span>
           </span>
         </Link>
         {onClose && (
@@ -120,7 +124,7 @@ function Sidebar({ active, counts, pumps, onNavigate, onClose }) {
         })}
       </nav>
 
-      <TwinStatus pumps={pumps} />
+      {pumps != null && <TwinStatus pumps={pumps} />}
     </div>
   );
 }
@@ -158,8 +162,9 @@ function AccountMenu() {
   );
 }
 
-export default function AppShell({ active, contentClass, children }) {
-  const [drawerOpen, setDrawerOpen] = useState(false);
+// The simulated twin and the alerts it raises, as the frame shows them: the pumps' count, the alerts waiting
+// for the manager (the bell, the Alertes link)
+function useTwinAlerts() {
   const { alerts, updatedAt, pumps } = useFleet();
   // every page of the frame keeps the alert cases following the twin, so none is missed
   useEffect(() => syncAlerts(alerts, updatedAt), [alerts, updatedAt]);
@@ -172,11 +177,28 @@ export default function AppShell({ active, contentClass, children }) {
   const toDecide = open.filter((i) => ["FALSE_ALARM", "INCONCLUSIVE"].includes(i.verification)
     || (i.verification === "CONFIRMED" && i.orders.length === 0 && (i.interventions ?? []).length === 0));
   const critical = [...toCheck, ...toDecide].filter((i) => i.severity === "critical").length;
-  const alertCount = { value: toCheck.length + toDecide.length, tone: critical ? "crit" : "warn" };
+  return {
+    pumps: pumps.length,
+    count: { value: toCheck.length + toDecide.length, tone: critical ? "crit" : "warn" },
+    toCheck: toCheck.length,
+    toDecide: toDecide.length,
+    critical,
+  };
+}
+
+// the report platform has no twin: nothing runs, nothing is shown
+const useNoTwin = () => null;
+
+// chosen once for the build, so the frame always calls the same hooks
+const useFrameAlerts = RAPPORTS ? useNoTwin : useTwinAlerts;
+
+export default function AppShell({ active, contentClass, children }) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const twin = useFrameAlerts();
   // the reports waiting for his review, and his tasks a technician declined (taskCounts.js)
   const tasks = useTaskCounts();
   const navCounts = {
-    alerts: alertCount,
+    ...(twin ? { alerts: twin.count } : {}),
     review: { value: tasks.toReview ?? 0, tone: "warn" },
     orders: { value: tasks.declined ?? 0, tone: "warn" },
   };
@@ -187,7 +209,7 @@ export default function AppShell({ active, contentClass, children }) {
     <div lang="fr" className="min-h-screen bg-background font-ui text-foreground">
       {/* fixed sidebar on large screens */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 lg:block">
-        <Sidebar active={active} counts={navCounts} pumps={pumps.length} />
+        <Sidebar active={active} counts={navCounts} pumps={twin?.pumps} />
       </aside>
 
       {/* drawer on small screens */}
@@ -195,7 +217,7 @@ export default function AppShell({ active, contentClass, children }) {
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={closeDrawer} aria-hidden="true" />
           <aside className="absolute inset-y-0 left-0 w-64 shadow-2xl">
-            <Sidebar active={active} counts={navCounts} pumps={pumps.length} onNavigate={closeDrawer} onClose={closeDrawer} />
+            <Sidebar active={active} counts={navCounts} pumps={twin?.pumps} onNavigate={closeDrawer} onClose={closeDrawer} />
           </aside>
         </div>
       )}
@@ -217,17 +239,19 @@ export default function AppShell({ active, contentClass, children }) {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4">
-            <Link to="/dashboard#alerts" aria-label={`${alertCount.value} alertes à traiter`}
-              title={`${toCheck.length} à vérifier · ${toDecide.length} ${toDecide.length > 1 ? "rapports" : "rapport"} de levée de doute à traiter`}
-              className={cn("relative p-1.5", LOOK.icon)}>
-              <Bell className="size-4" />
-              {alertCount.value > 0 && (
-                <span className={cn("absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-data text-[10px] font-bold ring-2 ring-background",
-                  critical ? "bg-crit text-background" : "bg-warn text-background")}>
-                  {alertCount.value}
-                </span>
-              )}
-            </Link>
+            {twin && (
+              <Link to="/dashboard#alerts" aria-label={`${twin.count.value} alertes à traiter`}
+                title={`${twin.toCheck} à vérifier · ${twin.toDecide} ${twin.toDecide > 1 ? "rapports" : "rapport"} de levée de doute à traiter`}
+                className={cn("relative p-1.5", LOOK.icon)}>
+                <Bell className="size-4" />
+                {twin.count.value > 0 && (
+                  <span className={cn("absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-data text-[10px] font-bold ring-2 ring-background",
+                    twin.critical ? "bg-crit text-background" : "bg-warn text-background")}>
+                    {twin.count.value}
+                  </span>
+                )}
+              </Link>
+            )}
             <ThemeToggle className={cn("flex items-center justify-center p-1.5", LOOK.icon)} />
             <span className="h-6 w-px bg-border" aria-hidden="true" />
             <AccountMenu />

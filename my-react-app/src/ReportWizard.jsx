@@ -42,6 +42,7 @@ import {
     isAssemblyTitle, vocabularyFor,
 } from "./reportV2";
 import { ChoiceField, FindingsField, MeasureField, PartsSummaryField, PhotoGallery, SearchField, TableField, TextField, WithMic, fieldInput } from "./ReportV2Fields";
+import { RAPPORTS } from "./edition";
 
 // "2026-11-08T13:32:05Z" → "08/11 14:32", the device's time
 const savedAtText = (iso) => {
@@ -445,7 +446,8 @@ export default function ReportWizard({ template, taskId = null, initialEquipment
     const send = async () => {
         const found = [];
         const dateQ = metaQuestion(template.questions, "inspectionDate");
-        if (!(answers[equipmentQ?.id]?.value ?? "").trim())
+        // on the report platform a report needn't be about one equipment (edition.js)
+        if (!RAPPORTS && !(answers[equipmentQ?.id]?.value ?? "").trim())
             found.push(`Renseignez « ${equipmentQ ? splitLabel(equipmentQ.labelFr).field : "l'équipement"} » (${equipmentQ ? splitLabel(equipmentQ.labelFr).rubrique : "Informations générales"}).`);
         if (!answers[dateQ?.id]?.value)
             found.push(`Renseignez « ${dateQ ? splitLabel(dateQ.labelFr).field : "la date"} » (${dateQ ? splitLabel(dateQ.labelFr).rubrique : "Informations générales"}).`);

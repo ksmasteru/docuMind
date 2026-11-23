@@ -166,7 +166,7 @@ const Orders = () => {
                 </div>
                 <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500 dark:text-slate-400">
                     <span>Technicien : {nameOf(order.technicianEmail)}</span>
-                    <span>Équipement : {order.equipmentId}</span>
+                    {order.equipmentId && <span>Équipement : {order.equipmentId}</span>}
                     <span>Échéance : {order.dueDate ? formatDay(order.dueDate) : "Sans échéance"}</span>
                     <span className={status?.style}>{status?.label ?? humanize(order.status)}</span>
                 </div>

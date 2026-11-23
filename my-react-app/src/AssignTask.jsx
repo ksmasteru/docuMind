@@ -11,6 +11,7 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { apiClient } from "./apiClient";
 import { acceptRequest, linkOrder } from "./alertStore";
 import { PRIORITY_LABEL, PRIORITY_STYLE, TASK_TYPES, localIso, serverMessage } from "./managerUtils";
+import { RAPPORTS } from "./edition";
 
 // TaskPriority on the backend, NORMAL being its default
 const PRIORITIES = ["LOW", "NORMAL", "HIGH", "URGENT"];
@@ -77,7 +78,8 @@ const AssignTask = () => {
 
     // the fields TaskCreationDto refuses when missing, plus the checklist: optional
     // on the server, but every order sent from here comes with one
-    const ready = title.trim() !== "" && taskType !== null && templateId !== null && equipmentId.trim() !== "";
+    // on the report platform a task needn't be about one equipment (edition.js)
+    const ready = title.trim() !== "" && taskType !== null && templateId !== null && (RAPPORTS || equipmentId.trim() !== "");
 
     const submit = async (e) => {
         e.preventDefault();
@@ -153,7 +155,7 @@ const AssignTask = () => {
                     onChange={setTemplateId} onRetry={retryTemplates} disabled={sending} />
             </Field>
 
-            <Field label="Équipement" required>
+            <Field label={RAPPORTS ? "Équipement (facultatif)" : "Équipement"} required={!RAPPORTS}>
                 <input value={equipmentId} onChange={(e) => setEquipmentId(e.target.value.toUpperCase())} disabled={sending}
                     placeholder="ex. MP1" autoComplete="off" className={inputClass} />
             </Field>

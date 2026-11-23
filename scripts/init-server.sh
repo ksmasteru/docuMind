@@ -23,6 +23,10 @@
 #  10. HTTPS proxy: installs Caddy, writes /etc/caddy/Caddyfile for FRONT_END_URL  (skip: --no-proxy)
 #  11. firewall: opens SSH, 80 and 443 in ufw (asks before turning ufw on)
 #
+# The report platform (plan_rapports_platform.md): APP_EDITION=rapports in .env. Step 1 builds the web app
+# for it too (VITE_EDITION in my-react-app/.env); steps 6 and 8 are skipped: no shared role accounts, no
+# demo team. The admin creates the managers on « Comptes », each manager his technicians.
+#
 # It asks for the passwords. To run it without questions, set ADMIN_EMAIL, ADMIN_PASSWORD
 # and ACCOUNTS_PASSWORD (the one password all the role accounts get).
 # TEAM_MANAGER: whose team step 8 fills (default manager@phova.com, from roles_accounts.txt).
@@ -340,6 +344,16 @@ else
   ok "my-react-app/.env created (VITE_API_URL blank)"
 fi
 
+# the report platform (APP_EDITION=rapports): the web app is built with the same choice, VITE_EDITION, read
+# when its image is built at step 2. Any other value removes it: the full platform
+EDITION=$(env_value APP_EDITION)
+{ grep -v '^VITE_EDITION=' my-react-app/.env || true; } > "$TMP/webenv"
+if [ "$EDITION" = rapports ]; then
+  echo 'VITE_EDITION=rapports' >> "$TMP/webenv"
+  ok "the report platform (APP_EDITION=rapports): the web app is built for it"
+fi
+cat "$TMP/webenv" > my-react-app/.env
+
 
 if [ "$START" = 1 ]; then
   step "2. Build and start the stack (a few minutes the first time)"
@@ -406,6 +420,9 @@ ok "signed in"
 
 
 step "6. Role accounts (roles_accounts.txt)"
+if [ "$EDITION" = rapports ]; then
+  skip "the report platform: no shared role accounts. The admin creates the managers on « Comptes »"
+else
 ACCOUNTS_PASSWORD=${ACCOUNTS_PASSWORD:-$(ask_secret "password for all the role accounts")}
 # one "email" or "email, Display name" per line; the role is the part before the @, in capitals
 while IFS= read -r line || [ -n "$line" ]; do
@@ -433,6 +450,7 @@ while IFS= read -r line || [ -n "$line" ]; do
     fail "$email ($role): HTTP $HTTP $(cat "$TMP/out")"
   fi
 done < roles_accounts.txt
+fi
 
 
 step "7. Forms (forms/quality/*.json, forms/workshop/*.json)"
@@ -467,7 +485,9 @@ fi
 
 step "8. The manager's team (scripts/team_seed.sql)"
 TEAM_MANAGER=${TEAM_MANAGER:-manager@phova.com}
-if $COMPOSE exec -T postgres true >/dev/null 2>&1; then
+if [ "$EDITION" = rapports ]; then
+  skip "the report platform: each manager creates his technicians, who join his team"
+elif $COMPOSE exec -T postgres true >/dev/null 2>&1; then
   # -At: "INSERT 0 <how many joined>", then "<manager>|<technicians in his team>" (no row: no such MANAGER)
   if psql_exec -At -v manager="$TEAM_MANAGER" < scripts/team_seed.sql > "$TMP/team" 2>&1; then
     joined=$(sed -n 's/^INSERT 0 \([0-9]*\)$/\1/p' "$TMP/team")

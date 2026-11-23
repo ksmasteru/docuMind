@@ -52,7 +52,7 @@ class FormFilesTest {
     {
         Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
         List<Path> files = formFiles();
-        assertEquals(9, files.size(), "8 quality forms and the assembly report: " + files);
+        assertEquals(12, files.size(), "8 quality forms, the assembly report and the 3 v2 expertise reports: " + files);
         for (Path file : files)
         {
             FormCreationDto form = read(file);

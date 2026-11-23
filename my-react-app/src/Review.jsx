@@ -13,6 +13,7 @@ import Layout from "./Layout";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { apiClient } from "./apiClient";
+import { useAuth } from "./AuthContext";
 import { EmptyState, ErrorBanner, ExpandableCard, GroupHeading, ListSkeleton, Notice, PageHeader, PriorityBadge, SectionLabel } from "./managerUi";
 import { TASK_TYPE_LABEL, formatDateTime, formatDay, formatWorked, localIso, serverMessage } from "./managerUtils";
 
@@ -27,6 +28,7 @@ const isLate = (task) =>
     Boolean(task.dueDate && task.submittedAt && localIso(new Date(task.submittedAt)) > task.dueDate);
 
 const Review = () => {
+    const { user } = useAuth();
     const [reviews, setReviews] = useState(null); // null = still loading
     const [attempt, setAttempt] = useState(0);
     const [loadError, setLoadError] = useState(null);
@@ -34,7 +36,8 @@ const Review = () => {
     const notice = useLocation().state?.notice;
     // ?vue=tous: every manager's waiting reports
     const [params, setParams] = useSearchParams();
-    const all = params.get("vue") === "tous";
+    // the super admin has no reports of his own to review: always every manager's
+    const all = params.get("vue") === "tous" || user?.role === "ADMIN";
     const show = (everyone) => { setReviews(null); setParams(everyone ? { vue: "tous" } : {}, { replace: true }); };
 
     // the server already sorts them oldest submission first, the order to review them in
@@ -114,7 +117,7 @@ const Review = () => {
                             <span className={conformity?.style}>{conformity?.label ?? "Rapport introuvable"}</span>
                             <span>Technicien : {task.technicianName ?? task.technicianEmail ?? "—"}</span>
                             {all && <span>Tâche de : {task.managerName ?? task.managerEmail ?? "—"}</span>}
-                            <span>Équipement : {task.equipmentId}</span>
+                            {task.equipmentId && <span>Équipement : {task.equipmentId}</span>}
                             <span className={late ? "text-orange-700 dark:text-orange-400" : ""}>
                                 Envoyé : {formatDateTime(task.submittedAt)}
                             </span>

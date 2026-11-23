@@ -29,7 +29,7 @@ public record SubmissionRequest(
     @NotBlank(message = "templateId must not be blank")
     String templateId,
 
-    @NotBlank(message = "equipment must not be blank")
+    // the equipment the report is about; blank or missing: it isn't about one (stored blank, the PDF says « — »)
     String equipment,
 
     // the day the inspection was done, chosen by the technician ("2026-10-06").

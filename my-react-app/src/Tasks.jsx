@@ -62,7 +62,7 @@ function SentList() {
                             <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${outcome.style}`}>
                                 {outcome.label}{task.status === "APPROVED" && task.reviewerName ? ` par ${task.reviewerName}` : ""}
                             </span>
-                            <span>Équipement : {task.equipmentId}</span>
+                            {task.equipmentId && <span>Équipement : {task.equipmentId}</span>}
                             <span>Envoyé : {task.submittedAt ? formatDateTime(task.submittedAt) : "—"}</span>
                             {task.closedAt && <span>Validé : {formatDateTime(task.closedAt)}</span>}
                             {task.submissionStatus === "NON_CONFORME" && <span className="font-medium text-red-700 dark:text-red-400">Non conforme</span>}
@@ -178,7 +178,7 @@ const Tasks = () => {
                                 <PriorityBadge priority={task.priority} />
                             </div>
                             <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500 dark:text-slate-400">
-                                <span>Équipement : {task.equipmentId}</span>
+                                {task.equipmentId && <span>Équipement : {task.equipmentId}</span>}
                                 {task.location && <span>Emplacement : {task.location}</span>}
                                 <span>Échéance : {task.dueDate ? formatDay(task.dueDate) : "Sans échéance"}</span>
                                 <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${status?.style}`}>{status?.label ?? task.status}</span>
