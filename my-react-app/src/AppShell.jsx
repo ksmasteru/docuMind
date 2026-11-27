@@ -18,6 +18,7 @@ import { TICK_MS, useFleet } from "./fleetSimulator";
 import { syncAlerts, useAlertIssues } from "./alertStore";
 import { NAV_LINKS, NAV_SECTIONS, homeFor, tabsFor } from "./roleTabs";
 import { RAPPORTS } from "./edition";
+import NotificationBell from "./NotificationBell";
 
 const ROLE_LABEL = { MANAGER: "Manager", ADMIN: "Administrateur", USER: "Technicien" };
 
@@ -252,6 +253,8 @@ export default function AppShell({ active, contentClass, children }) {
                 )}
               </Link>
             )}
+            {/* the notifications (NotificationBell.jsx): tasks, reviews, and on the full platform workshop steps */}
+            <NotificationBell className={cn("p-1.5", LOOK.icon)} />
             <ThemeToggle className={cn("flex items-center justify-center p-1.5", LOOK.icon)} />
             <span className="h-6 w-px bg-border" aria-hidden="true" />
             <AccountMenu />

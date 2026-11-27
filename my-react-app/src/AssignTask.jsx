@@ -186,7 +186,7 @@ const AssignTask = () => {
             )}
 
             <div className="flex items-center justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
-                {!ready && <p className="text-sm text-slate-500 dark:text-slate-400">Le titre, le type, la checklist et l'équipement sont obligatoires.</p>}
+                {!ready && <p className="text-sm text-slate-500 dark:text-slate-400">{RAPPORTS ? "Le titre, le type et le rapport sont obligatoires." : "Le titre, le type, la checklist et l'équipement sont obligatoires."}</p>}
                 <button type="submit" disabled={!ready || sending}
                     className="rounded-lg bg-[#1A75BC] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#0F2A49] disabled:opacity-50">
                     {sending ? "Envoi…" : "Assigner la tâche"}

@@ -1,8 +1,11 @@
 package com.docuMind.backend.model;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 
 import org.hibernate.annotations.Immutable;
+import org.springframework.data.domain.DomainEvents;
 
 import com.docuMind.backend.model.enums.InterventionAction;
 import com.docuMind.backend.model.enums.StepStatus;
@@ -72,6 +75,15 @@ public class InterventionEvent {
         this.toStatus = toStatus;
         this.comment = comment;
         this.occurredAt = occurredAt;
+    }
+
+    // Spring Data publishes the row as an event each time it is saved (repository.save): NotificationService
+    // tells the role the intervention now waits for once the transaction commits. Not a getter: Jackson
+    // and JPA ignore it
+    @DomainEvents
+    public Collection<Object> published()
+    {
+        return List.of(this);
     }
 
     public String getId()                   { return id; }

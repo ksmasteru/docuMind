@@ -10,6 +10,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Mic } from "lucide-react";
 import { getAccessToken } from "./apiClient";
+import { openDocument } from "./pumpDocuments";
 import { useVoiceInput } from "./useVoiceInput";
 
 function UserAvatar() {
@@ -43,17 +44,50 @@ function TypingDots() {
   );
 }
 
+// what the server's answer means for the technician (plan_report_chat.md, plan_pump_manuals.md part A):
+//   "null"                   → nothing in the documentation bears on the question
+//   data.sources             → the documents the answer cited, built by the server: chips that open them
+//   data.generalPractice     → part of the answer comes from general practice: a « Pratique générale » chip
+//   last line "sources : …"  → written by the server for the mobile app; taken off here. A server older than
+//                              prompt 2.2 sends no `sources`: the names on that line become plain chips.
+const NOT_FOUND = "Je n'ai rien trouvé dans la documentation sur ce point. Reformulez, ou précisez la pompe.";
+// 404 from /ask: no document at all for this question (an empty library, or a pump without its manual)
+const NO_DOCUMENT = "Aucun document ne permet de répondre : le manuel de cette pompe n'a peut-être pas encore été importé (page « Importer »).";
+const SOURCES_LINE = /^\s*sources?\s*:\s*(.+)$/i;
+const GENERAL_PRACTICE = /connaissances générales/i;
+
+function readAnswer(raw, data) {
+  const text = (raw ?? "").trim();
+  if (!text) return { text: "Aucune réponse n’a été renvoyée.", muted: true };
+  if (text === "null") return { text: NOT_FOUND, muted: true };
+  const lines = text.split("\n");
+  const found = lines[lines.length - 1].match(SOURCES_LINE);
+  const body = found ? lines.slice(0, -1).join("\n").trim() || text : text;
+  if (Array.isArray(data?.sources))
+    return { text: body, sources: data.sources, generalPractice: Boolean(data.generalPractice),
+      scope: data.scope, pumpModel: data.pumpModel, warnings: data.warnings ?? [] };
+  if (!found) return { text };
+  const names = [...new Set(found[1].split(",").map((s) => s.trim()).filter(Boolean))];
+  const documents = names.filter((name) => !GENERAL_PRACTICE.test(name));
+  return { text: body, sources: documents.map((title) => ({ title })), generalPractice: documents.length < names.length };
+}
+
+
+
 // compact=true trims the hero copy/padding down for narrow sidebar use;
 // the streaming logic underneath is identical either way.
 // The task page's Ask tab passes emptyTitle / emptyHint / placeholder for its own words, and
-// dictation to show the microphone (the question is dictated, then sent like a typed one)
-export default function AskChat({ compact = false, fileId, fileName, emptyTitle, emptyHint, placeholder, dictation = false }) {
-  const [messages, setMessages] = useState([]); // { role: "user" | "assistant", text }
+// dictation to show the microphone (the question is dictated, then sent like a typed one), and
+// equipment: the task's, sent with each question so the server knows the pump when the question names none
+// pumpModel: the model chosen on the « Assistant » page (plan_pump_manuals.md part C); it wins over the equipment's
+export default function AskChat({ compact = false, fileId, fileName, emptyTitle, emptyHint, placeholder, dictation = false, equipment, pumpModel }) {
+  const [messages, setMessages] = useState([]); // { role: "user" | "assistant", text, sources?: [{ fileId, title }], generalPractice?, muted? }
   const [question, setQuestion] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
   const abortControllerRef = useRef(null);
   const bottomRef = useRef(null);
+  const scrollRef = useRef(null); // the message list, the only thing that scrolls
   const textareaRef = useRef(null);
   // the microphone: held while recording, the text lands in the box to read before sending
   const voice = useVoiceInput({ language: "fr" });
@@ -69,7 +103,10 @@ export default function AskChat({ compact = false, fileId, fileName, emptyTitle,
   const mic = dictation ? { status: voice.status, error: voice.error, onToggle: toggleDictation } : null;
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    // scroll the message list only: scrollIntoView also scrolled the window, which hid what sits above the chat
+    // (the pump picker on « Assistant », the task's header)
+    const list = scrollRef.current;
+    if (list) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
   useEffect(() => () => abortControllerRef.current?.abort(), []);
@@ -102,9 +139,19 @@ export default function AskChat({ compact = false, fileId, fileName, emptyTitle,
           "Content-Type": "application/json",
           Authorization: `Bearer ${getAccessToken()}`,
         },
-        body: JSON.stringify({ question: trimmed, fileId }),
+        body: JSON.stringify({ question: trimmed, fileId, equipment: equipment || undefined, pumpModel: pumpModel || undefined }),
         signal: controller.signal,
       });
+
+      // nothing in the documentation for it: the assistant says so, it isn't a failure
+      if (response.status === 404) {
+        setMessages((prev) => {
+          const next = [...prev];
+          next[next.length - 1] = { role: "assistant", text: NO_DOCUMENT, muted: true };
+          return next;
+        });
+        return;
+      }
 
       if (!response.ok) {
         // The backend reports failures with a real status and an ErrorFormat
@@ -133,10 +180,7 @@ export default function AskChat({ compact = false, fileId, fileName, emptyTitle,
 
       setMessages((prev) => {
         const next = [...prev];
-        next[next.length - 1] = {
-          ...next[next.length - 1],
-          text: text || "Aucune réponse n’a été renvoyée.",
-        };
+        next[next.length - 1] = { role: "assistant", ...readAnswer(text, data) };
         return next;
       });
     } catch (err) {
@@ -198,7 +242,7 @@ export default function AskChat({ compact = false, fileId, fileName, emptyTitle,
         </div>
       ) : (
         <>
-          <div className="flex-1 overflow-y-auto">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto">
             <div className={compact ? "px-3 py-4" : "mx-auto max-w-3xl px-4 py-8"}>
               <div className="space-y-6">
                 {messages.map((message, index) => {
@@ -215,10 +259,18 @@ export default function AskChat({ compact = false, fileId, fileName, emptyTitle,
                           {message.text}
                         </div>
                       ) : (
-                        <div className="min-w-0 flex-1 whitespace-pre-wrap pt-1 text-sm leading-relaxed text-slate-800 dark:text-slate-100">
-                          {isPendingAssistant ? <TypingDots /> : message.text}
-                          {isLast && isStreaming && message.text && (
-                            <span className="ml-0.5 inline-block h-4 w-1.5 translate-y-0.5 animate-pulse bg-slate-400" />
+                        <div className="min-w-0 flex-1 pt-1">
+                          {!message.muted && <ScopeNotice scope={message.scope} pumpModel={message.pumpModel} />}
+                          <div className={`whitespace-pre-wrap text-sm leading-relaxed ${message.muted
+                            ? "text-slate-500 dark:text-slate-400" : "text-slate-800 dark:text-slate-100"}`}>
+                            {isPendingAssistant ? <TypingDots /> : message.text}
+                            {isLast && isStreaming && message.text && (
+                              <span className="ml-0.5 inline-block h-4 w-1.5 translate-y-0.5 animate-pulse bg-slate-400" />
+                            )}
+                          </div>
+                          {message.warnings?.length > 0 && <Warnings warnings={message.warnings} pumpModel={message.pumpModel} />}
+                          {(message.sources?.length > 0 || message.generalPractice) && (
+                            <Sources sources={message.sources ?? []} generalPractice={message.generalPractice} />
                           )}
                         </div>
                       )}
@@ -257,17 +309,104 @@ export default function AskChat({ compact = false, fileId, fileName, emptyTitle,
   );
 }
 
+function FileIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0" aria-hidden="true">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+      <path d="M14 2v6h6" />
+    </svg>
+  );
+}
+
 // Small "attached file" pill, chatbot-style, that sits right above the
 // input box whenever the conversation is scoped to a specific document.
 function FileScopeChip({ name }) {
   return (
     <div className="mb-2 inline-flex max-w-full items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
-        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
-        <path d="M14 2v6h6" />
-      </svg>
+      <FileIcon />
       <span className="truncate">{name}</span>
+    </div>
+  );
+}
+
+const chipClass = "inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-0.5 text-xs";
+
+// what the answer was searched in (plan_pump_manuals.md part C): said when the pump isn't known, or has no manual
+function ScopeNotice({ scope, pumpModel }) {
+  const text = scope === "NO_MODEL" ? "Pompe non précisée : réponse générale, à partir de toute la documentation."
+    : scope === "NO_MANUAL" ? `Aucun manuel n'est rattaché au modèle ${pumpModel} : réponse générale.`
+    : null;
+  if (!text) return null;
+  return <p className="mb-1.5 text-xs text-slate-500 dark:text-slate-400">ⓘ {text}</p>;
+}
+
+const figuresOf = (warning) => warning.figures?.length ? warning.figures.join(", ") : null;
+const modelsOf = (warning) => (warning.models ?? []).join(", ");
+
+// The labels the server put on the answer (§6), whatever the assistant wrote: a value from another pump's manual,
+// or found in no document. The technician has to know it is not his pump's.
+function warningText(warning, pumpModel) {
+  const figures = figuresOf(warning);
+  if (warning.kind === "UNDOCUMENTED")
+    return `${figures} : dans aucun document, à vérifier avant de l'appliquer.`;
+  if (warning.kind === "COMPARABLE")
+    return figures
+      ? `${figures} : manuel d'une pompe comparable (${warning.document}), pas un document du modèle ${pumpModel}. À confirmer.`
+      : `Tiré du manuel d'une pompe comparable (${warning.document}) : à confirmer pour le modèle ${pumpModel}.`;
+  // what the document is to its models: a comparable pump's manual is never shown as their own documentation
+  const models = modelsOf(warning);
+  const [what, from] = warning.linkKind === "COMPARABLE"
+    ? [`manuel d'une pompe comparable au modèle ${models} (${warning.document})`, "Tiré du"]
+    : warning.linkKind === "SPEC" ? [`fiche technique du modèle ${models}`, "Tiré de la"]
+    : [`documentation du modèle ${models} (${warning.document})`, "Tiré de la"];
+  const notOurs = pumpModel ? `, pas du modèle ${pumpModel}` : "";
+  return figures ? `${figures} : ${what}${notOurs}.` : `${from} ${what}${notOurs}.`;
+}
+
+function Warnings({ warnings, pumpModel }) {
+  return (
+    <ul role="note" aria-label="Avertissements sur la réponse"
+      className="mt-2 space-y-1 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+      {warnings.map((warning, i) => (
+        <li key={i}>⚠ {warningText(warning, pumpModel)}</li>
+      ))}
+    </ul>
+  );
+}
+
+// what a source is to the pump: shown after its title, except for a general document or a PHOVA one
+const kindSuffix = (source) => source.kind === "SPEC" ? "fiche technique"
+  : source.kind === "COMPARABLE" ? "pompe comparable"
+  : source.kind === "OTHER" ? (source.models ?? []).join(", ")
+  : null;
+
+// the documents an answer was taken from, under it: each chip opens its document. « Pratique générale »:
+// what no document confirms, so the technician tells a documented fact from general advice at a glance
+function Sources({ sources, generalPractice }) {
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      <span className="text-xs text-slate-400 dark:text-slate-500">Sources</span>
+      {sources.map((source) => source.fileId ? (
+        <button key={source.fileId} type="button" title={`Ouvrir « ${source.title} »`} onClick={() => openDocument(source.fileId, source.title)}
+          className={`${chipClass} border-slate-200 bg-slate-50 text-slate-600 hover:border-indigo-300 hover:text-indigo-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-indigo-500 dark:hover:text-indigo-300`}>
+          <FileIcon />
+          <span className="max-w-[14rem] truncate">{source.title}</span>
+          {kindSuffix(source) && <span className="shrink-0 text-amber-700 dark:text-amber-300">· {kindSuffix(source)}</span>}
+        </button>
+      ) : (
+        <span key={source.title} title={source.title}
+          className={`${chipClass} border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300`}>
+          <FileIcon />
+          <span className="max-w-[14rem] truncate">{source.title}</span>
+        </span>
+      ))}
+      {generalPractice && (
+        <span title="Conseil de pratique générale : aucun document PHOVA ne le confirme"
+          className={`${chipClass} border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300`}>
+          Pratique générale
+        </span>
+      )}
     </div>
   );
 }

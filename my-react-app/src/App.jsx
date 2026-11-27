@@ -43,6 +43,8 @@ import RoleHome from "./RoleHome";
 import VerifyReport from "./VerifyReport";
 import ControlSheets from "./ControlSheets";
 import AccountsAdmin from "./AccountsAdmin";
+import ReportStats from "./ReportStats";
+import SpecSheets from "./SpecSheets";
 import { canOpen, homeFor } from "./roleTabs";
 import { pdfjs} from "react-pdf";
 
@@ -83,6 +85,8 @@ export default function App() {
           <Route path="/verify/:code" element={<VerifyReport />} />
           <Route path="/documents" element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
           <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
+          {/* every pump model's spec sheet: read by everyone who works on pumps, kept up to date by the admin */}
+          <Route path="/fiches" element={<ProtectedRoute><SpecSheets /></ProtectedRoute>} />
           <Route path="/uploadedFiles" element={<UploadedFiles />}/>
           <Route path="/searchContent" element={<SearchContent/>} />
           <Route path="/ask" element={<ProtectedRoute><Ask /></ProtectedRoute>}/>
@@ -126,6 +130,8 @@ export default function App() {
           <Route path="/controles" element={<ProtectedRoute><ControlSheets/></ProtectedRoute>}/>
           {/* the super admin's accounts on the report platform: the managers he creates */}
           <Route path="/comptes" element={<ProtectedRoute><AccountsAdmin/></ProtectedRoute>}/>
+          {/* the manager's reports in figures (the report platform) */}
+          <Route path="/statistiques" element={<ProtectedRoute><ReportStats/></ProtectedRoute>}/>
           <Route path="/terrain" element={<ProtectedRoute><FieldAlerts/></ProtectedRoute>}/>
           <Route path="/terrain/signaler" element={<ProtectedRoute><FieldReportForm/></ProtectedRoute>}/>
           <Route path="/terrain/:number" element={<ProtectedRoute><FieldAlertDetail/></ProtectedRoute>}/>

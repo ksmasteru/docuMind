@@ -141,7 +141,8 @@
   .ph .cap .n { color: #1c2345; font-weight: bold; }
   .ph .cap .muted { font-size: 8pt; }
 
-  .blk { margin-bottom: 3mm; }
+  /* a block stays whole (a comment's title with its text) when its card goes on over the next page */
+  .blk { margin-bottom: 3mm; page-break-inside: avoid; }
   .blk:last-child { margin-bottom: 0; }
   .lbl { font-size: 9pt; font-weight: bold; text-transform: uppercase; color: #000000; margin-bottom: 2mm; }
   .ticked { margin: 0; padding: 0; }
@@ -254,6 +255,8 @@
   .toc a { color: #1c2345; text-decoration: none; }
   .toc a:after { content: target-counter(attr(href), page); }
   .chaptered .chapter-head { page-break-after: avoid; }
+  /* a chapter's first card: right below its heading, going on over the next page when it is taller than the rest */
+  .chaptered .card.lead { page-break-inside: auto; }
 
   /* ---------------------------------------------------------------- traceability */
   .trace { width: 100%; table-layout: fixed; margin-top: 2mm; }
@@ -415,8 +418,9 @@
   <div class="section" th:each="s : ${r.sections}" th:id="${p} + ${s.anchor}" th:classappend="${chapters} ? 'chapter'"
        th:if="${!#lists.isEmpty(s.cards) or !#lists.isEmpty(s.geometry)}">
     <th:block>
-      <!-- the geometric checks: kept on one page with the section's band -->
-      <div class="keep" th:if="${!#lists.isEmpty(s.geometry)}">
+      <!-- the geometric checks: kept on one page with the section's band. Under a chapter heading (always at
+           the top of a page) they need no keeping: a block taller than the page left a blank page, then the heading alone -->
+      <div th:classappend="${chapters} ? '' : 'keep'" th:if="${!#lists.isEmpty(s.geometry)}">
       <th:block th:replace="~{expertise/parts :: sectionHead(${s}, ${chapters})}"></th:block>
       <!-- judged: the form asks each check's conformity (the assembly report): a column for it, the drawings larger -->
       <table class="geo" th:with="judged=${!#lists.isEmpty(s.geometry.?[status != null])}" th:classappend="${judged} ? 'judged'">
@@ -442,10 +446,12 @@
       </table>
       </div>
 
-      <!-- a card per page: a part, a check, a group of measures; the band stays with the first one -->
-      <div th:each="c, cs : ${s.cards}" th:classappend="${cs.first} ? 'keep'">
+      <!-- a card per page: a part, a check, a group of measures; the band stays with the first one.
+           Under a chapter heading the first card starts right below it and may go on over the next page (lead):
+           kept whole, a card nearly a page tall left a blank page, then the heading alone on the next one -->
+      <div th:each="c, cs : ${s.cards}" th:classappend="${cs.first and !chapters} ? 'keep'">
       <th:block th:if="${cs.first}"><th:block th:replace="~{expertise/parts :: sectionHead(${s}, ${chapters})}"></th:block></th:block>
-      <table class="card" th:id="${p} + ${c.anchor}">
+      <table class="card" th:id="${p} + ${c.anchor}" th:classappend="${cs.first and chapters} ? 'lead'">
         <tr class="head" th:if="${c.name != null or c.state != null}">
           <td colspan="2">
             <table style="width: 100%;"><tr>

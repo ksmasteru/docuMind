@@ -13,6 +13,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -55,6 +56,12 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()        // Allow registration/login endpoints
                 .requestMatchers("/api/public/**").permitAll()      // report verification from a scanned QR code
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")  // Strictly enforce ADMIN role
+                // the shared library (manuals, spec sheets, procedures) is written by the admin only: « Importer » on
+                // the web and the mobile app's upload tab are the admin's. A technician could otherwise upload, or
+                // delete a manual or a spec sheet, by calling the API (plan_pump_manuals.md, 2026-11-24).
+                // DELETE /delete/{name} removes every file whose name contains {name}.
+                .requestMatchers(HttpMethod.POST, "/api/v1/files/upload", "/api/v1/files/scan").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/v1/files/delete/**").hasRole("ADMIN")
                 .requestMatchers("/actuator/**").permitAll() // should be Admin
                 .anyRequest().authenticated()                       // Protect everything else
             )

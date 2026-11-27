@@ -9,8 +9,11 @@
 //   report  → ReportForm with taskId               (POST /api/v1/submissions marks the task SUBMITTED);
 //             a check (taskType VERIFICATION, levée de doute) → CheckReportForm (POST /api/v1/checks/:id/report)
 //   returned  task.returnComment: what the reviewer asked to redo, kept above the form while it is corrected
-//   ask     → AskChat                              (not linked to the task yet, no sources yet)
+//   ask     → AskChat                              (POST /api/v1/ask with the task's equipment: its pump's manuals
+//             when the question names none; answers from the shared documentation, with their sources)
 //   check   ← RepairCheckCard                      (a work order made from an alert: what its check found)
+//   sheet   ← GET  /api/v1/pump-models/resolve      (the model the equipment's code starts with: no pump registry on
+//             the report platform) → a link to its spec sheet on « Fiches techniques » (plan_pump_manuals.md §7)
 //
 // The three tabs stay mounted: switching tabs keeps the conversation and the report's answers.
 // While a phone's keyboard is open the bottom bar steps aside and the field typed in stays in view
@@ -167,7 +170,7 @@ const TaskScreen = () => {
                         Réponses tirées de la documentation
                     </p>
                     <div className="min-h-0 flex-1">
-                        <AskChat compact dictation
+                        <AskChat compact dictation equipment={task.equipmentId}
                             emptyTitle={task.equipmentId ? `Une question sur ${task.equipmentId} ?` : "Une question ?"}
                             emptyHint="Écrivez-la ou dictez-la, en langage courant."
                             placeholder="Votre question…" />
@@ -234,11 +237,35 @@ const Row = ({ label, children }) => (
     </div>
 );
 
+// « Fiche technique PHB3 », when the equipment's model is known; nothing otherwise
+function SpecSheetRow({ equipment }) {
+    const [resolved, setResolved] = useState(null); // { equipment, model }
+    useEffect(() => {
+        if (!equipment) return undefined;
+        let cancelled = false;
+        apiClient.get("/api/v1/pump-models/resolve", { params: { equipment } })
+            .then(({ data }) => !cancelled && setResolved({ equipment, model: data?.model ?? null }))
+            .catch((err) => console.log("Error while resolving the equipment's model", err));
+        return () => { cancelled = true; };
+    }, [equipment]);
+    const model = resolved?.equipment === equipment ? resolved.model : null;
+    if (!model) return null;
+    return (
+        <Row label="Fiche technique">
+            <Link to={`/fiches?modele=${encodeURIComponent(model)}`}
+                className="font-medium text-indigo-600 hover:underline dark:text-indigo-300">
+                Fiche technique {model} →
+            </Link>
+        </Row>
+    );
+}
+
 const DetailsTab = ({ task, onAccepted, onDeclined, onOpenReport }) => (
     <div className="space-y-4">
         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-2 dark:border-slate-700 dark:bg-slate-800">
             <dl className="divide-y divide-slate-100 dark:divide-slate-700">
                 {task.equipmentId && <Row label="Équipement">{task.equipmentId}</Row>}
+                <SpecSheetRow equipment={task.equipmentId} />
                 {task.location && <Row label="Emplacement">{task.location}</Row>}
                 <Row label="Échéance">{task.dueDate ? formatDay(task.dueDate) : "Sans échéance"}</Row>
                 <Row label="Priorité"><PriorityBadge priority={task.priority} /></Row>

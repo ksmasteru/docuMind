@@ -2,6 +2,18 @@ import { useCallback, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiClient } from "./apiClient";
 import Layout from "./Layout";
+import { usePumpModels } from "./pumpDocuments";
+import { ModelPicker } from "./PumpDocumentControls";
+import { RAPPORTS } from "./edition";
+
+// models: the pump models the document serves, ticked here (plan_pump_manuals.md part B), sent as repeated
+// `models` fields with `kind` (OWN: a PHOVA document, COMPARABLE: a similar pump's manual). None ticked: general
+// documentation. They can be changed afterwards on « Documents ».
+
+// the report platform runs without analysis-service, which read CSV/Excel: it takes documents only
+// (plan_remove_analysis_service.md; the backend refuses spreadsheets there too)
+const ACCEPT = RAPPORTS ? ".pdf,.txt,.md" : ".pdf,.txt,.md,.csv,.xls,.xlsx";
+const ACCEPT_HINT = RAPPORTS ? "PDF, TXT or MD — up to 25MB" : "PDF, TXT, CSV, EXCEL or MD — up to 25MB";
 
 export default function UploadPage() {
   const [file, setFile] = useState(null);
@@ -10,7 +22,13 @@ export default function UploadPage() {
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState("idle"); // idle | uploading | success | error
   const [errorMessage, setErrorMessage] = useState(null);
+  const [selectedModels, setSelectedModels] = useState([]);
+  const [kind, setKind] = useState("OWN");
+  const { models, error: modelsError } = usePumpModels();
   const fileInputRef = useRef(null);
+
+  const toggleModel = (model) =>
+    setSelectedModels((current) => current.includes(model) ? current.filter((m) => m !== model) : [...current, model]);
 
   function pickFile(selected) {
     if (!selected) return;
@@ -37,6 +55,8 @@ export default function UploadPage() {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("title", title);
+    selectedModels.forEach((model) => formData.append("models", model));
+    if (selectedModels.length) formData.append("kind", kind);
 
     try {
       // Deliberately NOT setting a Content-Type header here. FormData needs
@@ -55,6 +75,8 @@ export default function UploadPage() {
       setStatus("success");
       setFile(null);
       setTitle("");
+      setSelectedModels([]);
+      setKind("OWN");
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err) {
       setStatus("error");
@@ -64,6 +86,8 @@ export default function UploadPage() {
         );
       } else if (err.response?.status === 413) {
         setErrorMessage("That file is too large.");
+      } else if (err.response?.status === 400 && err.response?.data?.message) {
+        setErrorMessage(err.response.data.message);
       } else {
         setErrorMessage("Upload failed. Check the file and try again.");
       }
@@ -101,7 +125,7 @@ export default function UploadPage() {
               ref={fileInputRef}
               type="file"
               className="hidden"
-              accept=".pdf,.txt,.md,.csv,.xls,.xlsx"
+              accept={ACCEPT}
               onChange={(e) => pickFile(e.target.files?.[0])}
             />
             {file ? (
@@ -111,7 +135,7 @@ export default function UploadPage() {
                 <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
                   Drop a file here, or click to choose one
                 </p>
-                <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">PDF, TXT, CSV, EXCEL or MD — up to 25MB</p>
+                <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{ACCEPT_HINT}</p>
               </>
             )}
           </div>
@@ -130,9 +154,18 @@ export default function UploadPage() {
             />
           </div>
 
-          {/* No tags field — DocumentController's /upload only accepts
-              file + title right now. Add it here once the backend's
-              FileEntity/uploadFile actually supports tags. */}
+          <div className="mt-5">
+            <p className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Modèles de pompe concernés</p>
+            <p className="mb-3 text-xs text-slate-400 dark:text-slate-500">
+              Cochez les pompes auxquelles ce document se rapporte : l'assistant et la page de chaque pompe l'utiliseront pour elles.
+            </p>
+            {modelsError ? (
+              <p className="text-sm text-red-700 dark:text-red-300">{modelsError}</p>
+            ) : (
+              <ModelPicker models={models} selected={selectedModels} onToggle={toggleModel}
+                kind={kind} onKindChange={setKind} disabled={status === "uploading"} idPrefix="upload-model" />
+            )}
+          </div>
 
           {status === "uploading" && (
             <div className="mt-4">

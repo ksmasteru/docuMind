@@ -1,9 +1,12 @@
 package com.docuMind.backend.model;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Immutable;
+import org.springframework.data.domain.DomainEvents;
 
 import com.docuMind.backend.model.enums.EventType;
 import com.docuMind.backend.model.enums.StatusReason;
@@ -116,6 +119,13 @@ public class TaskEvent {
                                       String comment, Instant occurredAt) {
         return new TaskEvent(taskId, equipmentId, EventType.COMMENTED, actorEmail,
                 status, status, null, comment, null, null, occurredAt);
+    }
+
+    // Spring Data publishes the row as an event each time it is saved (repository.save): NotificationService
+    // tells the people concerned once the transaction commits. Not a getter: Jackson and JPA ignore it
+    @DomainEvents
+    public Collection<Object> published() {
+        return List.of(this);
     }
 
     public String getId()                       { return id; }

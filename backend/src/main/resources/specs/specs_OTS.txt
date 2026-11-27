@@ -1,0 +1,17 @@
+Fiche technique PHOVA : pompe OTS (pompe slurry).
+Modèle : OTS.
+Source : rapport PFA PHOVA, section 2.4.3, d'après le catalogue produits PHOVA-Technology.
+
+Description.
+Les pompes Slurry OTS sont conçues pour le pompage de mélanges solides/liquides dans des environnements difficiles. Elles sont spécialement optimisées pour minimiser les vibrations de leurs composants, assurant ainsi une longévité accrue, une réduction de l’usure et une performance stable même dans des conditions de travail sévères.
+
+Caractéristiques de la série OTS.
+Débit : jusqu’à 4000 m3/h.
+Hauteur : jusqu’à 100 m.
+Pression : jusqu’à 16 bar.
+Température : jusqu’à 150 °C.
+
+Les valeurs « jusqu’à » sont les maximums annoncés pour la série OTS. La valeur d’une pompe donnée figure sur sa plaque signalétique et dans sa fiche technique.
+
+Non indiqué dans la source, à compléter par PHOVA.
+Vitesse de rotation.

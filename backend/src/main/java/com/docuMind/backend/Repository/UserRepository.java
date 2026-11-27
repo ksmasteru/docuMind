@@ -19,6 +19,9 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     Optional<User> findByName(String name);
 
+    // every account of a role: the super admin's list of managers (ReportStatsService)
+    List<User> findByRole(com.docuMind.backend.model.enums.UserRole role);
+
     void deleteByEmail(String email);
 
     @Query(value = "SELECT * FROM users WHERE role = 'USER'", nativeQuery = true)

@@ -36,18 +36,6 @@ services:
     ports:
       - "5173:5173"
 
-  analysis-service:
-    build: ./analysis-service
-    container_name: analysis-service
-    restart: unless-stopped
-    env_file:
-      - .env
-    # only the backend calls it, over the compose network
-    expose:
-      - "8001"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
   postgres:
     build:
       context: ./postgres

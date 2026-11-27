@@ -24,6 +24,7 @@ import com.docuMind.backend.model.DocumentChunks;
 import com.docuMind.backend.model.FileContent;
 import com.docuMind.backend.model.FileEntity;
 import com.docuMind.backend.repository.ChunkRepository;
+import com.docuMind.backend.repository.DocumentRepository;
 
 @Service
 public class IngestionService {
@@ -32,6 +33,8 @@ public class IngestionService {
     private final EmbeddingModel embeddingModel;  // Spring AI injects this
     private final ChunkRepository chunkRepository;
     private final DataAnalysisService dataAnalysisService;
+    // a document deleted while it was being read and embedded must not leave excerpts behind
+    private final DocumentRepository documentRepository;
     
     public static final String ANSI_RESET = "\u001B[0m";
     public static final String ANSI_GREEN = "\u001B[32m";
@@ -48,11 +51,13 @@ public class IngestionService {
         public IngestionService(ChunkingService chunkingService,
                            EmbeddingModel embeddingModel,
                            ChunkRepository chunkRepository,
-                            DataAnalysisService dataAnalysisService) {
+                            DataAnalysisService dataAnalysisService,
+                           DocumentRepository documentRepository) {
         this.chunkingService = chunkingService;
         this.embeddingModel = embeddingModel;
         this.chunkRepository = chunkRepository;
         this.dataAnalysisService = dataAnalysisService;
+        this.documentRepository = documentRepository;
     }
 
 
@@ -117,6 +122,12 @@ public class IngestionService {
             chunk.setChunkIndex(i);
             chunk.setEmbedding(embeddings.get(i));
             entities.add(chunk);
+        }
+        // The embedding takes seconds: a document replaced or deleted meanwhile (a spec sheet edited twice in a row,
+        // an upload deleted at once) is gone now, and its excerpts would be orphans the chat still finds.
+        if (!documentRepository.existsById(file.getId())) {
+            System.out.println("document deleted while it was being embedded, excerpts dropped : " + file.getId());
+            return;
         }
         chunkRepository.saveAll(entities);
     }

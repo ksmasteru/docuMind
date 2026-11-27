@@ -1,0 +1,15 @@
+Fiche technique PHOVA : pompe PHH (pompe de process).
+Modèle : PHH.
+Source : rapport PFA PHOVA, section 2.4.6, d'après le catalogue produits PHOVA-Technology.
+
+Description.
+La série PHH est une pompe de process monocellulaire à aspiration axiale, supportée dans l’axe et conforme à API 610 / ISO 13709. Ce support permet au corps de se dilater symétriquement lors des montées en température, préservant l’alignement de la ligne d’arbre : c’est ce qui autorise les 450 °C annoncés. La conception back pull-out permet de retirer l’ensemble tournant sans toucher aux brides.
+
+Caractéristiques de la série PHH.
+Débit : jusqu’à 1317 m3/h.
+Hauteur : jusqu’à 345 m.
+Vitesse de rotation : jusqu’à 3550 tr/min.
+Pression : jusqu’à 50 bar.
+Température : jusqu’à 450 °C.
+
+Les valeurs « jusqu’à » sont les maximums annoncés pour la série PHH. La valeur d’une pompe donnée figure sur sa plaque signalétique et dans sa fiche technique.

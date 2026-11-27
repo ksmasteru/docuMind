@@ -7,6 +7,7 @@ import java.util.List;
 import org.hibernate.annotations.CreationTimestamp;
 
 import com.docuMind.backend.model.enums.AskOutcome;
+import com.docuMind.backend.model.enums.AskScope;
 import com.docuMind.backend.model.enums.Verdict;
 
 import jakarta.persistence.CollectionTable;
@@ -84,6 +85,18 @@ public class AskInteraction {
     @Column(columnDefinition = "TEXT")
     private String correction;
 
+    // plan_pump_manuals.md part C: what the answer was searched in (scope) for which model (pumpModel, OTW…, null when
+    // not known), and the labels the server put on it (warnings, JSON: another pump's figures, undocumented ones)
+    @Enumerated(EnumType.STRING)
+    @Column(length = 16)
+    private AskScope scope;
+
+    @Column(length = 16)
+    private String pumpModel;
+
+    @Column(columnDefinition = "TEXT")
+    private String warnings;
+
     public AskInteraction() {}
 
     public String getId()                          { return id; }
@@ -109,5 +122,11 @@ public class AskInteraction {
     public String getCorrection()                  { return correction; }
     public void setCorrection(String c)            { this.correction = c; }
     public AskOutcome getAskOutcome()              { return askOutcome; }
+    public AskScope getScope()                     { return scope; }
+    public void setScope(AskScope s)               { this.scope = s; }
+    public String getPumpModel()                   { return pumpModel; }
+    public void setPumpModel(String m)             { this.pumpModel = m; }
+    public String getWarnings()                    { return warnings; }
+    public void setWarnings(String w)              { this.warnings = w; }
     public void setAskOutcome(AskOutcome o)        { this.askOutcome = o; }
 }

@@ -34,16 +34,17 @@ export const SITES = [
 ];
 
 // nominal flow (m³/h) per PumpType on the backend
-export const NOMINAL_FLOW = { OTW: 450, OTC: 300, OTS: 250, PHB2: 600, PHB3: 800, PHH: 200, HDX: 350 };
+export const NOMINAL_FLOW = { OTW: 450, OTC: 300, OTS: 250, PHB2: 600, PHB3: 800, PHH: 200 };
 
 // the fleet as the twin would describe it; state is where each pump starts
 const FLEET = [
     ["J", "OTW", "RUNNING"], ["J", "OTW", "RUNNING"], ["J", "PHB3", "RUNNING"], ["J", "PHB3", "RUNNING"],
-    ["J", "PHB2", "STANDBY"], ["J", "HDX", "RUNNING"], ["J", "PHB3", "RUNNING", "degrading"], ["J", "OTC", "MAINTENANCE"],
-    ["J", "HDX", "RUNNING"], ["J", "OTC", "STANDBY"], ["J", "PHB3", "OFFLINE"], ["J", "OTW", "RUNNING"],
+    // PHB2-J-06, PHB2-J-09, PHB2-S-08 and PHB2-S-09 were HDX until 2026-11-24 (HDX is not a PHOVA model): same numbers
+    ["J", "PHB2", "STANDBY"], ["J", "PHB2", "RUNNING"], ["J", "PHB3", "RUNNING", "degrading"], ["J", "OTC", "MAINTENANCE"],
+    ["J", "PHB2", "RUNNING"], ["J", "OTC", "STANDBY"], ["J", "PHB3", "OFFLINE"], ["J", "OTW", "RUNNING"],
     ["S", "OTS", "RUNNING"], ["S", "OTS", "RUNNING"], ["S", "PHH", "RUNNING"], ["S", "PHH", "STANDBY"],
-    ["S", "PHB2", "RUNNING"], ["S", "PHB2", "FAULT"], ["S", "OTW", "RUNNING"], ["S", "HDX", "RUNNING", "hot"],
-    ["S", "HDX", "RUNNING"], ["S", "OTC", "RUNNING"], ["S", "OTW", "MAINTENANCE"], ["S", "OTW", "RUNNING"],
+    ["S", "PHB2", "RUNNING"], ["S", "PHB2", "FAULT"], ["S", "OTW", "RUNNING"], ["S", "PHB2", "RUNNING", "hot"],
+    ["S", "PHB2", "RUNNING"], ["S", "OTC", "RUNNING"], ["S", "OTW", "MAINTENANCE"], ["S", "OTW", "RUNNING"],
 ];
 
 // seeded so the fleet looks the same on every load

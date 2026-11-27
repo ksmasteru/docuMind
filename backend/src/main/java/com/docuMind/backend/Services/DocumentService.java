@@ -2,6 +2,7 @@ package com.docuMind.backend.services;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.docuMind.backend.config.Edition;
 import com.docuMind.backend.exception.FileNotFoundException;
 import com.docuMind.backend.exception.FileNotSupportedException;
 import com.docuMind.backend.model.FileContent;
@@ -20,6 +22,7 @@ import com.docuMind.backend.model.FileEntity;
 import com.docuMind.backend.repository.DocumentRepository;
 import com.docuMind.backend.repository.FileContentRepository;
 import com.docuMind.backend.repository.ChunkRepository;
+import com.docuMind.backend.repository.PumpModelDocumentRepository;
 // talks with repsose
 @Service
 public class DocumentService {
@@ -29,6 +32,10 @@ public class DocumentService {
         "vnd.openxmlformats-officedocument.spreadsheetml.sheet"          // .xlsx
     );
 
+    // read by analysis-service, which the report platform doesn't run (plan_remove_analysis_service.md)
+    static final List<String> SPREADSHEETS = List.of(
+        "csv", "vnd.ms-excel", "vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+
     private final DocumentRepository documentRepository;
 
     private final FileContentRepository fileContentRepository;
@@ -37,14 +44,21 @@ public class DocumentService {
 
     private final ChunkRepository chunkRepository;
 
-    
+    // the document ↔ pump model links: a deleted document leaves none behind (plan_pump_manuals.md part B)
+    private final PumpModelDocumentRepository modelDocumentRepository;
+
+    private final Edition edition;
+
     public DocumentService(DocumentRepository documentRepository, FileContentRepository fileContentRepository,
-        IngestionService ingestionService, ChunkRepository chunkRepository)
+        IngestionService ingestionService, ChunkRepository chunkRepository,
+        PumpModelDocumentRepository modelDocumentRepository, Edition edition)
     {
+        this.edition = edition;
         this.documentRepository = documentRepository;
         this.fileContentRepository = fileContentRepository;
         this.ingestionService = ingestionService;
         this.chunkRepository = chunkRepository;
+        this.modelDocumentRepository = modelDocumentRepository;
     }
 
     // changed from List<FileEntity> to FileEntity
@@ -71,6 +85,14 @@ public class DocumentService {
             .collect(Collectors.toMap(FileEntity::getId, FileEntity::getName));
     }
 
+    // the whole library, whoever uploaded it: « Documents » lists it for every role (plan_documents_list.md)
+    public List<FileEntity> allFiles()
+    {
+        return documentRepository.findAll().stream()
+            .sorted(Comparator.comparing(FileEntity::getName, String.CASE_INSENSITIVE_ORDER))
+            .toList();
+    }
+
     public List<FileEntity> searchFile(String name)
     {
         List<FileEntity> seachedfiles = documentRepository.findByGeneratedNameContainingIgnoreCase(name);
@@ -95,6 +117,10 @@ public class DocumentService {
         String fileExtension = MediaType.parseMediaType(file.getContentType()).getSubtype();
         if (!allowedExtensions.contains(fileExtension))
             throw new FileNotSupportedException("Unsupported file type---");
+        // refused here rather than saved with no excerpts: ingestion would fail on the missing service, quietly
+        if (edition.rapports() && SPREADSHEETS.contains(fileExtension))
+            throw new FileNotSupportedException(
+                "Les fichiers CSV et Excel ne sont pas pris en charge ici : importez un PDF, un TXT ou un MD.");
 
         // Read into a plain byte[] now, on the request thread — a MultipartFile's
         // backing temp storage isn't guaranteed to survive past this request, so
@@ -147,13 +173,47 @@ public class DocumentService {
         return returnFile;
     }
 
-    // deletes a single file by id
+    // A document stored from bytes rather than an upload (a spec sheet installed by the app, or edited on
+    // « Fiches techniques »): saved, then read and embedded in the background like an upload.
+    // subtype: the MIME subtype extractChunks() switches on ("plain", "markdown", "pdf").
+    @Transactional
+    public FileEntity storeDocument(String title, byte[] bytes, String contentType, String subtype, String userId)
+    {
+        if (!allowedExtensions.contains(subtype))
+            throw new FileNotSupportedException("Unsupported file type---");
+        FileEntity saved = documentRepository.save(new FileEntity(title, contentType, bytes.length, userId));
+        FileContent content = fileContentRepository.save(new FileContent(saved.getId(), bytes, "ignore", userId));
+        ingestionService.ingest(content, bytes, title, subtype, saved);
+        return saved;
+    }
+
+    // A document whose excerpts are missing (the embedding call failed when it was stored, OpenAI down at
+    // startup…) is read and embedded again. Returns false when the document is gone.
+    @Transactional
+    public boolean reingest(String id)
+    {
+        FileEntity file = documentRepository.findById(id).orElse(null);
+        FileContent content = fileContentRepository.findById(id).orElse(null);
+        if (file == null || content == null)
+            return false;
+        String subtype = MediaType.parseMediaType(file.getContentType()).getSubtype();
+        ingestionService.ingest(content, content.getData(), file.getName(), subtype, file);
+        return true;
+    }
+
+    public long chunkCount(String fileId)
+    {
+        return chunkRepository.countByFileId(fileId);
+    }
+
+    // deletes a single file by id, with its excerpts, its content and its links to pump models
     @Transactional
     public void deleteFile(String id)
     {
         documentRepository.deleteFileById(id);
         int deleted = chunkRepository.deleteFileChunks(id);
         fileContentRepository.deleteById(id);
+        modelDocumentRepository.deleteByFileId(id);
         System.out.println("Deleted chunks : " +  deleted);
     }
 
@@ -174,6 +234,7 @@ public class DocumentService {
                 deletedFileEntities += documentRepository.deleteFileById(fileToDelete.get(i).getId());
                 deletedChunks += chunkRepository.deleteFileChunks(fileToDelete.get(i).getId());
                 fileContentRepository.deleteById(fileToDelete.get(i).getId());
+                modelDocumentRepository.deleteByFileId(fileToDelete.get(i).getId());
                 i += 1;
             }
             System.out.println("deleted files : "  + deletedFileEntities + " deleted chuks : " + deletedChunks);

@@ -30,8 +30,8 @@ export const METRICS = [
 ];
 
 // Each model's photo, served from public/. The names are written exactly as the files are:
-// the production servers are case-sensitive even if the Mac isn't. A model without a photo
-// (HDX for now) shows a placeholder.
+// the production servers are case-sensitive even if the Mac isn't. A model without a photo shows a
+// placeholder.
 const PHOTOS = {
     OTC: "/OTC.PNG",
     OTW: "/OTW.png",

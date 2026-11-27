@@ -1,0 +1,17 @@
+Fiche technique PHOVA : pompe OTC (pompe de produits chimiques).
+Modèle : OTC.
+Source : rapport PFA PHOVA, section 2.4.2, d'après le catalogue produits PHOVA-Technology.
+
+Description.
+Les pompes OTC sont spécialement conçues pour le pompage de fluides chimiques et sont optimisées pour fonctionner dans des environnements hautement abrasifs et corrosifs. Elles sont adaptées pour répondre aux exigences spécifiques de ces environnements, offrant ainsi performance, fiabilité et durabilité dans des conditions de travail sévères.
+
+Caractéristiques de la série OTC.
+Débit : jusqu’à 3500 m3/h.
+Hauteur : jusqu’à 120 m.
+Pression : jusqu’à 16 bar.
+Température : jusqu’à 250 °C.
+
+Les valeurs « jusqu’à » sont les maximums annoncés pour la série OTC. La valeur d’une pompe donnée figure sur sa plaque signalétique et dans sa fiche technique.
+
+Non indiqué dans la source, à compléter par PHOVA.
+Vitesse de rotation.

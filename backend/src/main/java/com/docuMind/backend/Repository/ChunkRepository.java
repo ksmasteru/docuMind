@@ -96,6 +96,79 @@ List<DocumentChunks> findSimilarChunksinDocument(
         @Param("fileIds") List<String> fileIds
     );
 
+    // The chat's two searches (AskService.answerPhovaWithAiRag): over the shared documentation, whoever
+    // uploaded it. The manuals are imported by the admin or a manager, and the « Documents » page already
+    // shows every upload to everyone; filtered by the asker's e-mail, a technician's question found nothing.
+    @Query(value = """
+    SELECT id AS "id",
+           file_id AS "fileId",
+           chunk_text AS "chunkText",
+           embedding <=> CAST(:embedding AS vector) AS "distance"
+    FROM document_chunks
+    ORDER BY embedding <=> CAST(:embedding AS vector)
+    LIMIT :limit
+    """, nativeQuery = true)
+    List<ChunkMatch> findSimilarSharedChunks(
+        @Param("embedding") String embedding,
+        @Param("limit") int limit
+    );
+
+    // fileIds must not be empty: "IN ()" is invalid SQL.
+    @Query(value = """
+    SELECT id AS "id",
+           file_id AS "fileId",
+           chunk_text AS "chunkText",
+           embedding <=> CAST(:embedding AS vector) AS "distance"
+    FROM document_chunks
+    WHERE file_id IN (:fileIds)
+    ORDER BY embedding <=> CAST(:embedding AS vector)
+    LIMIT :limit
+    """, nativeQuery = true)
+    List<ChunkMatch> findSimilarSharedChunksInFiles(
+        @Param("embedding") String embedding,
+        @Param("limit") int limit,
+        @Param("fileIds") List<String> fileIds
+    );
+
+    // how many excerpts a document has: 0 when its embedding failed (DocumentService.reingest)
+    long countByFileId(String fileId);
+
+    // The chat for a pump whose model has documents ticked for it (plan_pump_manuals.md part C, scope MANUALS): the
+    // documents ticked for that model, and the general ones (ticked for no model). Another model's documents are
+    // left out.
+    @Query(value = """
+    SELECT c.id AS "id",
+           c.file_id AS "fileId",
+           c.chunk_text AS "chunkText",
+           c.embedding <=> CAST(:embedding AS vector) AS "distance"
+    FROM document_chunks c
+    WHERE c.file_id IN (SELECT d.file_id FROM pump_model_document d WHERE d.model = :model)
+       OR NOT EXISTS (SELECT 1 FROM pump_model_document d WHERE d.file_id = c.file_id)
+    ORDER BY c.embedding <=> CAST(:embedding AS vector)
+    LIMIT :limit
+    """, nativeQuery = true)
+    List<ChunkMatch> findSimilarChunksForModel(
+        @Param("embedding") String embedding,
+        @Param("limit") int limit,
+        @Param("model") String model
+    );
+
+    // every excerpt of one document, in order, with its distance to the question: the model's spec sheet, always put
+    // first in the chat's excerpts (§5)
+    @Query(value = """
+    SELECT c.id AS "id",
+           c.file_id AS "fileId",
+           c.chunk_text AS "chunkText",
+           c.embedding <=> CAST(:embedding AS vector) AS "distance"
+    FROM document_chunks c
+    WHERE c.file_id = :fileId
+    ORDER BY c.chunk_index
+    """, nativeQuery = true)
+    List<ChunkMatch> findChunksOfFile(
+        @Param("embedding") String embedding,
+        @Param("fileId") String fileId
+    );
+
     interface ChunkMatch {
         String getId();
         String getChunkText();

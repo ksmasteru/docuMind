@@ -27,6 +27,9 @@
 # for it too (VITE_EDITION in my-react-app/.env); steps 6 and 8 are skipped: no shared role accounts, no
 # demo team. The admin creates the managers on « Comptes », each manager his technicians.
 #
+# E-mail notifications stay off until the SPRING_MAIL_* keys are filled in .env (SERVER_SETUP.md):
+# optional, so nothing here asks for them.
+#
 # It asks for the passwords. To run it without questions, set ADMIN_EMAIL, ADMIN_PASSWORD
 # and ACCOUNTS_PASSWORD (the one password all the role accounts get).
 # TEAM_MANAGER: whose team step 8 fills (default manager@phova.com, from roles_accounts.txt).
@@ -357,7 +360,9 @@ cat "$TMP/webenv" > my-react-app/.env
 
 if [ "$START" = 1 ]; then
   step "2. Build and start the stack (a few minutes the first time)"
-  $COMPOSE up -d --build
+  # --remove-orphans: a container whose service left docker-compose.server.yml is removed (analysis-service,
+  # 2026-11-25, plan_remove_analysis_service.md). Volumes, and so the data, are not touched.
+  $COMPOSE up -d --build --remove-orphans
 else
   step "2. Build and start: skipped (--no-start)"
 fi
@@ -477,6 +482,24 @@ if $COMPOSE exec -T postgres true >/dev/null 2>&1; then
     fi
   else
     fail "control sheets: $(cat "$TMP/sheets")"
+  fi
+else
+  skip "the postgres container is not reachable from here"
+fi
+
+
+step "7c. HDX is no longer a pump model (scripts/hdx_removed.sql)"
+# since 2026-11-24 (plan_pump_manuals.md): the simulated HDX pumps' alerts follow them to PHB2 (same number), the
+# old model rows go (a registered pump's model too, on the full platform: no registry here). A second run changes nothing.
+if $COMPOSE exec -T postgres true >/dev/null 2>&1; then
+  if psql_exec -At < scripts/hdx_removed.sql > "$TMP/hdx" 2>&1; then
+    if grep -qE '^(UPDATE|DELETE) [1-9]' "$TMP/hdx"; then
+      ok "HDX moved: $(grep -E '^(UPDATE|DELETE) [1-9]' "$TMP/hdx" | tr '\n' ' ')"
+    else
+      skip "nothing says HDX any more"
+    fi
+  else
+    fail "HDX: $(cat "$TMP/hdx")"
   fi
 else
   skip "the postgres container is not reachable from here"

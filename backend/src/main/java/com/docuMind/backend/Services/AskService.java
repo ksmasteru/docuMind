@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -44,6 +45,14 @@ import com.docuMind.backend.model.AiResponse;
 import com.docuMind.backend.model.AskInteraction;
 import com.docuMind.backend.model.RetrievedSource;
 import com.docuMind.backend.model.enums.AskOutcome;
+import com.docuMind.backend.model.enums.AskScope;
+import com.docuMind.backend.model.enums.DocumentKind;
+import com.docuMind.backend.model.enums.PumpType;
+import com.docuMind.backend.model.PumpDocumentViews.ModelLink;
+import com.docuMind.backend.model.PumpDocumentViews.ResolvedModel;
+import com.docuMind.backend.services.PumpDocumentService.ModelDocs;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.docuMind.backend.model.AiResponse.chatAnswer;
 import com.docuMind.backend.repository.AskInteractionRepository;
 import io.micrometer.core.instrument.Timer;
@@ -58,6 +67,8 @@ public class AskService{
     private final RagMetrics ragMetrics;
     private final DocumentService documentService;
     private final OpenAiAudioTranscriptionModel transcriptionModel;
+    // the pump's model and its documents (plan_pump_manuals.md part C)
+    private final PumpDocumentService pumpDocumentService;
     // Self-injected proxy: @Cacheable only takes effect when the call travels
     // back through Spring's AOP proxy. A direct in-class call to getAnswer(...)
     // or questionEmbedding(...) bypasses the proxy and silently skips the cache,
@@ -70,8 +81,9 @@ public class AskService{
     public AskService(EmbeddingModel embeddingModel, ChatModel chatModel,
             ChunkRepository chunkRepository, RagMetrics ragMetrics, DocumentService documentService,
             OpenAiAudioTranscriptionModel transcriptionModel,
-            AskInteractionRepository askInteractionRepository)
+            AskInteractionRepository askInteractionRepository, PumpDocumentService pumpDocumentService)
     {
+        this.pumpDocumentService = pumpDocumentService;
         this.embeddingModel = embeddingModel; 
         this.chatModel = chatModel;
         this.chunkRepository = chunkRepository;
@@ -117,6 +129,12 @@ public class AskService{
         return Arrays.toString(embedding);
     }
 
+    // PUMP-SPECIFIC VERSION, COMMENTED OUT ON 24 NOVEMBER 2026 (plan_general_assistant.md).
+    // PHOVA has no repair manual for its own pumps yet, so the question's PHOVA model was rewritten to a
+    // competitor's (OTW -> AHLSTAR, ...) to search that competitor's manual, and the answer rewritten back.
+    // Kept as the starting point of the specific version, once PHOVA's documentation is in the library.
+    // The general version, answerGeneralWithAiRag below, is the one /api/v1/ask uses now.
+    /*
     // new : we use competitors data  : if user types in OTW --> look for AHLSTAR
     public AiResponse answerPhovaWithAiRag(AskRequest request, String userId)
     {
@@ -140,8 +158,25 @@ public class AskService{
         questionNormalized = matcher.replaceAll(Matcher.quoteReplacement(replacement));
       }
     }
+    // The question names no pump, but the task it is asked from may (equipment « OTW-JORF-01 »): that pump's
+    // manuals are searched as if the technician had named it. Only the first model found counts.
+    boolean pumpFromEquipment = false;1
+    String equipment = request.equipment();
+    if (matchedPumps.isEmpty() && equipment != null && !equipment.isBlank())
+    {
+      for (int i = 0; i < pumps.size() && !pumpFromEquipment; i++) {
+        String regex = "(?i)\\b" + Pattern.quote(pumps.get(i)) + "\\b";
+        if (Pattern.compile(regex).matcher(equipment).find()) {
+          matchedPumps.add(compPumps.get(i));
+          matchedPhovaPumps.add(pumps.get(i));
+          // in the question too, so the embedding and the model know which pump it is about
+          questionNormalized = questionNormalized + " (pompe " + compPumps.get(i) + ")";
+          pumpFromEquipment = true;
+        }
+      }
+    }
     System.out.println("replaced question is " + questionNormalized);
-    
+
     AskInteraction askInteraction = new AskInteraction();
     askInteraction.setUserId(userId);
     askInteraction.setQuestionRaw(request.question());
@@ -152,7 +187,8 @@ public class AskService{
     // 3rd fix. : we should support more than one pump
     if (matchedPumps.size() > 1)
     {
-      String answer = "please choose one pump";
+      // shown as the assistant's reply, so in the technician's language
+      String answer = "Plusieurs pompes sont citées : posez la question pour une seule pompe à la fois.";
       askInteraction.setAnswer(answer);
       askInteraction.setAskOutcome(AskOutcome.MULTI_PUMP);
       askInteractionRepository.save(askInteraction);
@@ -178,13 +214,16 @@ public class AskService{
         if (filesId.size() > 1)
           System.out.println("more than one file was chosen");
         List<String> fileIds = filesId.stream().map(FileEntity::getId).collect(Collectors.toList());
-        allChunks = chunkRepository.findSimilarChunksInDocumentsWithDistance(userId, embeddingLiteral, chunksnumber, fileIds);
+        // the shared documentation, whoever uploaded it (ChunkRepository): a technician uploads no manual
+        allChunks = chunkRepository.findSimilarSharedChunksInFiles(embeddingLiteral, chunksnumber, fileIds);
       }
       // A named pump only ever uses its own files: falling back to all documents
       // would let another pump's data answer the question.
-      
-      List<ChunkMatch> relevantChunks = matchedPumps.isEmpty()
-          ? chunkRepository.findSimilarChunksWithDistance(userId, embeddingLiteral, chunksnumber)
+      // A pump only known from the task's equipment does fall back when it has no manual: the technician
+      // didn't name it, and a general question (consignation, a standard) can still be answered.
+
+      List<ChunkMatch> relevantChunks = matchedPumps.isEmpty() || (pumpFromEquipment && allChunks.isEmpty())
+          ? chunkRepository.findSimilarSharedChunks(embeddingLiteral, chunksnumber)
           : allChunks;
 
       if (relevantChunks.isEmpty())
@@ -390,18 +429,417 @@ public class AskService{
       chatAnswer chatAnswer = new chatAnswer("-", final_answer);
     
       AiResponse response = new AiResponse(List.of(chatAnswer) , askInteraction.getId(), 1);
-    
+
       return response;
     }
-    // NOW THE RAG IS SPECEFIC TO PHOVA PUMP QUESTIONS; REVERT THIS FOR NORMAL RAG RESPONSE
-    // make this return the airesponse directly
+    */
+    // END OF THE COMMENTED PUMP-SPECIFIC VERSION
+
+    // GENERAL VERSION (prompt 2.0): the technician's assistant for any pump, whatever the library holds.
+    // The question is searched as typed over the whole shared library; the task's equipment is passed to the
+    // model as context only, since no PHOVA pump has its own manual to narrow the search to. The model answers
+    // from the excerpts first and from general centrifugal-pump practice where they are silent, marking which
+    // is which, and never inventing a figure.
+    // 2.2 (plan_pump_manuals.md, part A): the model cites each excerpt it takes a fact from, « [2] », instead of
+    // writing « sources : » / « chunks : » lines; the server builds the sources from those numbers
+    // (AnswerCitations) and still ends the text with a « sources : » line for the mobile app.
+    // 2.3 (part C): the pump's model comes from the screen or the task's equipment; its spec sheet is always the first
+    // excerpt; the search follows the scope (MANUALS: the model's documents and the general ones; NO_MANUAL,
+    // NO_MODEL: the whole library); each excerpt's header says what it is to that model; the server labels the
+    // figures that are not the model's own (AnswerFigures).
+    static final String GENERAL_PROMPT_VERSION = "2.3";
+    static final int GENERAL_CHUNKS = 10;
+    static final String GENERAL_SYSTEM_PROMPT = """
+    Tu es l'assistant technique des techniciens de PHOVA, atelier de maintenance de pompes centrifuges
+    (pompes de process : acide phosphorique, pulpe de phosphate, eau de mer ; sites de Jorf et de Safi).
+    Modèles PHOVA : OTW, OTC, OTS, PHB2, PHB3, PHH. Le technicien te pose sa question sur son téléphone,
+    souvent dictée sur chantier : elle peut être courte, mal orthographiée ou mal transcrite. Lis-la dans
+    son sens technique le plus plausible et réponds à ce sens, sans jamais refuser pour une question de
+    forme.
+
+    CE QUE TU REÇOIS
+    - « Équipement de la tâche » (s'il est donné) : la pompe sur laquelle il travaille. Le préfixe de la
+      désignation est le modèle, la suite le site et le numéro (OTW-JORF-01 : une OTW de Jorf).
+    - « Modèle de la pompe » : le modèle PHOVA de cette pompe, s'il est connu, et d'où viennent les extraits.
+    - Des extraits de la bibliothèque partagée, numérotés [1], [2]… : manuels de pompes comparables (souvent d'autres
+      fabricants), normes, procédures et rapports PHOVA. Ils sont triés par proximité avec la question,
+      pas par pertinence réelle : ignore ceux qui ne traitent pas du sujet. L'en-tête de chaque extrait dit
+      ce qu'il est pour ce modèle : sa fiche technique PHOVA, qui fait foi pour ses caractéristiques ; un
+      document PHOVA sur lui ; le manuel d'une pompe comparable ; la documentation d'un autre modèle ; ou la
+      documentation générale. Une valeur d'un manuel comparable ou d'un autre modèle n'est pas celle de la
+      pompe : dis-le dans la phrase où tu l'écris.
+    - La question.
+
+    D'OÙ VIENT TA RÉPONSE
+    1. D'abord les extraits. Rassemble une réponse répartie sur plusieurs extraits. Les tableaux arrivent
+       aplatis sur une ligne : lis chaque valeur par sa position sous l'en-tête de colonne.
+    2. Là où les extraits ne disent rien, les bonnes pratiques générales de maintenance des pompes
+       centrifuges, celles qu'un chef d'atelier expérimenté donnerait. Signale-les par « (pratique
+       générale) » pour que le technicien sache qu'aucun document PHOVA ne les confirme.
+    3. Jamais de chiffre inventé : c'est la règle la plus importante. Tolérance, jeu, couple de serrage,
+       faux rond, pression d'épreuve, intervalle de graissage, référence ou code de pièce : uniquement s'il
+       figure dans un extrait, recopié tel quel avec son unité et suivi du numéro de l'extrait. Pas de valeur
+       « habituelle », « typique » ou « en général », pas de plage (« 0,1 à 0,3 mm ») : ce sont des chiffres
+       inventés, même suivis de « à valider ». S'il vient du manuel d'une autre pompe, dis-le (« valeur du
+       manuel AHLSTAR, à confirmer pour une OTW »). S'il n'est dans aucun extrait, dis-le en une phrase, dis
+       où le trouver (plan ou fiche constructeur, bureau d'études, responsable qualité) et explique comment
+       le mesurer. Une conformité se juge sur une tolérance documentée, jamais sur une estimation.
+    Les bons instruments : un jeu (roue / flasque, bague d'usure, palier / arbre) se mesure aux cales
+    d'épaisseur ou au comparateur ; un faux rond, un déplacement radial ou axial au comparateur ; un
+    diamètre d'arbre ou de portée au micromètre ; un alésage à l'alésomètre ou au micromètre d'intérieur.
+    Le pied à coulisse ne sert pas à mesurer un jeu.
+
+    CE QU'IL TE DEMANDE, ET CE QU'IL LUI FAUT
+    - Un symptôme ou une panne (vibration, fuite à la garniture, échauffement des roulements, bruit de
+      cavitation, débit ou pression insuffisants…) : les causes probables, de la plus fréquente à la plus
+      rare, puis pour chacune le contrôle qui la confirme ou l'écarte.
+    - Un contrôle ou une inspection : quoi regarder, avec quel instrument (comparateur, micromètre,
+      cales, pied à coulisse…), où le placer, combien de prises, et ce qui rend la pièce non conforme.
+    - Un démontage, une réparation, un remontage : les étapes dans l'ordre, numérotées, avec les points
+      où l'on se trompe le plus souvent (sens de montage, appairage des roulements, réglage du jeu
+      hydraulique, propreté des faces de garniture).
+    - Une sécurité : avant toute intervention sur une pompe, consignation électrique et process, vidange,
+      décompression, rinçage si le fluide est acide ou abrasif, EPI adaptés. Rappelle-le en une ligne
+      quand la question mène à ouvrir ou à démonter la pompe, pas à chaque réponse.
+
+    LES RAPPORTS QU'IL REMPLIT DANS L'APPLICATION
+    Ne confonds jamais ces deux rapports : l'un ne s'appelle pas comme l'autre.
+    - Rapport d'expertise : la pompe d'un client, reçue pour réparation.
+      Démontage : 01 Informations générales, 02 Pompe réceptionnée, 03 Inspection des pièces (corps,
+      roue, palier, roulements, arbre, flasques, déflecteur, autres), 04 Contrôles géométriques,
+      05 Contrôles dimensionnels (arbre et palier : jeux, concentricité), 06 Garniture mécanique (face
+      stationnaire, face rotative, chemise, couvercle), 07 Synthèse des pièces (quantité, code,
+      recommandation, décision client, remarque).
+      Montage : 08 Pièces changées / réparées, 09 Commentaires supplémentaires, 10 Pompe assemblée,
+      11 Contrôle de montage.
+      Pour chaque pièce : photos titrées, constats cochés (Bon état, Corrosion, Fissures, ou « Autre »),
+      commentaire, et une recommandation : Nettoyage + réutilisation, Réparation + réutilisation ou
+      Remplacement.
+    - Rapport d'assemblage pompe (RASSN-02) : une pompe neuve que PHOVA fabrique et assemble, sur ordre
+      de fabrication. Informations générales (ordre de fabrication, identification pompe), Pompe
+      assemblée, Contrôles dimensionnels (jeux palier / arbre J1 à J4, concentricités C1 à C5), une page
+      par pièce assemblée (photo, commentaire, conformité, n° de série), Contrôles géométriques (faux rond
+      de l'arbre, déplacements radial et axial, perpendicularité et concentricité arbre / chaise, jeu
+      hydraulique J et X), Contrôle de montage, Points à améliorer.
+    - Fiches de contrôle qualité (contrôle par échantillonnage, contrôle usinage, ressuage, épreuve
+      hydrostatique) et tickets non-conformité, réclamation client, dérogation, réclamation fournisseur.
+    Pour l'aider à remplir, dans cet ordre :
+    1. L'endroit exact : le rapport, la rubrique et la page (« Rapport d'expertise, 03 Inspection des
+       pièces, page Roue »). Si l'équipement ne dit pas s'il s'agit d'une expertise ou d'un assemblage,
+       une pièce constatée usée ou abîmée relève de l'expertise.
+    2. Ce qu'il coche (le constat de la liste : Corrosion, Fissures…) et, si le cas n'y est pas, « Autre ».
+    3. Un modèle de commentaire comme il s'écrit dans un rapport : pièce, défaut, emplacement, étendue,
+       mesure. Ce que tu ne sais pas, laisse-le entre crochets à compléter (« [emplacement : aubes, flasque
+       avant…] », « [profondeur mesurée] ») : n'invente jamais un constat qu'il n'a pas décrit.
+    4. Les recommandations possibles et ce qui fait pencher vers chacune ; ne choisis pas à sa place
+       quand cela dépend de ce qu'il a vu.
+    Dans l'inspection d'un rapport d'expertise, une pièce n'est pas « conforme » ou « non conforme » :
+    elle a des constats et une recommandation. Conforme / Non conforme sert aux contrôles (géométriques,
+    de montage, du rapport d'assemblage) et aux fiches de contrôle ; là, une valeur hors tolérance ou
+    douteuse est « Non conforme » avec une remarque obligatoire qui dit pourquoi. Une mesure se fait en
+    plusieurs prises (l'application calcule la moyenne), avec son unité. Ne présente jamais une
+    recommandation comme une décision : la décision appartient au client ou au responsable.
+
+    FORME DE LA RÉPONSE
+    Réponds dans la langue de la question (français par défaut). Texte simple, lu sur un téléphone : pas
+    de titres, pas de gras, pas de tableau, pas de markdown. Commence par la réponse elle-même, sans
+    reformuler la question. Étapes numérotées « 1. », listes avec « - ». Une dizaine de lignes au plus,
+    sauf pour une procédure qui en demande davantage. Si une information indispensable manque (le
+    modèle, la pièce, la mesure relevée), réponds avec ce que tu as et pose à la fin une seule question
+    pour préciser.
+
+    CITE TES EXTRAITS
+    Chaque fait tiré d'un extrait est suivi, dans la même phrase ou la même ligne, du numéro de cet
+    extrait entre crochets : « Vidanger toutes les 4000 heures [2]. » Plusieurs extraits : [2][5]. Ce qui
+    vient de la pratique générale n'a pas de numéro. Ne termine par aucune liste de sources, de fichiers
+    ou d'extraits : l'application affiche les sources à partir de ces numéros.
+
+    QUAND LA QUESTION N'A RIEN À VOIR
+    Si la question ne concerne ni les pompes, ni la maintenance, ni la mécanique, ni la sécurité au
+    travail, ni l'atelier, ni les rapports de l'application (par exemple la capitale de la France),
+    réponds exactement :
+    null
+    Quatre lettres minuscules et rien d'autre. Une question de maintenance à laquelle les documents ne
+    répondent pas n'est jamais un cas de null : réponds-y avec la pratique générale.
+    """;
+
+    public AiResponse answerGeneralWithAiRag(AskRequest request, String userId)
+    {
+      String question = request.question();
+      String equipment = request.equipment() == null || request.equipment().isBlank() ? null : request.equipment().trim();
+
+      // the pump's model: chosen on the « Assistant » page, else the equipment's (registry, then its code)
+      ResolvedModel resolved = pumpDocumentService.resolveFor(request.pumpModel(), equipment);
+      PumpType model = resolved == null ? null : resolved.model();
+      ModelDocs docs = model == null ? null : pumpDocumentService.docsOf(model);
+      AskScope scope = model == null ? AskScope.NO_MODEL : docs.hasManuals() ? AskScope.MANUALS : AskScope.NO_MANUAL;
+
+      AskInteraction askInteraction = new AskInteraction();
+      askInteraction.setUserId(userId);
+      askInteraction.setQuestionRaw(question);
+      askInteraction.setQuestionNormalised(question);
+      askInteraction.setPromptVersion(GENERAL_PROMPT_VERSION);
+      askInteraction.setPump(equipment);
+      askInteraction.setScope(scope);
+      askInteraction.setPumpModel(model == null ? null : model.name());
+
+      String embeddingLiteral = self.questionEmbedding(question);
+      // the model's spec sheet first, whatever the question (§5); then the search, by scope: the model's documents
+      // and the general ones (MANUALS), or the whole shared library, whoever uploaded it
+      List<ChunkMatch> pinned = docs == null || docs.specFileId() == null
+          ? List.of() : chunkRepository.findChunksOfFile(embeddingLiteral, docs.specFileId());
+      List<ChunkMatch> found = scope == AskScope.MANUALS
+          ? chunkRepository.findSimilarChunksForModel(embeddingLiteral, GENERAL_CHUNKS, model.name())
+          : chunkRepository.findSimilarSharedChunks(embeddingLiteral, GENERAL_CHUNKS);
+      List<ChunkMatch> relevantChunks = new ArrayList<>(pinned);
+      for (ChunkMatch chunk : found)
+        if (relevantChunks.size() < Math.max(GENERAL_CHUNKS, pinned.size())
+            && relevantChunks.stream().noneMatch(c -> c.getId().equals(chunk.getId())))
+          relevantChunks.add(chunk);
+
+      Map<String, ExcerptDocument> documents = describeDocuments(relevantChunks, model);
+      // an excerpt whose document no longer exists (deleted while it was being embedded) is left out
+      relevantChunks.removeIf(c -> !documents.containsKey(c.getFileId()));
+      askInteraction.setSources(relevantChunks.stream()
+          .map(c -> new RetrievedSource(c.getId(), documents.get(c.getFileId()).title(), c.getDistance()))
+          .collect(Collectors.toList()));
+
+      // An empty library is no longer a 404: the model answers from general practice and says so.
+      String excerpts = relevantChunks.isEmpty()
+          ? "(aucun extrait : la bibliothèque est vide)"
+          : IntStream.range(0, relevantChunks.size())
+              // numbered from 1, the number the model writes after a fact taken from it (« [2] »); the header says
+              // what the document is to the pump's model
+              .mapToObj(i -> {
+                ExcerptDocument d = documents.get(relevantChunks.get(i).getFileId());
+                return "--- Extrait [" + (i + 1) + "] · fichier : " + d.title() + " · " + headerOf(d, model) + " ---\n"
+                    + relevantChunks.get(i).getChunkText();
+              })
+              .collect(Collectors.joining("\n\n"));
+      String userPrompt = """
+          Équipement de la tâche : %s
+          Modèle de la pompe : %s
+
+          Extraits de la bibliothèque :
+          %s
+
+          Question : %s
+          """.formatted(equipment == null ? "non précisé" : equipment, modelLine(resolved, model, scope), excerpts, question);
+
+      String answer = self.getAnswer(userPrompt, GENERAL_SYSTEM_PROMPT);
+      String known = question + " " + (equipment == null ? "" : equipment);
+      AiResponse response = recordAnswer(answer, relevantChunks, documents, model, known, askInteraction);
+      askInteractionRepository.save(askInteraction);
+      return new AiResponse(response.answer(), askInteraction.getId(), 1, response.sources(), response.generalPractice(),
+          scope.name(), model == null ? null : model.name(), response.warnings());
+    }
+
+    // ---- what each document sent is to the pump's model (plan_pump_manuals.md §6) ----
+
+    // SPEC its spec sheet, OWN a PHOVA document on it, COMPARABLE a comparable pump's manual ticked for it, OTHER
+    // ticked only for other models (or, with no model known, for some model: `models` says which), GENERAL ticked for
+    // no model
+    enum Relation { SPEC, OWN, COMPARABLE, OTHER, GENERAL }
+
+    // linkKind: for OTHER, what the document is to the models it is ticked for (SPEC their sheet, OWN a PHOVA document,
+    // COMPARABLE a comparable pump's manual): a comparable manual's value must not read as that model's either
+    record ExcerptDocument(String fileId, String title, Relation relation, List<PumpType> models, DocumentKind linkKind) {}
+
+    private Map<String, ExcerptDocument> describeDocuments(List<ChunkMatch> chunks, PumpType model)
+    {
+      if (chunks.isEmpty())
+        return Map.of();
+      java.util.Set<String> fileIds = chunks.stream().map(ChunkMatch::getFileId).collect(Collectors.toSet());
+      Map<String, String> names = documentService.getFileNames(fileIds);
+      Map<String, List<ModelLink>> links = pumpDocumentService.linksOf(fileIds);
+      Map<String, ExcerptDocument> out = new java.util.HashMap<>();
+      for (String fileId : fileIds)
+        if (names.containsKey(fileId))
+          out.put(fileId, relationOf(fileId, names.get(fileId), links.getOrDefault(fileId, List.of()), model));
+      return out;
+    }
+
+    static ExcerptDocument relationOf(String fileId, String title, List<ModelLink> links, PumpType model)
+    {
+      if (links.isEmpty())
+        return new ExcerptDocument(fileId, title, Relation.GENERAL, List.of(), null);
+      List<PumpType> models = links.stream().map(ModelLink::model).distinct().toList();
+      if (model != null)
+        for (ModelLink link : links)
+          if (link.model() == model)
+            return new ExcerptDocument(fileId, title, switch (link.kind()) {
+              case SPEC -> Relation.SPEC;
+              case OWN -> Relation.OWN;
+              case COMPARABLE -> Relation.COMPARABLE;
+            }, models, link.kind());
+      // ticked for other models only: what it is to them, its strongest tie first (a sheet, then PHOVA's, then comparable)
+      DocumentKind kind = links.stream().map(ModelLink::kind).min(java.util.Comparator.naturalOrder()).orElse(DocumentKind.COMPARABLE);
+      return new ExcerptDocument(fileId, title, Relation.OTHER, models, kind);
+    }
+
+    private static String headerOf(ExcerptDocument d, PumpType model)
+    {
+      String others = d.models().stream().map(PumpType::name).collect(Collectors.joining(", "));
+      return switch (d.relation()) {
+        case SPEC -> "fiche technique PHOVA du modèle " + model;
+        case OWN -> "document PHOVA sur le modèle " + model;
+        case COMPARABLE -> "manuel d'une pompe comparable au modèle " + model + " : ses valeurs ne sont pas celles du modèle " + model;
+        case OTHER -> (switch (d.linkKind() == null ? DocumentKind.OWN : d.linkKind()) {
+              case SPEC -> "fiche technique PHOVA du modèle " + others;
+              case OWN -> "documentation du modèle " + others;
+              case COMPARABLE -> "manuel d'une pompe comparable au modèle " + others + " : ses valeurs ne sont pas celles du modèle " + others;
+            }) + (model == null ? "" : ", pas du modèle " + model);
+        case GENERAL -> "documentation générale";
+      };
+    }
+
+    private static String modelLine(ResolvedModel resolved, PumpType model, AskScope scope)
+    {
+      if (model == null)
+        return "non précisé. Les extraits viennent de toute la bibliothèque ; l'en-tête de chacun dit de quel modèle il parle.";
+      String from = "CHOSEN".equals(resolved.source()) ? "choisi par le technicien" : "d'après l'équipement " + resolved.equipment();
+      return model + " (" + from + "). " + (scope == AskScope.MANUALS
+          ? "Les extraits viennent de sa fiche technique, des documents rattachés à ce modèle et de la documentation générale."
+          : "Aucun manuel n'est rattaché à ce modèle : après sa fiche technique, les extraits viennent de toute la bibliothèque, "
+            + "y compris de la documentation d'autres modèles.");
+    }
+
+    // what the closing « sources : » line says when no document was used
+    static final String GENERAL_PRACTICE_SOURCE = "connaissances générales";
+    private static final ObjectMapper JSON = new ObjectMapper();
+
+    // Reads the model's reply into the interaction and builds what the technician sees:
+    //   "null"        → NO_ANSWER, shown as is;
+    //   otherwise     → the text without the « [n] » markers, the sources from the excerpts cited (one per
+    //                   document, in the order first cited, with what each is to the pump's model), usedChunk set on
+    //                   each excerpt sent, a closing « sources : » line written by the server for the mobile app (the
+    //                   web reads `sources`), and the server's warnings (§6).
+    // A model that cites nothing but still writes a « sources : » line (prompt 2.1's habit): the names on it are
+    // matched to the titles of the excerpts sent; a name that matches none (« fichier1 ») is dropped.
+    // generalPractice: no document used, or the answer says « (pratique générale) » somewhere.
+    // known: the question and the equipment, whose numbers aren't the answer's figures.
+    // The id and answerCount of the returned AiResponse are left to the caller.
+    static AiResponse recordAnswer(String answer, List<ChunkMatch> excerpts, Map<String, ExcerptDocument> documents,
+        PumpType model, String known, AskInteraction askInteraction)
+    {
+      if (answer.trim().equals("null"))
+      {
+        askInteraction.setAnswer("null");
+        askInteraction.setAskOutcome(AskOutcome.NO_ANSWER);
+        return new AiResponse(List.of(new chatAnswer("-", "null")), null, 1);
+      }
+      AnswerCitations.Parsed parsed = AnswerCitations.parse(answer, excerpts.size());
+
+      // file ids in the order the answer first used them
+      LinkedHashSet<String> usedFiles = new LinkedHashSet<>();
+      List<RetrievedSource> sent = askInteraction.getSources();
+      if (!parsed.cited().isEmpty())
+      {
+        parsed.cited().forEach(i -> usedFiles.add(excerpts.get(i).getFileId()));
+        for (int i = 0; i < sent.size(); i++)
+          sent.get(i).setUsedChunk(parsed.cited().contains(i));
+      }
+      else if (parsed.modelSources() != null)
+        for (String name : parsed.modelSources().split(","))
+        {
+          String wanted = name.strip().toLowerCase();
+          if (wanted.isEmpty() || wanted.contains(GENERAL_PRACTICE_SOURCE))
+            continue;
+          excerpts.stream()
+              .map(ChunkMatch::getFileId)
+              .filter(id -> sameTitle(documents.get(id).title(), wanted))
+              .findFirst()
+              .ifPresent(usedFiles::add);
+        }
+
+      List<AiResponse.Source> sources = usedFiles.stream()
+          .map(documents::get)
+          .map(d -> new AiResponse.Source(d.fileId(), d.title(), d.relation().name(), names(d.models())))
+          .collect(Collectors.toList());
+      boolean generalPractice = sources.isEmpty() || parsed.text().toLowerCase().contains("(pratique générale)");
+      List<AiResponse.Warning> warnings = warningsFor(parsed, excerpts, documents, known);
+      String closing = "sources : " + (sources.isEmpty()
+          ? GENERAL_PRACTICE_SOURCE
+          : sources.stream().map(AiResponse.Source::title).collect(Collectors.joining(", ")));
+      String shown = parsed.text() + "\n" + closing;
+
+      askInteraction.setAnswer(shown);
+      askInteraction.setAskOutcome(AskOutcome.ANSWERED);
+      try {
+        askInteraction.setWarnings(warnings.isEmpty() ? null : JSON.writeValueAsString(warnings));
+      }
+      catch (JsonProcessingException ex) {
+        System.out.println("warnings not saved : " + ex.getMessage());
+      }
+      return new AiResponse(List.of(new chatAnswer("-", shown)), null, 1, sources, generalPractice,
+          null, model == null ? null : model.name(), warnings);
+    }
+
+    // The labels the server puts on the answer (§6), whatever the model wrote:
+    //   - each figure of the answer is looked up in the excerpts sent: found in the pump's own documents (its sheet,
+    //     PHOVA's) or in the general documentation, no label; found only in a comparable pump's manual or another
+    //     model's documentation, labelled with that document (a cited one first); found nowhere, UNDOCUMENTED;
+    //   - a cited document that isn't the pump's own is labelled even without a figure (a procedure taken from it).
+    static List<AiResponse.Warning> warningsFor(AnswerCitations.Parsed parsed, List<ChunkMatch> excerpts,
+        Map<String, ExcerptDocument> documents, String known)
+    {
+      Map<String, List<String>> figuresByFile = new java.util.LinkedHashMap<>();
+      List<String> undocumented = new ArrayList<>();
+      for (AnswerFigures.Figure figure : AnswerFigures.in(parsed.text(), known))
+      {
+        List<Integer> holders = IntStream.range(0, excerpts.size())
+            .filter(i -> AnswerFigures.states(excerpts.get(i).getChunkText(), figure))
+            .boxed().toList();
+        if (holders.isEmpty())
+        {
+          undocumented.add(figure.shown());
+          continue;
+        }
+        boolean ownOrGeneral = holders.stream().map(i -> documents.get(excerpts.get(i).getFileId()).relation())
+            .anyMatch(r -> r == Relation.SPEC || r == Relation.OWN || r == Relation.GENERAL);
+        if (ownOrGeneral)
+          continue;
+        int holder = holders.stream().filter(parsed.cited()::contains).findFirst().orElse(holders.get(0));
+        figuresByFile.computeIfAbsent(excerpts.get(holder).getFileId(), id -> new ArrayList<>()).add(figure.shown());
+      }
+      for (int i : parsed.cited())
+      {
+        ExcerptDocument d = documents.get(excerpts.get(i).getFileId());
+        if (d.relation() == Relation.COMPARABLE || d.relation() == Relation.OTHER)
+          figuresByFile.putIfAbsent(d.fileId(), new ArrayList<>());
+      }
+      List<AiResponse.Warning> warnings = new ArrayList<>();
+      figuresByFile.forEach((fileId, figures) -> {
+        ExcerptDocument d = documents.get(fileId);
+        warnings.add(new AiResponse.Warning(d.relation().name(), figures, d.title(), d.fileId(), names(d.models()),
+            d.relation() == Relation.OTHER && d.linkKind() != null ? d.linkKind().name() : null));
+      });
+      if (!undocumented.isEmpty())
+        warnings.add(new AiResponse.Warning("UNDOCUMENTED", undocumented, null, null, List.of()));
+      return warnings;
+    }
+
+    private static List<String> names(List<PumpType> models)
+    {
+      return models.stream().map(PumpType::name).toList();
+    }
+
+    // « AHLSTAR.pdf », « AHLSTAR » and « ahlstar.PDF » name the same document; « fichier1 » names none
+    private static boolean sameTitle(String title, String wanted)
+    {
+      String a = title.toLowerCase().replaceFirst("\\.(pdf|txt|md|csv|xlsx?)$", "").strip();
+      String b = wanted.replaceFirst("\\.(pdf|txt|md|csv|xlsx?)$", "").strip();
+      return !a.isEmpty() && a.equals(b);
+    }
+
+    // /api/v1/ask: the general version for now (answerPhovaWithAiRag above, commented out, is the specific one)
     public AiResponse answerWithAiRag(AskRequest request,
         String userId)
     {
       System.out.println("answer with ai rag called");
-      
-      AiResponse response = answerPhovaWithAiRag(request, userId);
-      
+
+      AiResponse response = answerGeneralWithAiRag(request, userId);
+
       return response;
         /*
         ragMetrics.incrementAsk();

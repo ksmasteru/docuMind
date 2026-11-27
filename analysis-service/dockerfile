@@ -5,7 +5,14 @@ WORKDIR /app
 
 COPY requirements.txt .
 
-RUN pip install --no-cache-dir -r requirements.txt
+# A slow link to PyPI made a single stalled read (15 s default) fail the whole build.
+# Wait longer, retry, and keep downloaded wheels in BuildKit's cache (not in the image)
+# so a rerun after a failure only fetches what is missing.
+ENV PIP_DEFAULT_TIMEOUT=120 \
+    PIP_RETRIES=10 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r requirements.txt
 
 COPY . .
 

@@ -1,0 +1,17 @@
+Fiche technique PHOVA : pompe OTW (pompe à eau).
+Modèle : OTW.
+Source : rapport PFA PHOVA, section 2.4.1, d'après le catalogue produits PHOVA-Technology.
+
+Description.
+Les pompes à eau sont des équipements indispensables dans de nombreux secteurs industriels et infrastructures, assurant l’acheminement de l’eau pour divers usages. PHOVA-Technology conçoit et fabrique des pompes à eau performantes, adaptées aux exigences de plusieurs industries, telles que le traitement des eaux, le pompage de l’eau de mer et les unités de dessalement.
+
+Caractéristiques de la série OTW.
+Débit : jusqu’à 1250 m3/h.
+Hauteur : jusqu’à 160 m.
+Pression : jusqu’à 25 bar.
+Température : jusqu’à 200 °C.
+
+Les valeurs « jusqu’à » sont les maximums annoncés pour la série OTW. La valeur d’une pompe donnée figure sur sa plaque signalétique et dans sa fiche technique.
+
+Non indiqué dans la source, à compléter par PHOVA.
+Vitesse de rotation.

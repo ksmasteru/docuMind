@@ -170,6 +170,14 @@ cd /opt/documind && git pull && ./scripts/init-server.sh
 This rebuilds and restarts the stack and re-runs the database check. It also adds any account
 newly listed in `roles_accounts.txt` and any new form in `forms/quality/` or `forms/workshop/`.
 
+### No `analysis-service` on the report platform (since 2026-11-25)
+
+Nothing to run by hand. The stack no longer has the Python `analysis-service`: it only read CSV/Excel uploads,
+which the platform doesn't use, and its image failed to build when PyPI was slow. `init-server.sh` starts the stack
+with `--remove-orphans`, so the old container is removed on the next update. Volumes are left alone. « Importer »
+now takes PDF, TXT and MD only, and the backend refuses a spreadsheet. An `ANALYSIS_HOST` line left in `.env` is
+harmless. ([plan_remove_analysis_service.md](plan_remove_analysis_service.md))
+
 ### Forms for technicians (since 2026-11-21)
 
 Nothing to run by hand: `./scripts/init-server.sh` covers it ([plan_forms_technician_assembly.md](plan_forms_technician_assembly.md)).
@@ -222,8 +230,56 @@ technician's report sent without a task goes to his manager's « Revue ».
    v2 expertise reports, the assembly report, the quality forms). It skips the shared role accounts and the
    demo team.
 6. **In the app, as the admin:** « Comptes » → « Nouveau manager » for each manager; « Importer » for the
-   manuals.
+   manuals, ticking the pump models each one serves (below).
 7. **Each manager:** « Techniciens » → his technicians. Everyone chooses their own password in « Mon compte ».
+
+### Pump documents, spec sheets, chat sources (since 2026-11-25)
+
+Nothing to run by hand ([plan_pump_manuals.md](plan_pump_manuals.md), [plan_rapports_new_changes.md](plan_rapports_new_changes.md)):
+the backend creates the table `pump_model_document`, step 4's database check knows its values, and step 7c
+(`scripts/hdx_removed.sql`) clears what still says HDX. What changes on the server:
+
+- **Spec sheets:** at its first start the backend installs one « Fiche technique » per model (OTW, OTC, OTS,
+  PHB2, PHB3, PHH, from `backend/src/main/resources/specs/`) into the library: six embedding calls to OpenAI.
+  `docker logs backend | grep "spec sheet"` shows « installed ». If OpenAI was unreachable, the next start tries
+  again. The admin, the managers and the technicians read them on « Fiches techniques »; the admin edits or
+  replaces them there, and a redeploy never overwrites the admin's version.
+- **Ticking documents:** on « Importer », the admin ticks the pump models a document serves, and whether it is a
+  PHOVA document or a comparable pump's manual. Documents imported before have no model: tick them on
+  « Documents » (search, then « Modèles »), as done locally (`manuals_pump_choice.md` on `test`): AHLSTAR and
+  AHLSTAR CC → OTW, MBN and MBN RO → PHB3, ZPP horizontal → PHB2, all « pompe comparable ». Then remove
+  `rapport_pfa_phova.pdf` if it was imported: its figures are now in the spec sheets.
+- **The chat knows the pump:** from a task, the model its equipment's code starts with (« OTW-JORF-01 » → OTW;
+  the report platform has no pump registry, and a blank equipment gives « Pompe non précisée »); on « Assistant »,
+  the model picked above the chat. It searches that model's documents and the general ones, always reads its spec
+  sheet, and labels in amber any value taken from a comparable pump's manual, another model's documentation, or
+  no document at all. The sources under an answer are the documents it cited; each chip opens it.
+- **Only the admin writes to the library:** uploading, scanning a page in and deleting documents answer 403 to
+  every other role, also through the API.
+
+### Notifications (since 2026-11-25)
+
+Nothing to run by hand ([plan_notifications_both.md](plan_notifications_both.md)): the backend creates the table
+`notification`, and step 4's database check knows its values. What changes on the server:
+
+- **A bell in every header** with the unread count: a technician is told of a task sent to him, a report
+  validated, sent back or rejected, a task cancelled; a manager of a report waiting in « Revue » (a task's, or one
+  a technician filed on his own) and of a task declined or put on hold. Clicking a line opens its page.
+- **E-mail notifications are off** until an SMTP account is in `.env`. To switch them on, add these keys
+  (they are commented out in `.env.server.example`), then restart the backend
+  (`docker compose -f docker-compose.server.yml up -d backend`):
+
+  ```sh
+  SPRING_MAIL_HOST=smtp.example.com
+  SPRING_MAIL_PORT=587
+  SPRING_MAIL_USERNAME=rapports@phova.com
+  SPRING_MAIL_PASSWORD=…
+  MAIL_FROM=PHOVA Rapports <rapports@phova.com>
+  ```
+
+  STARTTLS and login are on by default. The links in the e-mails use `FRONT_END_URL`. A refused e-mail is
+  only logged (`docker logs backend | grep "notification e-mail"`), and `/actuator/health` doesn't depend on
+  the SMTP server. Each person's e-mail is their login, so the accounts need real addresses.
 
 ### Back to the full platform, later
 

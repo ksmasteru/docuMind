@@ -1,75 +1,72 @@
-import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
 import { apiClient } from "./apiClient";
 import Layout from "./Layout";
 import FilesList from "./FilesList.jsx";
-// the backend send takes /api/v1/files/searchkeyword
-// and returns fileReponse
-const DEBOUNCE_MS = 350;
+
+// « Documents »: the whole library, for every role (plan_documents_list.md). GET /api/v1/files gives every
+// document once, when the page opens; the box then filters that list as you type, without a request per key.
+
+// « Procédure » finds « procedure », « OTW fiche » finds « Fiche technique OTW »
+const fold = (text) => (text ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 export default function SearchPage() {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState([]);
-  const [status, setStatus] = useState("idle"); // idle | loading | success | error
-  const [fullUrl, setFullUrl] = useState("");
-  const abortControllerRef = useRef(null);
+  const [files, setFiles] = useState([]);
+  const [status, setStatus] = useState("loading"); // loading | success | error
+  const [attempt, setAttempt] = useState(0); // « Réessayer » loads the list again
+
+  const retry = () => {
+    setStatus("loading");
+    setAttempt((n) => n + 1);
+  };
 
   useEffect(() => {
-    const trimmed = query.trim();
-    setFullUrl("/api/v1/files/" + trimmed);
-    if (!trimmed) {
-      setResults([]);
-      setStatus("idle");
-      setFullUrl("");
-      // Cancel anything still in flight from a previous keystroke
-      abortControllerRef.current?.abort();
-      return;
-    }
+    const controller = new AbortController();
+    apiClient
+      .get("/api/v1/files", { signal: controller.signal })
+      .then(({ data }) => {
+        setFiles(data?.files ?? []);
+        setStatus("success");
+      })
+      .catch((err) => {
+        if (err.code === "ERR_CANCELED") return;
+        console.log("Error while fetching the documents", err);
+        setStatus("error");
+      });
+    return () => controller.abort();
+  }, [attempt]);
 
-    const timeoutId = setTimeout(() => {
-      // If the user kept typing, this kills the previous request rather than
-      // letting it land after a newer one and overwrite fresher results.
-      abortControllerRef.current?.abort();
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
+  const trimmed = query.trim();
+  // every word typed is somewhere in the name, in any order
+  const shown = useMemo(() => {
+    const words = fold(trimmed).split(/\s+/).filter(Boolean);
+    return words.length ? files.filter((file) => words.every((word) => fold(file.name).includes(word))) : files;
+  }, [files, trimmed]);
 
-      setStatus("loading");
-
-      apiClient
-        .get(fullUrl, {})
-        .then(({ data }) => {
-          setResults(data);
-          setStatus("success");
-        })
-        .catch((err) => {
-          if (err.code === "ERR_CANCELED") return;
-          setStatus("error");
-        });
-    }, DEBOUNCE_MS);
-
-    return () => clearTimeout(timeoutId);
-  }, [query]);
+  const count = (n) => `${n} document${n > 1 ? "s" : ""}`;
 
   return (
     <Layout active="search">
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <main className="mx-auto max-w-2xl px-4 py-10">
-        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Search documents</h1>
+        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Documents</h1>
+        {status === "success" && (
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            {trimmed && files.length > 0 ? `${shown.length} sur ${count(files.length)}` : count(files.length)}
+          </p>
+        )}
 
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by title or tag…"
+          placeholder="Rechercher un document par son nom…"
+          aria-label="Rechercher un document"
           autoFocus
           className="mt-4 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-indigo-900"
         />
 
         <div className="mt-6">
-          {status === "idle" && (
-            <p className="text-sm text-slate-400 dark:text-slate-500">Start typing to search your workspace.</p>
-          )}
-
           {status === "loading" && (
             <ul className="space-y-2">
               {[0, 1, 2].map((i) => (
@@ -79,18 +76,26 @@ export default function SearchPage() {
           )}
 
           {status === "error" && (
-            <p className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
-              Search failed. Try again.
-            </p>
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+              <p>La liste des documents n'a pas pu être chargée.</p>
+              <button type="button" onClick={retry}
+                className="rounded-lg px-2 py-1 font-medium hover:bg-red-100 dark:hover:bg-red-900">
+                Réessayer
+              </button>
+            </div>
           )}
 
-          {status === "success" && results.length === 0 && (
-            <p className="text-sm text-slate-400 dark:text-slate-500">No documents match "{query.trim()}".</p>
+          {status === "success" && files.length === 0 && (
+            <p className="text-sm text-slate-400 dark:text-slate-500">Aucun document pour l'instant.</p>
           )}
 
-          {status === "success" && results.filesCount > 0 && (
+          {status === "success" && files.length > 0 && shown.length === 0 && (
+            <p className="text-sm text-slate-400 dark:text-slate-500">Aucun document ne correspond à « {trimmed} ».</p>
+          )}
+
+          {status === "success" && shown.length > 0 && (
             <ul className="space-y-2">
-              {<FilesList filesList={results.files}></FilesList>}
+              <FilesList filesList={shown} />
             </ul>
           )}
         </div>
@@ -99,19 +104,3 @@ export default function SearchPage() {
     </Layout>
   );
 }
-
-function formatDate(isoString) {
-  if (!isoString) return "";
-  return new Date(isoString).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function formatBytes(bytes) {
-  if (!bytes) return "";
-  const kb = bytes / 1024;
-  return kb < 1024 ? `${kb.toFixed(0)} KB` : `${(kb / 1024).toFixed(1)} MB`;
-}
-

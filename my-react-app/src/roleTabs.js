@@ -8,7 +8,7 @@
 //
 // The report platform (edition.js, plan_rapports_platform.md) has its own, smaller set (RAPPORTS_TABS), and
 // keeps every role to its own pages.
-import { Activity, Bell, ClipboardCheck, Siren, ClipboardList, Cpu, FileCheck, FileSearch, FileUp, House, LayoutDashboard, ListChecks, MessageSquareText, ShieldCheck, UserCog, Users, Wrench } from "lucide-react";
+import { Activity, Bell, ClipboardCheck, Siren, ClipboardList, Cpu, FileCheck, FileSearch, FileUp, House, LayoutDashboard, ListChecks, MessageSquareText, ScrollText, ShieldCheck, UserCog, Users, Wrench } from "lucide-react";
 import { RAPPORTS } from "./edition";
 
 // keyed by the `active` value each page passes to <Layout>
@@ -19,6 +19,8 @@ export const NAV_LINKS = {
   alerts:      { to: "/alerts",       label: "Alertes",         icon: Bell },
   search:      { to: "/documents",    label: "Documents",       icon: FileSearch },
   upload:      { to: "/upload",       label: "Importer",        icon: FileUp },
+  // every pump model's spec sheet, kept up to date by the admin (SpecSheets.jsx, plan_pump_manuals.md §7)
+  specs:       { to: "/fiches",       label: "Fiches techniques", icon: ScrollText },
   ask:         { to: "/ask",          label: "Assistant",       icon: MessageSquareText },
   tasks:       { to: "/tasks",        label: "Tâches",          icon: ListChecks },
   forms:       { to: "/forms",        label: "Formulaires",     icon: ClipboardCheck },
@@ -34,14 +36,16 @@ export const NAV_LINKS = {
   fieldAlerts: { to: "/terrain",      label: "Alertes",         icon: Siren },
   // the super admin's accounts: the managers he creates (AccountsAdmin.jsx, the report platform)
   accounts:    { to: "/comptes",      label: "Comptes",         icon: UserCog },
+  // the reports in figures: filed, waiting, validated, per technician (ReportStats.jsx, the report platform)
+  stats:       { to: "/statistiques", label: "Tableau de bord", icon: LayoutDashboard },
 };
 
 export const ROLE_TABS = {
-  MANAGER: ["dashboard", "pumps", "alerts", "technicians", "orders", "review", "forms", "controls", "search", "ask"],
-  ADMIN: ["upload", "search", "ask"],
+  MANAGER: ["dashboard", "pumps", "alerts", "technicians", "orders", "review", "forms", "controls", "search", "specs", "ask"],
+  ADMIN: ["upload", "search", "specs", "ask"],
   // technicians fill in forms, follow their tasks and look things up in the manuals
   // and check the alerts of their site, or report a fault the twin did not see
-  USER: ["forms", "tasks", "fieldAlerts", "controls", "ask", "search"],
+  USER: ["forms", "tasks", "fieldAlerts", "controls", "ask", "search", "specs"],
   // the workshop loop (fix_workshop.md): each role works its steps from its queue (Atelier). Every
   // PHOVA role also fills the quality forms (non-conformité, réclamations, dérogation) and finds them,
   // and what their role may read, in Fiches qualité
@@ -49,8 +53,8 @@ export const ROLE_TABS = {
   BUSINESS_OPS: ["workshop", "forms", "controls"],
   CONTRACT_ADMIN: ["workshop", "forms", "controls"],
   // they also follow the interventions they worked on (Suivi), like the manager's Ordres
-  PROJECT_LEAD: ["workshop", "followup", "forms", "controls"],
-  WORKSHOP_LEAD: ["workshop", "followup", "forms", "controls"],
+  PROJECT_LEAD: ["workshop", "followup", "forms", "controls", "specs"],
+  WORKSHOP_LEAD: ["workshop", "followup", "forms", "controls", "specs"],
   HSE: ["workshop", "forms", "controls"],
   STOREKEEPER: ["workshop", "forms", "controls"],
   // Quality also fills the control sheets (Formulaires) and reads every one sent (Contrôles)
@@ -62,9 +66,9 @@ export const ROLE_TABS = {
 // a manager sends reports to fill as tasks, and reviews them with the ones his technicians send on their own;
 // a technician fills reports (from a task, or on his own) and follows them. Documents and assistant for all
 const RAPPORTS_TABS = {
-  ADMIN: ["accounts", "review", "search", "upload", "ask"],
-  MANAGER: ["review", "orders", "technicians", "search", "ask"],
-  USER: ["forms", "tasks", "search", "ask"],
+  ADMIN: ["stats", "accounts", "review", "search", "specs", "upload", "ask"],
+  MANAGER: ["stats", "review", "orders", "technicians", "search", "specs", "ask"],
+  USER: ["forms", "tasks", "search", "specs", "ask"],
 };
 
 // the pages a role reaches from its own on the report platform, though they have no link:
@@ -79,11 +83,11 @@ export const SIDEBAR_ROLES = ["MANAGER"];
 
 // how the sidebar groups a role's links; a link outside every section is left out
 export const NAV_SECTIONS = [
-  { title: "Vue d'ensemble", pages: ["dashboard"] },
+  { title: "Vue d'ensemble", pages: ["dashboard", "stats"] },
   { title: "Parc",           pages: ["pumps", "alerts"] },
   { title: "Maintenance",    pages: ["technicians", "orders", "review", "tasks", "forms"] },
   { title: "Qualité",        pages: ["controls"] },
-  { title: "Documentation",  pages: ["search", "ask", "upload"] },
+  { title: "Documentation",  pages: ["search", "specs", "ask", "upload"] },
 ];
 
 // an unknown role gets the technician's links, the smallest set

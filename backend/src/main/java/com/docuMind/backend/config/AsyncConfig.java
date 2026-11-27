@@ -23,4 +23,18 @@ public class AsyncConfig {
         executor.initialize();
         return executor;
     }
+
+    // the notifications' e-mails (NotificationMailer): one thread is plenty, and a full queue drops
+    // the oldest e-mails rather than blocking the actions behind them (the bell still has them)
+    @Bean(name = "mailExecutor")
+    public Executor mailExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(1);
+        executor.setMaxPoolSize(1);
+        executor.setQueueCapacity(500);
+        executor.setThreadNamePrefix("mail-");
+        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.DiscardOldestPolicy());
+        executor.initialize();
+        return executor;
+    }
 }

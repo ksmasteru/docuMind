@@ -1,0 +1,18 @@
+Fiche technique PHOVA : pompe PHB2 (pompe à double aspiration).
+Modèle : PHB2.
+Source : rapport PFA PHOVA, section 2.4.4, d'après le catalogue produits PHOVA-Technology.
+
+Description.
+La série PHB2 est une pompe à double aspiration montée entre paliers, conforme à API 610 / ISO 13709 type BB2. La roue à double ouïe équilibre les efforts axiaux, ce qui allège les paliers et réduit le NPSH requis, tandis que le corps radialement fendu donne accès aux parties tournantes sans démonter la tuyauterie. Elle est retenue pour le transport de brut, l’alimentation de chaudières et l’injection d’eau de mer.
+
+Caractéristiques de la série PHB2.
+Débit : jusqu’à 1000 m3/h (2 pôles).
+Débit : jusqu’à 2000 m3/h (4 pôles).
+Hauteur : jusqu’à 400 m (2 pôles).
+Hauteur : jusqu’à 200 m (4 pôles).
+Vitesse de rotation : jusqu’à 2960 tr/min (2 pôles).
+Vitesse de rotation : jusqu’à 1470 tr/min (4 pôles).
+Pression : jusqu’à 100 bar.
+Température : jusqu’à 450 °C.
+
+Les valeurs « jusqu’à » sont les maximums annoncés pour la série PHB2. La valeur d’une pompe donnée figure sur sa plaque signalétique et dans sa fiche technique.

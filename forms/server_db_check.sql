@@ -1,13 +1,14 @@
 -- Database checks after a deploy: what Hibernate's ddl-auto=update does not fix by itself.
 -- Read-only: it only prints problems. Run it on the server from /opt/documind:
 --   docker compose -f docker-compose.server.yml exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < forms/server_db_check.sql
--- Both results should be "(0 rows)". The enum values below are the code's of 2026-11-12:
+-- Both results should be "(0 rows)". The enum values below are the code's of 2026-11-25:
 -- when an enum gains a value, add it here too.
 
 -- 1. enum restrictions that miss a value the code now uses: run each "fix" line it prints
 with expected(tbl, col, vals) as (values
   ('ask_interaction', 'verdict', 'PENDING,CONFIRMED,CORRECTED,REJECTED'),
   ('ask_interaction', 'ask_outcome', 'ANSWERED,NO_ANSWER,NO_CHUNKS,MULTI_PUMP'),
+  ('ask_interaction', 'scope', 'MANUALS,NO_MANUAL,NO_MODEL'),
   ('check_list_item', 'answer_type', 'BON_MAUVAIS,TEXT,IMAGE,DATE,SINGLE_CHOICE,MULTI_CHOICE,MEASURE,PARTS_SUMMARY,TABLE'),
   ('check_list_submission', 'status', 'DRAFT,CONFORME,NON_CONFORME,VALIDATED'),
   ('check_list_template', 'check_list_type', 'INSPECTION,PERMIT'),
@@ -21,7 +22,10 @@ with expected(tbl, col, vals) as (values
   ('intervention_event', 'action', 'CREATE,TAKE,VALIDATE,CANCEL,RETURN,WAIT,RESUME,BLOCK,UNBLOCK'),
   ('intervention_event', 'from_status', 'A_TRAITER,EN_COURS,EN_ATTENTE,BLOQUE,A_CORRIGER,VALIDE'),
   ('intervention_event', 'to_status', 'A_TRAITER,EN_COURS,EN_ATTENTE,BLOQUE,A_CORRIGER,VALIDE'),
-  ('pump_models', 'type', 'OTW,OTC,OTS,PHB2,PHB3,PHH,HDX'),
+  ('pump_models', 'type', 'OTW,OTC,OTS,PHB2,PHB3,PHH'),
+  ('pump_model_document', 'model', 'OTW,OTC,OTS,PHB2,PHB3,PHH'),
+  ('pump_model_document', 'kind', 'SPEC,OWN,COMPARABLE'),
+  ('pump_model_document', 'origin', 'INSTALLED,ADMIN'),
   ('quote', 'status', 'DRAFT,SENT,ACCEPTED,REFUSED,CANCELED'),
   ('task_event', 'event_type', 'STATUS_CHANGED,REASSIGNED,COMMENTED'),
   ('task_event', 'from_status', 'ASSIGNED,STARTED,BLOCKED,SUBMITTED,DECLINED,CANCELED,REJECTED,RETURNED,APPROVED'),
@@ -47,7 +51,8 @@ with expected(tbl, col, vals) as (values
   ('check_report', 'cannot_handle_reason', 'SKILLS,TOOLS_LIFTING,PARTS,WORKSHOP,OTHER'),
   ('check_report_result', 'kind', 'STATE,MEASURE'),
   ('check_report_result', 'result', 'OK,ANOMALY,NOT_CHECKABLE'),
-  ('users', 'role', 'ADMIN,MANAGER,USER,SALES,BUSINESS_OPS,CONTRACT_ADMIN,PROJECT_LEAD,WORKSHOP_LEAD,HSE,STOREKEEPER,QUALITY,BILLING')
+  ('users', 'role', 'ADMIN,MANAGER,USER,SALES,BUSINESS_OPS,CONTRACT_ADMIN,PROJECT_LEAD,WORKSHOP_LEAD,HSE,STOREKEEPER,QUALITY,BILLING'),
+  ('notification', 'kind', 'TASK,REVIEW,WORKSHOP,STOCK,INFO')
 )
 select format('alter table %I drop constraint %I;', e.tbl, c.conname) as fix,
        (select string_agg(v, ', ') from unnest(string_to_array(e.vals, ',')) v

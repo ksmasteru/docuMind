@@ -1,0 +1,19 @@
+Fiche technique PHOVA : pompe PHB3 (pompe multicellulaire).
+Modèle : PHB3.
+Source : rapport PFA PHOVA, section 2.4.5, d'après le catalogue produits PHOVA-Technology.
+
+Description.
+La série PHB3 est une pompe multicellulaire à plan de joint axial, à double volute et roues opposées, conforme à API 610 / ISO 13709 type BB3. L’empilement des étages, jusqu’à quatorze, fait croître la hauteur manométrique à débit constant et permet d’atteindre les pressions les plus élevées de la gamme. Elle équipe les unités de dessalement, l’osmose inverse et l’exhaure minière.
+
+Caractéristiques de la série PHB3.
+Débit : jusqu’à 1250 m3/h (50 Hz).
+Débit : jusqu’à 1500 m3/h (60 Hz).
+Hauteur : jusqu’à 1550 m (50 Hz).
+Hauteur : jusqu’à 2200 m (60 Hz).
+Vitesse de rotation : jusqu’à 2980 tr/min (50 Hz).
+Vitesse de rotation : jusqu’à 3560 tr/min (60 Hz).
+Pression : jusqu’à 255 bar.
+Température : jusqu’à 205 °C.
+Nombre d’étages : jusqu’à quatorze.
+
+Les valeurs « jusqu’à » sont les maximums annoncés pour la série PHB3. La valeur d’une pompe donnée figure sur sa plaque signalétique et dans sa fiche technique.

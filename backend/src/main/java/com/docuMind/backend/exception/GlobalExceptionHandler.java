@@ -420,6 +420,17 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorFormat, HttpStatus.CONFLICT);
     }
 
+    // no record with that id (a document whose pump models the admin changes, AdminDocumentController)
+    @ExceptionHandler(RecordNotFoundException.class)
+    public ResponseEntity<ErrorFormat> handleRecordNotFoundException(RecordNotFoundException ex, WebRequest request)
+    {
+        ErrorFormat errorFormat = new ErrorFormat(
+            LocalDateTime.now(),
+            ex.getMessage(),
+            request.getDescription(false));
+        return new ResponseEntity<>(errorFormat, HttpStatus.NOT_FOUND);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorFormat> handleException(
         Exception ex, WebRequest request)

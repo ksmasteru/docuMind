@@ -7,6 +7,7 @@ import AppShell from "./AppShell";
 import { ThemeToggle } from "./ThemeToggle";
 import { NAV_LINKS, SIDEBAR_ROLES, homeFor, tabsFor } from "./roleTabs";
 import { RAPPORTS } from "./edition";
+import NotificationBell from "./NotificationBell";
 
 // kept here too: the login and signup pages import it from this file
 export { ThemeToggle };
@@ -57,6 +58,7 @@ export function TopBar({ active }) {
         <Link to="/users"  className={linkClass("users")}>Members</Link></>
         }
         <span className="flex items-center gap-1 py-2">
+          <NotificationBell className={iconButton} />
           <Link to="/compte" aria-label="Mon compte" title="Mon compte" aria-current={active === "account" ? "page" : undefined} className={iconButton}>
             <UserRound className="size-4" />
           </Link>

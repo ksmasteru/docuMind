@@ -91,6 +91,9 @@ public interface TaskRepository extends JpaRepository<TaskModel, String>
     // (CheckListTemplateService.mayOpen: a manager assigns any report)
     boolean existsByTechnicianEmailAndTemplateId(String technicianEmail, String templateId);
 
+    // every task that names this manager, whatever its status: his « Tableau de bord » (ReportStatsService)
+    List<TaskModel> findByManagerEmail(String managerEmail);
+
     // a technician with a task on an alert (its check, or a work order made from it) may read its
     // check report (CheckService.readable): not one he declined or that was canceled
     boolean existsByTechnicianEmailAndAlertNumberAndStatusNotIn(String technicianEmail, Long alertNumber,
